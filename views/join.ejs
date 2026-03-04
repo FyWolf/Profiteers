@@ -1,0 +1,167 @@
+<%- include('partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>JOIN US</h1>
+        <div class="subtitle">Become a Profiteer</div>
+    </header>
+
+    <section class="section text-center">
+        <h2>Why Join Profiteers PMC?</h2>
+        <img src="/ressources/recruitment-banner.webp" alt="Recruitment banner" style="margin: 20px auto;" class="image-placeholder"/>
+        <p style="font-size: 1.15em; line-height: 1.8;">
+            Join the largest LGBTQ+ Arma 3 unit for inclusive, semi-serious military simulation gameplay.
+            No ranks, no mandatory attendance, just great operations and even better people.
+        </p>
+    </section>
+
+    <section class="section">
+        <h2>REQUIREMENTS</h2>
+        <img src="/ressources/breaker-prom.png" alt="Breaker promotion" style="margin: 20px 0; width: 100%;" class="image-placeholder"/>
+        
+        <h3>Interview</h3>
+        <p>
+            Before joining, we'll have a short chat to learn your interests and answer any questions you may have.
+            This is casual and informal - we just want to make sure Profiteers is a good fit for you!
+        </p>
+        
+        <h3>Attendance</h3>
+        <p style="color: var(--olive-light); font-size: 1.1em;">
+            <strong>No mandatory hours. No leave requests. Play as much or as little as you want.</strong>
+        </p>
+        <p>We understand real life comes first. Show up when you can!</p>
+        
+        <h3>Training</h3>
+        <p>
+            The only requirement is a short BCT (Basic Combat Training) course. This covers the essentials
+            you need to know for operations.
+        </p>
+        <p>
+            Beyond that, we offer optional training for advanced roles:
+        </p>
+        
+        <!-- Training Certifications Grid -->
+        <% if (trainings && trainings.length > 0) { %>
+            <div style="margin: 20px 0; padding: 20px; background: rgba(107,142,35,0.1); border: 1px solid var(--olive); border-radius: 8px;">
+                <h4 style="color: var(--olive-light); margin-bottom: 15px; text-align: center;">Available Training Certifications</h4>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+                    <% trainings.forEach(training => { %>
+                        <div style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(0,0,0,0.3); border-left: 3px solid var(--accent); border-radius: 4px;">
+                            <% if (training.image_url) { %>
+                                <img src="<%= training.image_url %>" 
+                                     alt="<%= training.name %>" 
+                                     style="width: 40px; height: 40px; object-fit: contain; border: 2px solid <%= training.color || 'var(--accent)' %>; border-radius: 4px; padding: 2px; background: rgba(0,0,0,0.5);">
+                            <% } else { %>
+                                <span style="font-size: 1.2em;">🎖️</span>
+                            <% } %>
+                            <div>
+                                <div style="font-weight: 700; color: var(--sand); font-size: 0.95em;">
+                                    <%= training.name %>
+                                </div>
+                                <% if (training.description) { %>
+                                    <div style="font-size: 0.75em; color: var(--khaki); opacity: 0.8;">
+                                        <%= training.description.length > 40 ? training.description.substring(0, 40) + '...' : training.description %>
+                                    </div>
+                                <% } %>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            </div>
+        <% } else { %>
+            <ul style="margin-left: 40px; margin-top: 10px;">
+                <li>Leadership Training</li>
+                <li>Special Weapons & Advanced Gunnery (SWAG)</li>
+                <li>Medic Certification</li>
+                <li>And more!</li>
+            </ul>
+        <% } %>
+    </section>
+
+    <section class="section">
+        <h2>WHAT WE OFFER</h2>
+        <div class="grid grid-2">
+            <div class="card">
+                <h3>Regular Operations</h3>
+                <p>Every Saturday, 17:00-20:00 UTC (11:00-14:00 EST)</p>
+                <p>From small skirmishes to full-scale warfare</p>
+            </div>
+            <div class="card">
+                <h3>Custom Campaigns</h3>
+                <p>Community-driven lore and storylines</p>
+                <p>Narrative woven into missions</p>
+            </div>
+            <div class="card">
+                <h3>Inclusive Community</h3>
+                <p>LGBTQ+ friendly environment</p>
+                <p>Zero tolerance for discrimination</p>
+            </div>
+            <div class="card">
+                <h3>Growth Opportunities</h3>
+                <p>Join Operations, Training, or Zeus teams</p>
+                <p>Help create content and shape the unit</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2>OPPORTUNITIES</h2>
+        <p>Within Profiteers PMC, we're always looking to expand further and better ourselves.</p>
+        
+        <h3>Operations Department</h3>
+        <p>
+            Do you have an interest in writing story arcs for our deployments or news covers? 
+            Our Operations Department is looking for creative minds.
+        </p>
+        
+        <h3>Training Department</h3>
+        <p>
+            Ever wanted to teach others so our operations go semi-smoothly? 
+            Our Training Department needs more instructors.
+        </p>
+        
+        <h3>Zeus Team</h3>
+        <p>
+            Interested in game mastering and creating memorable experiences? 
+            We're always looking for talented Zeus operators.
+        </p>
+    </section>
+
+    <section class="section">
+        <h2>WHAT OUR MEMBERS SAY</h2>
+        <div class="grid grid-2">
+            <div class="card">
+                <p style="font-style: italic;">"This was cheaper than therapy."</p>
+                <p style="text-align: right; color: var(--olive-light); margin-top: 10px;">— Queenpug</p>
+            </div>
+            <div class="card">
+                <p style="font-style: italic;">"You can lead a horse to the water but it will still wander in a fucking minefield."</p>
+                <p style="text-align: right; color: var(--olive-light); margin-top: 10px;">— Rabbit</p>
+            </div>
+            <div class="card">
+                <p style="font-style: italic;">"I got kidnapped."</p>
+                <p style="text-align: right; color: var(--olive-light); margin-top: 10px;">— Yuzu</p>
+            </div>
+            <div class="card">
+                <p style="font-style: italic;">"Airstrikes will continue until morale improves."</p>
+                <p style="text-align: right; color: var(--olive-light); margin-top: 10px;">— Delf</p>
+            </div>
+        </div>
+        <p class="text-center mt-2" style="color: var(--khaki);">
+            <a href="/" style="color: var(--accent);">See more quotes on the homepage →</a>
+        </p>
+    </section>
+
+    <section class="section text-center">
+        <h2>READY TO ENLIST?</h2>
+        <p style="font-size: 1.2em; margin: 20px 0;">
+            Join our Discord and start your journey with Profiteers PMC today!
+        </p>
+        <a href="https://discord.gg/profiteers" class="btn btn-primary" style="font-size: 1.3em;">Join Discord Now</a>
+        <p style="margin-top: 20px; color: var(--khaki);">
+            Questions? Reach out to us on Discord and we'll be happy to chat!
+        </p>
+    </section>
+</div>
+
+<%- include('partials/footer') %>

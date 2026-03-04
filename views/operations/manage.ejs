@@ -1,0 +1,137 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>OPERATIONS MANAGEMENT</h1>
+        <div class="subtitle">Zeus Control Panel</div>
+    </header>
+
+    <section class="section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+            <h2 style="margin: 0;">All Operations</h2>
+            <a href="/operations/manage/create" class="btn btn-primary">➕ Create New Operation</a>
+        </div>
+
+        <% if (success) { %>
+            <div class="alert alert-success"><%= success %></div>
+        <% } %>
+        
+        <% if (error) { %>
+            <div class="alert alert-error"><%= error %></div>
+        <% } %>
+
+        <% if (operations.length === 0) { %>
+            <div class="card text-center">
+                <h3>No Operations Created</h3>
+                <p>Create your first operation to get started!</p>
+                <a href="/operations/manage/create" class="btn btn-primary mt-2">Create Operation</a>
+            </div>
+        <% } else { %>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: rgba(107,142,35,0.2); border-bottom: 2px solid var(--olive);">
+                            <th style="padding: 12px; text-align: left;">Operation</th>
+                            <th style="padding: 12px; text-align: left;">Date & Time</th>
+                            <th style="padding: 12px; text-align: center;">Attendance</th>
+                            <th style="padding: 12px; text-align: center;">Status</th>
+                            <th style="padding: 12px; text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% operations.forEach(op => { 
+                            const isPast = new Date(op.end_time) < new Date();
+                            const isUpcoming = new Date(op.start_time) > new Date();
+                        %>
+                            <tr style="border-bottom: 1px solid rgba(178, 178, 125, 0.2);">
+                                <td style="padding: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <img src="<%= op.banner_url %>" 
+                                             style="width: 60px; height: 40px; object-fit: cover; border-radius: 4px; border: 2px solid var(--olive);"
+                                             onerror="this.src='/images/operations/default-banner.jpg';">
+                                        <div>
+                                            <a href="/operations/<%= op.id %>" style="color: var(--accent); font-weight: 700; text-decoration: none;">
+                                                <%= op.title %>
+                                            </a>
+                                            <div style="font-size: 0.85em; color: var(--khaki); opacity: 0.7;">
+                                                by <%= op.created_by_username %>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td style="padding: 12px;">
+                                    <div style="font-size: 0.9em;">
+                                        <div><%= new Date(op.start_time).toLocaleDateString() %></div>
+                                        <div style="color: var(--khaki); opacity: 0.7;">
+                                            <%= new Date(op.start_time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) %>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td style="padding: 12px; text-align: center;">
+                                    <div style="display: flex; gap: 10px; justify-content: center; font-size: 0.9em;">
+                                        <span style="color: #2ecc71;">✅ <%= op.present_count %></span>
+                                        <span style="color: #f39c12;">⏸️ <%= op.tentative_count %></span>
+                                        <span style="color: #e74c3c;">❌ <%= op.absent_count %></span>
+                                    </div>
+                                </td>
+                                <td style="padding: 12px; text-align: center;">
+                                    <% if (isPast) { %>
+                                        <span style="background: rgba(149, 165, 166, 0.2); color: #95A5A6; padding: 4px 12px; border-radius: 4px; font-size: 0.85em; font-weight: 700;">
+                                            COMPLETED
+                                        </span>
+                                    <% } else if (isUpcoming) { %>
+                                        <span style="background: rgba(46, 204, 113, 0.2); color: #2ecc71; padding: 4px 12px; border-radius: 4px; font-size: 0.85em; font-weight: 700;">
+                                            UPCOMING
+                                        </span>
+                                    <% } else { %>
+                                        <span style="background: rgba(241, 196, 15, 0.2); color: #f1c40f; padding: 4px 12px; border-radius: 4px; font-size: 0.85em; font-weight: 700;">
+                                            IN PROGRESS
+                                        </span>
+                                    <% } %>
+                                    <% if (!op.is_published) { %>
+                                        <br>
+                                        <span style="background: rgba(231, 76, 60, 0.2); color: #e74c3c; padding: 4px 12px; border-radius: 4px; font-size: 0.85em; font-weight: 700; margin-top: 4px; display: inline-block;">
+                                            DRAFT
+                                        </span>
+                                    <% } %>
+                                </td>
+                                <td style="padding: 12px; text-align: center;">
+                                    <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                                        <a href="/operations/<%= op.id %>" class="btn" style="padding: 6px 12px; font-size: 0.85em;">
+                                            👁️ View
+                                        </a>
+                                        <a href="/operations/manage/edit/<%= op.id %>" class="btn" style="padding: 6px 12px; font-size: 0.85em;">
+                                            ✏️ Edit
+                                        </a>
+                                        <form method="POST" action="/operations/manage/delete/<%= op.id %>" style="display: inline;" onsubmit="return confirm('Delete this operation? This will remove all attendance data and news.')">
+                                            <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.85em;">
+                                                🗑️ Delete
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: 25px; padding: 20px; background: rgba(52,152,219,0.1); border: 1px solid #3498DB; border-radius: 8px;">
+                <h4 style="color: #3498DB; margin-bottom: 10px;">📊 Statistics</h4>
+                <p>
+                    <strong>Total Operations:</strong> <%= operations.length %><br>
+                    <strong>Total Attendance:</strong> <%= operations.reduce((sum, op) => sum + op.present_count + op.tentative_count + op.absent_count, 0) %>
+                </p>
+            </div>
+        <% } %>
+    </section>
+
+    <section class="section">
+        <div style="display: flex; gap: 15px;">
+            <a href="/operations/upcoming" class="btn">← Back to Operations</a>
+            <a href="/admin" class="btn">Admin Dashboard</a>
+        </div>
+    </section>
+</div>
+
+<%- include('../partials/footer') %>

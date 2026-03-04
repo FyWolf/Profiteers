@@ -1,0 +1,124 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>MANAGE USER MEDALS</h1>
+        <div class="subtitle">
+            <% if (user.discord_global_name && user.discord_global_name !== user.discord_username) { %>
+                <%= user.discord_global_name %> (@<%= user.discord_username %>)
+            <% } else { %>
+                <%= user.username %>
+            <% } %>
+        </div>
+    </header>
+
+    <% if (success) { %>
+        <div class="alert alert-success"><%= success %></div>
+    <% } %>
+    
+    <% if (error) { %>
+        <div class="alert alert-error"><%= error %></div>
+    <% } %>
+
+    <!-- Award New Medal Section -->
+    <% if (availableMedals.length > 0) { %>
+        <section class="section">
+            <h2 style="margin-bottom: 20px;">🎖️ Award New Medal</h2>
+            
+            <form method="POST" action="/admin/users/<%= user.id %>/medals/award">
+                <div class="form-group">
+                    <label for="medalId">Select Medal *</label>
+                    <select id="medalId" name="medalId" required style="padding: 12px; border: 2px solid var(--olive); border-radius: 8px; background: rgba(40,40,40,0.9); color: var(--sand); font-family: inherit; width: 100%;">
+                        <option value="">Choose a medal to award...</option>
+                        <% availableMedals.forEach(medal => { %>
+                            <option value="<%= medal.id %>">
+                                <%= medal.icon %> <%= medal.name %>
+                            </option>
+                        <% }); %>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Notes (Optional)</label>
+                    <textarea id="notes" name="notes" rows="3" placeholder="Why is this medal being awarded? (visible to the user)" style="padding: 12px; border: 2px solid var(--olive); border-radius: 8px; background: rgba(40,40,40,0.9); color: var(--sand); font-family: inherit; width: 100%; resize: vertical;"></textarea>
+                    <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                        Add a personal message about why this medal is being awarded
+                    </small>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    🏅 Award Medal
+                </button>
+            </form>
+        </section>
+    <% } else { %>
+        <section class="section">
+            <div class="card text-center" style="background: rgba(107,142,35,0.1);">
+                <h3 style="color: var(--olive-light);">🎉 All Medals Awarded!</h3>
+                <p style="color: var(--khaki);">This user has received all available medals.</p>
+            </div>
+        </section>
+    <% } %>
+
+    <!-- Current Medals Section -->
+    <section class="section">
+        <h2 style="margin-bottom: 20px;">
+            Current Medals
+            <span style="color: var(--khaki); font-size: 0.7em; font-weight: normal;">
+                (<%= userMedals.length %>)
+            </span>
+        </h2>
+
+        <% if (userMedals.length === 0) { %>
+            <div class="card text-center">
+                <h3>No Medals Yet</h3>
+                <p style="color: var(--khaki);">Award this user their first medal!</p>
+            </div>
+        <% } else { %>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
+                <% userMedals.forEach(medal => { %>
+                    <div class="card" style="border-left: 4px solid <%= medal.color %>;">
+                        <div style="display: flex; align-items: start; gap: 15px; margin-bottom: 12px;">
+                            <div style="font-size: 2.5em;">
+                                <%= medal.icon %>
+                            </div>
+                            <div style="flex: 1;">
+                                <h3 style="color: <%= medal.color %>; margin-bottom: 6px; font-size: 1.1em;">
+                                    <%= medal.name %>
+                                </h3>
+                                <p style="color: var(--khaki); font-size: 0.9em; margin-bottom: 10px;">
+                                    <%= medal.description %>
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div style="font-size: 0.85em; color: var(--khaki); opacity: 0.8; margin-bottom: 12px; padding-top: 12px; border-top: 1px solid rgba(178, 178, 125, 0.2);">
+                            <div><strong>Awarded:</strong> <%= new Date(medal.awarded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></div>
+                            <div><strong>By:</strong> <%= medal.awarded_by_username %></div>
+                            <% if (medal.notes) { %>
+                                <div style="margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; font-style: italic;">
+                                    "<%= medal.notes %>"
+                                </div>
+                            <% } %>
+                        </div>
+                        
+                        <form method="POST" action="/admin/users/<%= user.id %>/medals/revoke/<%= medal.award_id %>" onsubmit="return confirm('Revoke this medal from the user?')">
+                            <button type="submit" class="btn btn-danger" style="width: 100%; padding: 8px;">
+                                ❌ Revoke Medal
+                            </button>
+                        </form>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
+    </section>
+
+    <section class="section">
+        <div style="display: flex; gap: 15px;">
+            <a href="/admin/users" class="btn">← Back to Users</a>
+            <a href="/admin/medals" class="btn">View All Medals</a>
+        </div>
+    </section>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,376 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>EDIT ORBAT TEMPLATE</h1>
+        <div class="subtitle"><%= template.name %></div>
+    </header>
+
+    <% if (success) { %>
+        <div class="alert alert-success"><%= success %></div>
+    <% } %>
+    
+    <% if (error) { %>
+        <div class="alert alert-error"><%= error %></div>
+    <% } %>
+
+    <!-- Template Info -->
+    <section class="section">
+        <h2>Template Information</h2>
+        <form method="POST" action="/orbat/templates/edit/<%= template.id %>">
+            <div style="display: grid; gap: 15px;">
+                <div class="form-group">
+                    <label for="name">Template Name</label>
+                    <input type="text" id="name" name="name" value="<%= template.name %>" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" rows="2"><%= template.description || '' %></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">💾 Save Template Info</button>
+            </div>
+        </form>
+    </section>
+
+    <!-- Add Squad -->
+    <section class="section">
+        <h2>Add New Squad</h2>
+        <form method="POST" action="/orbat/templates/<%= template.id %>/squads/add">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; align-items: end;">
+                <div class="form-group" style="margin: 0;">
+                    <label for="squad_name">Squad Name</label>
+                    <input type="text" id="squad_name" name="name" placeholder="e.g., Alpha Squad" required>
+                </div>
+                
+                <div class="form-group" style="margin: 0;">
+                    <label for="squad_color">Color</label>
+                    <input type="color" id="squad_color" name="color" value="#3498DB" style="width: 100%; height: 42px;">
+                </div>
+                
+                <div class="form-group" style="margin: 0;">
+                    <label for="squad_order">Order</label>
+                    <input type="number" id="squad_order" name="display_order" value="0" min="0" style="width: 100%;">
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="height: 42px;">➕ Add Squad</button>
+            </div>
+        </form>
+    </section>
+
+    <!-- Squads and Roles -->
+    <section class="section">
+        <h2>Squads & Roles</h2>
+        
+        <% if (squads.length === 0) { %>
+            <div class="card text-center">
+                <p style="color: var(--khaki);">No squads created yet. Add a squad above to get started!</p>
+            </div>
+        <% } else { %>
+            <% squads.forEach(squad => { %>
+                <div class="card" style="margin-bottom: 25px; border-left: 4px solid <%= squad.color %>;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                        <div>
+                            <h3 style="color: <%= squad.color %>; margin-bottom: 5px;">
+                                <%= squad.name %>
+                            </h3>
+                            <p style="font-size: 0.85em; color: var(--khaki);">
+                                <%= squad.role_count %> role<%= squad.role_count !== 1 ? 's' : '' %> | Order: <%= squad.display_order %>
+                            </p>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" 
+                                    onclick="toggleSquadEdit('<%= squad.id %>')" 
+                                    class="btn" 
+                                    style="padding: 6px 12px; font-size: 0.85em; background: var(--olive);">
+                                ✏️ Edit Squad
+                            </button>
+                            <form method="POST" action="/orbat/squads/delete/<%= squad.id %>" style="display: inline;" onsubmit="return confirm('Delete this squad and all its roles?')">
+                                <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.85em;">
+                                    🗑️ Delete Squad
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Squad Edit Form (Hidden by default) -->
+                    <div id="squad_edit_<%= squad.id %>" style="display: none; padding: 15px; background: rgba(107,142,35,0.1); border-radius: 4px; margin-bottom: 15px;">
+                        <h4 style="margin-bottom: 10px;">Edit Squad</h4>
+                        <form method="POST" action="/orbat/squads/edit/<%= squad.id %>">
+                            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; align-items: end;">
+                                <div class="form-group" style="margin: 0;">
+                                    <label for="edit_squad_name_<%= squad.id %>">Squad Name</label>
+                                    <input type="text" id="edit_squad_name_<%= squad.id %>" name="name" value="<%= squad.name %>" required>
+                                </div>
+                                
+                                <div class="form-group" style="margin: 0;">
+                                    <label for="edit_squad_color_<%= squad.id %>">Color</label>
+                                    <input type="color" id="edit_squad_color_<%= squad.id %>" name="color" value="<%= squad.color %>" style="width: 100%; height: 42px;">
+                                </div>
+                                
+                                <div class="form-group" style="margin: 0;">
+                                    <label for="edit_squad_order_<%= squad.id %>">Order</label>
+                                    <input type="number" id="edit_squad_order_<%= squad.id %>" name="display_order" value="<%= squad.display_order %>" min="0">
+                                </div>
+                                
+                                <div style="display: flex; gap: 5px;">
+                                    <button type="submit" class="btn btn-primary" style="height: 42px;">💾 Save</button>
+                                    <button type="button" onclick="toggleSquadEdit('<%= squad.id %>')" class="btn" style="height: 42px;">Cancel</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Add Role to Squad -->
+                    <form method="POST" action="/orbat/squads/<%= squad.id %>/roles/add" style="margin-bottom: 15px;">
+                        <div style="display: grid; grid-template-columns: 3fr 1fr auto auto; gap: 10px; align-items: end;">
+                            <div class="form-group" style="margin: 0;">
+                                <label for="role_name_<%= squad.id %>" style="font-size: 0.9em; margin-bottom: 4px;">Role Name</label>
+                                <input type="text" id="role_name_<%= squad.id %>" name="role_name" placeholder="e.g., Squad Leader" required style="margin: 0;">
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label for="role_order_<%= squad.id %>" style="font-size: 0.9em; margin-bottom: 4px;">Order</label>
+                                <input type="number" id="role_order_<%= squad.id %>" name="display_order" placeholder="0" value="0" min="0" style="margin: 0;">
+                            </div>
+                            <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding-bottom: 2px;">
+                                <label for="role_editor_<%= squad.id %>" style="font-size: 0.8em; color: var(--khaki); white-space: nowrap;">Editor</label>
+                                <input type="checkbox" id="role_editor_<%= squad.id %>" name="is_editor" value="on" style="width: 18px; height: 18px; cursor: pointer;" title="User assigned to this role can manage this squad's assignments">
+                            </div>
+                            <button type="submit" class="btn" style="background: <%= squad.color %>; color: white; height: 42px;">
+                                ➕ Add Role
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Roles List -->
+                    <% const squadRoles = rolesBySquad[squad.id] || []; %>
+                    <% if (squadRoles.length === 0) { %>
+                        <p style="color: var(--khaki); opacity: 0.7; font-size: 0.9em; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 4px;">
+                            No roles yet. Add a role above.
+                        </p>
+                    <% } else { %>
+                        <div style="display: grid; gap: 8px;">
+                            <% squadRoles.forEach(role => { %>
+                                <% const assignment = assignmentsByRole[role.id]; %>
+                                <div style="padding: 10px; background: rgba(0,0,0,0.2); border-radius: 4px;">
+                                    <!-- Role header with editor badge -->
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <span style="font-weight: 600; color: var(--sand); font-size: 0.9em;"><%= role.role_name %></span>
+                                        <% if (role.is_editor) { %>
+                                            <span style="background: rgba(52,152,219,0.25); color: #3498DB; border: 1px solid #3498DB; padding: 1px 7px; border-radius: 3px; font-size: 0.72em; font-weight: 700; letter-spacing: 0.05em;">EDITOR</span>
+                                        <% } %>
+                                    </div>
+                                    <!-- Role Edit Form -->
+                                    <form method="POST" action="/orbat/roles/edit/<%= role.id %>" style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+                                        <input type="text" name="role_name" value="<%= role.role_name %>" required style="flex: 2; padding: 6px 10px; background: rgba(40,40,40,0.9); color: var(--sand); border: 1px solid var(--olive); border-radius: 4px;">
+                                        <input type="number" name="display_order" value="<%= role.display_order %>" min="0" style="width: 70px; padding: 6px 10px; background: rgba(40,40,40,0.9); color: var(--sand); border: 1px solid var(--olive); border-radius: 4px;">
+                                        <label style="display: flex; align-items: center; gap: 5px; font-size: 0.82em; color: var(--khaki); white-space: nowrap; cursor: pointer;" title="Assigned user can manage this squad's assignments">
+                                            <input type="checkbox" name="is_editor" value="on" <%= role.is_editor ? 'checked' : '' %> style="width: 15px; height: 15px;">
+                                            Editor
+                                        </label>
+                                        <button type="submit" class="btn" style="padding: 6px 12px; font-size: 0.85em; background: var(--olive);">
+                                            💾
+                                        </button>
+                                        <form method="POST" action="/orbat/roles/delete/<%= role.id %>" style="display: inline;" onsubmit="return confirm('Delete this role?')">
+                                            <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.85em;">
+                                                🗑️
+                                            </button>
+                                        </form>
+                                    </form>
+                                    
+                                    <!-- Player Assignment -->
+                                    <div style="padding: 10px; background: rgba(107,142,35,0.1); border-radius: 4px; margin-top: 8px;">
+                                        <% if (assignment) { %>
+                                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                                                <div style="display: flex; align-items: center; gap: 10px;">
+                                                    <% if (assignment.discord_avatar) { %>
+                                                        <img src="https://cdn.discordapp.com/avatars/<%= assignment.discord_id %>/<%= assignment.discord_avatar %>.png?size=64" 
+                                                             style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid <%= squad.color %>;">
+                                                    <% } else { %>
+                                                        <div style="width: 32px; height: 32px; border-radius: 50%; background: <%= squad.color %>; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 0.85em;">
+                                                            <%= (assignment.discord_global_name || assignment.username).charAt(0).toUpperCase() %>
+                                                        </div>
+                                                    <% } %>
+                                                    <strong style="color: var(--sand); font-size: 0.9em;">
+                                                        <%= assignment.discord_global_name || assignment.username %>
+                                                    </strong>
+                                                </div>
+                                                <div style="display: flex; gap: 5px;">
+                                                    <button onclick="showAssignModal(<%= role.id %>, '<%= role.role_name.replace(/'/g, "\\'") %>')" class="btn" style="padding: 4px 10px; font-size: 0.8em;">
+                                                        🔄 Change
+                                                    </button>
+                                                    <button onclick="unassignPlayer(<%= role.id %>)" class="btn btn-danger" style="padding: 4px 10px; font-size: 0.8em;">
+                                                        ✖️
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        <% } else { %>
+                                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                                <span style="color: var(--khaki); opacity: 0.7; font-size: 0.85em; font-style: italic;">
+                                                    No player assigned
+                                                </span>
+                                                <button onclick="showAssignModal(<%= role.id %>, '<%= role.role_name.replace(/'/g, "\\'") %>')" class="btn" style="padding: 4px 10px; font-size: 0.8em; background: <%= squad.color %>; color: white;">
+                                                    ➕ Assign Player
+                                                </button>
+                                            </div>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            <% }); %>
+                        </div>
+                    <% } %>
+                </div>
+            <% }); %>
+        <% } %>
+    </section>
+
+    <section class="section">
+        <div style="display: flex; gap: 15px;">
+            <a href="/orbat/templates" class="btn">← Back to Templates</a>
+        </div>
+    </section>
+</div>
+
+<!-- Assignment Modal -->
+<div id="assignModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
+    <div class="card" style="max-width: 500px; width: 90%;">
+        <h3 style="margin-bottom: 15px;">Assign Player to <span id="modalRoleName"></span></h3>
+        
+        <div class="form-group">
+            <label for="playerSearch">Search Roster</label>
+            <input type="text" id="playerSearch" placeholder="Type player name..." oninput="searchPlayers(this.value)">
+        </div>
+        
+        <div id="playerResults" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;">
+            <p style="color: var(--khaki); text-align: center;">Start typing to search...</p>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+            <button onclick="closeAssignModal()" class="btn" style="flex: 1;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentRoleId = null;
+
+// Show assign modal
+function showAssignModal(roleId, roleName) {
+    currentRoleId = roleId;
+    document.getElementById('modalRoleName').textContent = roleName;
+    document.getElementById('assignModal').style.display = 'flex';
+    document.getElementById('playerSearch').value = '';
+    document.getElementById('playerResults').innerHTML = '<p style="color: var(--khaki); text-align: center;">Start typing to search...</p>';
+}
+
+// Close assign modal
+function closeAssignModal() {
+    document.getElementById('assignModal').style.display = 'none';
+    currentRoleId = null;
+}
+
+// Search players from roster
+async function searchPlayers(query) {
+    if (query.length < 2) {
+        document.getElementById('playerResults').innerHTML = '<p style="color: var(--khaki); text-align: center;">Type at least 2 characters...</p>';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/roster/search?q=${encodeURIComponent(query)}`);
+        const players = await response.json();
+        
+        if (players.length === 0) {
+            document.getElementById('playerResults').innerHTML = '<p style="color: var(--khaki); text-align: center;">No players found</p>';
+            return;
+        }
+        
+        let html = '<div style="display: grid; gap: 8px;">';
+        players.forEach(player => {
+            const badge = player.needs_registration ? '<span style="background: rgba(241,196,15,0.3); color: #f1c40f; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; margin-left: 8px;">Not logged in</span>' : '';
+            html += `
+                <div onclick='assignPlayer(${JSON.stringify(player)})' 
+                     style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; cursor: pointer; transition: background 0.2s;"
+                     onmouseover="this.style.background='rgba(107,142,35,0.3)'"
+                     onmouseout="this.style.background='rgba(0,0,0,0.3)'">
+                    <strong>${player.name}</strong>${badge}
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        document.getElementById('playerResults').innerHTML = html;
+    } catch (error) {
+        console.error('Error searching players:', error);
+    }
+}
+
+// Assign player to slot
+async function assignPlayer(player) {
+    const confirmMsg = player.needs_registration 
+        ? `Assign ${player.name}? (They haven't logged in yet - we'll create an account for them)`
+        : `Assign ${player.name} to this slot?`;
+    
+    if (!confirm(confirmMsg)) return;
+    
+    try {
+        const response = await fetch(`/orbat/assign/${currentRoleId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                userId: player.user_id,
+                discordId: player.discord_id
+            })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Failed to assign player');
+        }
+    } catch (error) {
+        console.error('Error assigning player:', error);
+        alert('Failed to assign player');
+    }
+}
+
+// Unassign player from slot
+async function unassignPlayer(roleId) {
+    if (!confirm('Remove player from this slot?')) return;
+    
+    try {
+        const response = await fetch(`/orbat/unassign/${roleId}`, { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Failed to remove player');
+        }
+    } catch (error) {
+        console.error('Error removing player:', error);
+        alert('Failed to remove player');
+    }
+}
+
+// Close modal on outside click
+document.getElementById('assignModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'assignModal') {
+        closeAssignModal();
+    }
+});
+
+// Toggle squad edit form
+function toggleSquadEdit(squadId) {
+    const editForm = document.getElementById('squad_edit_' + squadId);
+    if (editForm.style.display === 'none') {
+        editForm.style.display = 'block';
+    } else {
+        editForm.style.display = 'none';
+    }
+}
+</script>
+
+<%- include('../partials/footer') %>

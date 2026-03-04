@@ -1,0 +1,180 @@
+<%- include('../partials/header') %>
+
+<div class="page-container" style="max-width: 700px; margin: 0 auto; padding: 20px;">
+
+    <a href="/modpacks" style="color: var(--accent); text-decoration: none; font-size: 0.9em; display: inline-block; margin-bottom: 15px;">
+        ← Back to Modpacks
+    </a>
+
+    <h2 style="font-family: 'Orbitron', monospace;">Upload Modpack</h2>
+
+    <% if (typeof req !== 'undefined' && req.query && req.query.error) { %>
+        <div class="alert alert-error"><%= req.query.error %></div>
+    <% } %>
+
+    <div style="background: var(--camo-medium); border: 1px solid var(--olive); border-radius: 8px; padding: 25px;">
+        
+        <form action="/modpacks/upload" method="POST" enctype="multipart/form-data" id="uploadForm">
+            
+            <!-- File upload -->
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); text-transform: uppercase; font-size: 0.85em; letter-spacing: 1px;">
+                    Arma 3 Preset File <span style="color: #E74C3C;">*</span>
+                </label>
+                <div id="dropZone" style="border: 2px dashed var(--olive); border-radius: 8px; padding: 40px 20px; text-align: center; cursor: pointer; transition: border-color 0.3s, background 0.3s;">
+                    <div id="dropText">
+                        <p style="font-size: 1.1em; margin: 0 0 8px 0;">Drop your .html preset file here</p>
+                        <p style="color: var(--text-secondary); font-size: 0.9em; margin: 0;">or click to browse</p>
+                    </div>
+                    <div id="fileInfo" style="display: none;">
+                        <p style="color: #4CAF50; font-size: 1.1em; margin: 0 0 5px 0;">✅ <span id="fileName"></span></p>
+                        <p style="color: var(--text-secondary); font-size: 0.85em; margin: 0;" id="fileSize"></p>
+                    </div>
+                    <input type="file" name="modpack_file" id="modpackFile" accept=".html,.htm" required
+                           style="position: absolute; opacity: 0; width: 0; height: 0;">
+                </div>
+                <p style="color: var(--text-secondary); font-size: 0.8em; margin-top: 8px;">
+                    Export from Arma 3 Launcher: MODS tab → PRESET → EXPORT. Only .html files are accepted.
+                </p>
+            </div>
+
+            <!-- Preview of parsed mods -->
+            <div id="parsePreview" style="display: none; margin-bottom: 20px; background: var(--camo-dark); border: 1px solid var(--olive); border-radius: 6px; padding: 15px;">
+                <h4 style="margin: 0 0 10px 0; color: var(--accent);">Detected from file:</h4>
+                <p style="margin: 0; font-size: 0.9em;">
+                    Preset name: <strong id="previewName"></strong><br>
+                    Mods found: <strong id="previewCount"></strong>
+                </p>
+                <div id="previewList" style="margin-top: 10px; max-height: 200px; overflow-y: auto; font-size: 0.85em; color: var(--text-secondary);"></div>
+            </div>
+
+            <!-- Custom name (optional) -->
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label for="name" style="display: block; margin-bottom: 8px; color: var(--text-secondary); text-transform: uppercase; font-size: 0.85em; letter-spacing: 1px;">
+                    Custom Name <span style="color: var(--text-secondary); font-size: 0.9em;">(optional - defaults to preset name)</span>
+                </label>
+                <input type="text" name="name" id="nameInput" placeholder="e.g. ProC6P1"
+                       style="width: 100%; padding: 10px 12px; background: var(--camo-dark); border: 1px solid var(--olive); border-radius: 4px; color: var(--text-primary); font-size: 1em; box-sizing: border-box;">
+            </div>
+
+            <!-- Description (optional) -->
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label for="description" style="display: block; margin-bottom: 8px; color: var(--text-secondary); text-transform: uppercase; font-size: 0.85em; letter-spacing: 1px;">
+                    Description <span style="color: var(--text-secondary); font-size: 0.9em;">(optional)</span>
+                </label>
+                <textarea name="description" rows="3" placeholder="Brief description of this modpack..."
+                          style="width: 100%; padding: 10px 12px; background: var(--camo-dark); border: 1px solid var(--olive); border-radius: 4px; color: var(--text-primary); font-size: 1em; resize: vertical; box-sizing: border-box;"></textarea>
+            </div>
+
+            <!-- Submit -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <a href="/modpacks" class="btn">Cancel</a>
+                <button type="submit" class="btn btn-primary" id="submitBtn">Upload & Index</button>
+            </div>
+        </form>
+
+    </div>
+
+    <div style="margin-top: 20px; padding: 15px 20px; background: rgba(68, 158, 189, 0.1); border: 1px solid rgba(68, 158, 189, 0.3); border-radius: 6px;">
+        <h4 style="margin: 0 0 8px 0; color: #449EBD;">How it works</h4>
+        <p style="color: var(--text-secondary); font-size: 0.9em; margin: 0; line-height: 1.6;">
+            Upload an Arma 3 Launcher preset (.html file). The system will parse the mod list, 
+            then fetch each mod's name, size, and icon from the Steam Workshop in the background. 
+            This process usually takes a minute or two depending on the number of mods. 
+            You can view the modpack immediately — data will appear as it's indexed.
+        </p>
+    </div>
+
+</div>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('modpackFile');
+const dropText = document.getElementById('dropText');
+const fileInfo = document.getElementById('fileInfo');
+const fileName = document.getElementById('fileName');
+const fileSize = document.getElementById('fileSize');
+const parsePreview = document.getElementById('parsePreview');
+const previewName = document.getElementById('previewName');
+const previewCount = document.getElementById('previewCount');
+const previewList = document.getElementById('previewList');
+
+// Click to browse
+dropZone.addEventListener('click', () => fileInput.click());
+
+// Drag & drop
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = 'var(--accent)';
+    dropZone.style.background = 'rgba(209, 143, 33, 0.05)';
+});
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.style.borderColor = 'var(--olive)';
+    dropZone.style.background = '';
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = 'var(--olive)';
+    dropZone.style.background = '';
+    
+    if (e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        handleFileSelect(e.dataTransfer.files[0]);
+    }
+});
+
+fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) {
+        handleFileSelect(fileInput.files[0]);
+    }
+});
+
+function handleFileSelect(file) {
+    // Show file info
+    dropText.style.display = 'none';
+    fileInfo.style.display = 'block';
+    fileName.textContent = file.name;
+    fileSize.textContent = formatBytes(file.size);
+
+    // Parse and preview
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const content = e.target.result;
+        parseAndPreview(content);
+    };
+    reader.readAsText(file);
+}
+
+function parseAndPreview(html) {
+    // Extract preset name
+    const nameMatch = html.match(/<meta\s+name="arma:PresetName"\s+content="([^"]+)"/i);
+    const name = nameMatch ? nameMatch[1] : 'Unknown';
+
+    // Extract mods
+    const mods = [];
+    const regex = /<tr[^>]*data-type="ModContainer"[^>]*>[\s\S]*?<td[^>]*data-type="DisplayName"[^>]*>([\s\S]*?)<\/td>/gi;
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+        mods.push(match[1].trim().replace(/&amp;/g, '&'));
+    }
+
+    previewName.textContent = name;
+    previewCount.textContent = mods.length;
+
+    // Show mod names
+    previewList.innerHTML = mods.map(m => `<div style="padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.03);">🧩 ${m}</div>`).join('');
+
+    parsePreview.style.display = 'block';
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const units = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
+}
+</script>
+
+<%- include('../partials/footer') %>

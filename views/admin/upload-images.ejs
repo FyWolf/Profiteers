@@ -1,0 +1,112 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>UPLOAD IMAGES</h1>
+        <div class="subtitle">Add to Gallery</div>
+    </header>
+
+    <section class="section" style="max-width: 800px; margin: 0 auto 30px;">
+        <form method="POST" action="/admin/gallery/upload" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="folder_id">Destination Folder *</label>
+                <select id="folder_id" name="folder_id" required>
+                    <option value="">Select a folder...</option>
+                    <% folders.forEach(folder => { %>
+                        <option value="<%= folder.id %>"><%= folder.path %></option>
+                    <% }); %>
+                </select>
+                <small style="color: var(--khaki); display: block; margin-top: 5px;">
+                    Don't see your folder? <a href="/admin/gallery/add-folder" style="color: var(--accent);">Create one first →</a>
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="images">Select Images *</label>
+                <input type="file" 
+                       id="images" 
+                       name="images" 
+                       accept="image/*" 
+                       multiple 
+                       required
+                       onchange="previewImages(this)">
+                <small style="color: var(--khaki); display: block; margin-top: 5px;">
+                    You can select multiple images at once. Max 10MB per file.
+                </small>
+            </div>
+
+            <div id="imagePreview" class="grid grid-4" style="margin-top: 20px; display: none;"></div>
+
+            <div class="form-group" id="captionsContainer" style="display: none; margin-top: 20px;">
+                <label>Image Captions (Optional)</label>
+                <small style="color: var(--khaki); display: block; margin-bottom: 10px;">
+                    Add captions for each image below:
+                </small>
+                <div id="captionInputs"></div>
+            </div>
+
+            <div style="display: flex; gap: 15px; margin-top: 30px;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    ⬆️ Upload Images
+                </button>
+                <a href="/admin/gallery" class="btn" style="flex: 0 0 auto;">Cancel</a>
+            </div>
+        </form>
+    </section>
+
+    <section class="section" style="max-width: 800px; margin: 0 auto;">
+        <h3>💡 Upload Tips</h3>
+        <ul style="margin-left: 20px; line-height: 2;">
+            <li>Supported formats: JPG, PNG, GIF, WebP</li>
+            <li>Maximum file size: 10MB per image</li>
+            <li>Use descriptive captions to help organize and search</li>
+            <li>You can upload multiple images at once</li>
+            <li>Images will be timestamped automatically</li>
+        </ul>
+    </section>
+</div>
+
+<script>
+function previewImages(input) {
+    const preview = document.getElementById('imagePreview');
+    const captionsContainer = document.getElementById('captionsContainer');
+    const captionInputs = document.getElementById('captionInputs');
+    
+    preview.innerHTML = '';
+    captionInputs.innerHTML = '';
+    
+    if (input.files && input.files.length > 0) {
+        preview.style.display = 'grid';
+        captionsContainer.style.display = 'block';
+        
+        Array.from(input.files).forEach((file, index) => {
+            // Preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.innerHTML = `
+                    <img src="${e.target.result}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px;">
+                    <p style="font-size: 0.85em; margin-top: 8px; word-break: break-all;">${file.name}</p>
+                `;
+                preview.appendChild(div);
+            };
+            reader.readAsDataURL(file);
+            
+            // Caption input
+            const captionDiv = document.createElement('div');
+            captionDiv.className = 'form-group';
+            captionDiv.innerHTML = `
+                <label>${file.name}</label>
+                <input type="text" name="captions" placeholder="Optional caption for this image">
+            `;
+            captionInputs.appendChild(captionDiv);
+        });
+    } else {
+        preview.style.display = 'none';
+        captionsContainer.style.display = 'none';
+    }
+}
+</script>
+
+<%- include('../partials/footer') %>

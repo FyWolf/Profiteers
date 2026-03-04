@@ -1,0 +1,68 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>MY LEAVE OF ABSENCE</h1>
+        <div class="subtitle">Manage Your Absences</div>
+    </header>
+
+    <section class="section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>My Leave Requests</h2>
+            <a href="/loa/submit" class="btn btn-primary">
+                ➕ Submit New LOA
+            </a>
+        </div>
+
+        <% if (typeof success !== 'undefined' && success) { %>
+            <div class="alert alert-success"><%= success %></div>
+        <% } %>
+        
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="alert alert-error"><%= error %></div>
+        <% } %>
+
+        <% if (loas.length === 0) { %>
+            <div class="card text-center">
+                <h3>No Leave Requests</h3>
+                <p>You haven't submitted any leave of absence requests yet.</p>
+                <a href="/loa/submit" class="btn btn-primary" style="margin-top: 15px;">
+                    Submit Your First LOA
+                </a>
+            </div>
+        <% } else { %>
+            <%
+            const now = new Date();
+            const activeLoas = loas.filter(loa => new Date(loa.end_date) >= now && loa.status === 'approved');
+            const upcomingLoas = loas.filter(loa => new Date(loa.start_date) > now && loa.status === 'approved');
+            const pastLoas = loas.filter(loa => new Date(loa.end_date) < now || loa.status !== 'approved');
+            %>
+
+            <!-- Active LOAs -->
+            <% if (activeLoas.filter(loa => new Date(loa.start_date) <= now).length > 0) { %>
+                <h3 style="color: #e74c3c; margin-bottom: 15px;">🔴 Currently On Leave</h3>
+                <% activeLoas.filter(loa => new Date(loa.start_date) <= now).forEach(loa => { %>
+                    <%- include('../partials/loa-card', { loa: loa, showActions: true, isOwn: true }) %>
+                <% }); %>
+            <% } %>
+
+            <!-- Upcoming LOAs -->
+            <% if (upcomingLoas.length > 0) { %>
+                <h3 style="color: #f39c12; margin: 25px 0 15px;">🟡 Upcoming Leave</h3>
+                <% upcomingLoas.forEach(loa => { %>
+                    <%- include('../partials/loa-card', { loa: loa, showActions: true, isOwn: true }) %>
+                <% }); %>
+            <% } %>
+
+            <!-- Past LOAs -->
+            <% if (pastLoas.length > 0) { %>
+                <h3 style="color: var(--khaki); margin: 25px 0 15px;">📋 Past Leave</h3>
+                <% pastLoas.forEach(loa => { %>
+                    <%- include('../partials/loa-card', { loa: loa, showActions: false, isOwn: true }) %>
+                <% }); %>
+            <% } %>
+        <% } %>
+    </section>
+</div>
+
+<%- include('../partials/footer') %>

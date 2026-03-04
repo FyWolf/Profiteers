@@ -1,0 +1,86 @@
+<%- include('partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>ADMIN LOGIN</h1>
+        <div class="subtitle">Emergency Access Only</div>
+    </header>
+
+    <section class="section" style="max-width: 450px; margin: 0 auto;">
+        <!-- Warning Notice -->
+        <div style="padding: 20px; background: rgba(231,76,60,0.1); border: 2px solid #e74c3c; border-radius: 8px; margin-bottom: 30px;">
+            <h3 style="color: #e74c3c; margin-bottom: 10px;">⚠️ Emergency Access Only</h3>
+            <p style="margin: 0; color: var(--khaki); line-height: 1.6; font-size: 0.95em;">
+                This login method is for system administrators only and should only be used 
+                when Discord authentication is unavailable. Regular members should use the 
+                <a href="/login" style="color: #e74c3c; text-decoration: underline;">Discord login</a>.
+            </p>
+        </div>
+
+        <% if (error) { %>
+            <div class="alert alert-error">
+                <%= error %>
+            </div>
+        <% } %>
+
+        <!-- Admin Login Form -->
+        <div class="card" style="background: rgba(0,0,0,0.4); border: 1px solid var(--olive);">
+            <form method="POST" action="/login">
+                <input type="hidden" name="redirect" value="<%= redirect %>">
+                
+                <div class="form-group">
+                    <label for="username">
+                        <span style="color: #e74c3c;">🔐</span> Administrator Username
+                    </label>
+                    <input type="text" 
+                           id="username" 
+                           name="username" 
+                           required 
+                           autofocus
+                           placeholder="admin"
+                           style="font-family: monospace;">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">
+                        <span style="color: #e74c3c;">🔑</span> Administrator Password
+                    </label>
+                    <input type="password" 
+                           id="password" 
+                           name="password" 
+                           required
+                           placeholder="••••••••"
+                           style="font-family: monospace;">
+                </div>
+
+                <button type="submit" class="btn" style="width: 100%; background: #e74c3c; color: white; font-weight: 700;">
+                    🛡️ Emergency Login
+                </button>
+            </form>
+        </div>
+
+        <!-- Back to Normal Login -->
+        <div style="margin-top: 30px; text-align: center;">
+            <a href="/login" class="btn btn-primary" style="width: 100%; background: linear-gradient(135deg, #5865F2 0%, #4752C4 100%);">
+                ← Back to Discord Login
+            </a>
+        </div>
+
+        <!-- Info Box -->
+        <div style="margin-top: 30px; padding: 15px; background: rgba(52,152,219,0.05); border: 1px solid rgba(52,152,219,0.3); border-radius: 8px;">
+            <h4 style="color: #3498DB; font-size: 0.9em; margin-bottom: 8px;">ℹ️ When to use this login:</h4>
+            <ul style="color: var(--khaki); font-size: 0.85em; line-height: 1.6; margin: 0; padding-left: 20px;">
+                <li>Discord OAuth is experiencing downtime</li>
+                <li>Emergency system maintenance required</li>
+                <li>Critical administrative tasks</li>
+            </ul>
+        </div>
+
+        <!-- Security Notice -->
+        <p style="margin-top: 20px; text-align: center; color: var(--khaki); font-size: 0.8em; opacity: 0.7;">
+            All login attempts are logged for security purposes.
+        </p>
+    </section>
+</div>
+
+<%- include('partials/footer') %>

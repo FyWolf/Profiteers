@@ -1,0 +1,203 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1><%= action === 'add' ? 'CREATE MEDAL' : 'EDIT MEDAL' %></h1>
+        <div class="subtitle">Medal System Administration</div>
+    </header>
+
+    <section class="section" style="max-width: 700px; margin: 0 auto;">
+        <form method="POST" action="/admin/medals/<%= action === 'add' ? 'add' : 'edit/' + medal.id %>">
+            <div class="form-group">
+                <label for="name">Medal Name *</label>
+                <input type="text" id="name" name="name" value="<%= medal ? medal.name : '' %>" required maxlength="100" placeholder="e.g., Mission Veteran">
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description *</label>
+                <textarea id="description" name="description" required rows="4" placeholder="Brief description of what this medal represents..."><%= medal ? medal.description : '' %></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="color">Medal Color</label>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <input type="color" id="color" name="color" value="<%= medal ? medal.color : '#FFD700' %>" style="width: 60px; height: 40px; border: 2px solid var(--olive); border-radius: 4px; cursor: pointer;">
+                    <input type="text" id="colorText" value="<%= medal ? medal.color : '#FFD700' %>" readonly style="flex: 1; background: rgba(40,40,40,0.9); color: var(--sand); padding: 10px; border: 2px solid var(--olive); border-radius: 4px;">
+                </div>
+                <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                    Choose a color to represent this medal
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="icon">Medal Icon (Emoji)</label>
+                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                    <input type="text" id="icon" name="icon" value="<%= medal ? medal.icon : '🏅' %>" maxlength="10" placeholder="🏅" style="font-size: 2em; text-align: center; width: 80px;" readonly>
+                    <button type="button" id="emojiPickerBtn" class="btn" style="padding: 12px 24px;">
+                        😀 Choose Emoji
+                    </button>
+                </div>
+                <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                    Click the button to open the emoji picker
+                </small>
+                
+                <!-- Emoji Picker Container (hidden by default) -->
+                <div id="emojiPickerContainer" style="display: none; margin-top: 15px; max-width: 100%; overflow: hidden;">
+                    <emoji-picker class="dark"></emoji-picker>
+                </div>
+            </div>
+
+            <!-- Preview -->
+            <div class="form-group">
+                <label>Preview</label>
+                <div class="card" id="preview" style="border-left: 4px solid <%= medal ? medal.color : '#FFD700' %>;">
+                    <div style="display: flex; align-items: start; gap: 15px;">
+                        <div id="previewIcon" style="font-size: 3em;">
+                            <%= medal ? medal.icon : '🏅' %>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 id="previewName" style="color: <%= medal ? medal.color : '#FFD700' %>; margin-bottom: 8px;">
+                                <%= medal ? medal.name : 'Medal Name' %>
+                            </h3>
+                            <p id="previewDesc" style="color: var(--khaki);">
+                                <%= medal ? medal.description : 'Medal description will appear here...' %>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    <%= action === 'add' ? '➕ Create Medal' : '💾 Save Changes' %>
+                </button>
+                <a href="/admin/medals" class="btn" style="flex: 1; text-align: center;">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </section>
+</div>
+
+<!-- Load emoji-picker-element from CDN -->
+<script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
+
+<style>
+/* Style the emoji picker to match our theme */
+emoji-picker {
+    --background: rgba(30, 40, 30, 0.95);
+    --border-color: var(--olive);
+    --indicator-color: var(--accent);
+    --input-border-color: var(--olive);
+    --input-font-color: var(--sand);
+    --input-background: rgba(40, 40, 40, 0.9);
+    --outline-color: var(--accent);
+    --category-emoji-size: 1.375rem;
+    --emoji-size: 1.375rem;
+    --num-columns: 8;
+    width: 100%;
+    max-width: 450px;
+    border: 2px solid var(--olive);
+    border-radius: 8px;
+}
+
+emoji-picker.dark {
+    color-scheme: dark;
+}
+
+#emojiPickerContainer {
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+
+<script type="module">
+// Get elements
+const iconInput = document.getElementById('icon');
+const emojiPickerBtn = document.getElementById('emojiPickerBtn');
+const emojiPickerContainer = document.getElementById('emojiPickerContainer');
+const previewIcon = document.getElementById('previewIcon');
+
+let pickerVisible = false;
+
+// Toggle emoji picker visibility
+emojiPickerBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    pickerVisible = !pickerVisible;
+    emojiPickerContainer.style.display = pickerVisible ? 'block' : 'none';
+    emojiPickerBtn.textContent = pickerVisible ? '❌ Close Picker' : '😀 Choose Emoji';
+});
+
+// Get the emoji picker element
+const picker = document.querySelector('emoji-picker');
+
+// Handle emoji selection
+picker.addEventListener('emoji-click', (event) => {
+    const emoji = event.detail.unicode;
+    iconInput.value = emoji;
+    previewIcon.textContent = emoji;
+    
+    // Close picker after selection
+    pickerVisible = false;
+    emojiPickerContainer.style.display = 'none';
+    emojiPickerBtn.textContent = '😀 Choose Emoji';
+    
+    // Smooth scroll to preview
+    setTimeout(() => {
+        document.getElementById('preview').scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'nearest' 
+        });
+    }, 100);
+});
+
+// Close picker when clicking outside
+document.addEventListener('click', (e) => {
+    if (pickerVisible && 
+        !emojiPickerContainer.contains(e.target) && 
+        e.target !== emojiPickerBtn) {
+        pickerVisible = false;
+        emojiPickerContainer.style.display = 'none';
+        emojiPickerBtn.textContent = '😀 Choose Emoji';
+    }
+});
+</script>
+
+<script>
+// Live preview updates (non-module script for other fields)
+const nameInput = document.getElementById('name');
+const descInput = document.getElementById('description');
+const colorInput = document.getElementById('color');
+const colorText = document.getElementById('colorText');
+
+const previewName = document.getElementById('previewName');
+const previewDesc = document.getElementById('previewDesc');
+const preview = document.getElementById('preview');
+
+nameInput.addEventListener('input', () => {
+    previewName.textContent = nameInput.value || 'Medal Name';
+});
+
+descInput.addEventListener('input', () => {
+    previewDesc.textContent = descInput.value || 'Medal description will appear here...';
+});
+
+colorInput.addEventListener('input', () => {
+    const color = colorInput.value;
+    colorText.value = color;
+    previewName.style.color = color;
+    preview.style.borderLeftColor = color;
+});
+</script>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,84 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1><%= mode === 'add' ? 'ADD NEW TOOL' : 'EDIT TOOL' %></h1>
+        <div class="subtitle">Internal Tools</div>
+    </header>
+
+    <section class="section" style="max-width: 800px; margin: 0 auto 30px;">
+        <form method="POST" 
+              action="<%= mode === 'add' ? '/admin/tools/add' : `/admin/tools/edit/${tool.id}` %>" 
+              enctype="multipart/form-data">
+            
+            <div class="form-group">
+                <label for="title">Tool Title *</label>
+                <input type="text" 
+                       id="title" 
+                       name="title" 
+                       value="<%= tool ? tool.title : '' %>" 
+                       required 
+                       placeholder="e.g., RPT Analyzer">
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" 
+                          name="description" 
+                          placeholder="Brief description of what this tool does"><%= tool ? tool.description : '' %></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="link">Link/URL *</label>
+                <input type="text" 
+                       id="link" 
+                       name="link" 
+                       value="<%= tool ? tool.link : '' %>" 
+                       required 
+                       placeholder="e.g., /tools/rpt-analyzer.html or https://example.com">
+                <small style="color: var(--khaki); display: block; margin-top: 5px;">
+                    Can be a relative path (/tools/file.html) or full URL (https://...)
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="image">Tool Image</label>
+                <% if (tool && tool.image_url) { %>
+                    <div style="margin-bottom: 10px;">
+                        <img src="<%= tool.image_url %>" alt="Current image" style="max-width: 200px; border-radius: 8px;">
+                        <p style="font-size: 0.9em; color: var(--khaki); margin-top: 5px;">Current image (upload new to replace)</p>
+                    </div>
+                <% } %>
+                <input type="file" 
+                       id="image" 
+                       name="image" 
+                       accept="image/*">
+                <small style="color: var(--khaki); display: block; margin-top: 5px;">
+                    Recommended size: 400x300px or similar aspect ratio
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="order_index">Display Order</label>
+                <input type="number" 
+                       id="order_index" 
+                       name="order_index" 
+                       value="<%= tool ? tool.order_index : 0 %>" 
+                       min="0" 
+                       placeholder="0">
+                <small style="color: var(--khaki); display: block; margin-top: 5px;">
+                    Lower numbers appear first (0, 1, 2, etc.)
+                </small>
+            </div>
+
+            <div style="display: flex; gap: 15px; margin-top: 30px;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    <%= mode === 'add' ? '➕ Add Tool' : '💾 Save Changes' %>
+                </button>
+                <a href="/admin/tools" class="btn" style="flex: 0 0 auto;">Cancel</a>
+            </div>
+        </form>
+    </section>
+</div>
+
+<%- include('../partials/footer') %>

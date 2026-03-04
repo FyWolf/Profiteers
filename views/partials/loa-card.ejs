@@ -1,0 +1,91 @@
+<%
+const now = new Date();
+const startDate = new Date(loa.start_date);
+const endDate = new Date(loa.end_date);
+const isActive = startDate <= now && endDate >= now && loa.status === 'approved';
+const isUpcoming = startDate > now && loa.status === 'approved';
+const isPast = endDate < now || loa.status !== 'approved';
+
+let statusColor = '#95a5a6'; // gray
+let statusText = 'Ended';
+if (isActive) {
+    statusColor = '#e74c3c'; // red
+    statusText = 'Active';
+} else if (isUpcoming) {
+    statusColor = '#f39c12'; // orange
+    statusText = 'Upcoming';
+}
+%>
+
+<div class="card" style="margin-bottom: 15px; border-left: 4px solid <%= statusColor %>;">
+    <div style="display: flex; justify-content: space-between; align-items: start; gap: 20px;">
+        <div style="flex: 1;">
+            <!-- Status Badge -->
+            <div style="display: inline-block; padding: 4px 12px; background: <%= statusColor %>; color: white; border-radius: 4px; font-weight: 700; font-size: 0.85em; margin-bottom: 12px;">
+                <%= statusText.toUpperCase() %>
+            </div>
+
+            <!-- Dates -->
+            <div style="margin-bottom: 12px;">
+                <div style="color: var(--sand); font-weight: 700; margin-bottom: 4px;">
+                    📅 <%= startDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) %>
+                    at <%= startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) %>
+                </div>
+                <div style="color: var(--khaki); font-size: 0.9em;">
+                    → <%= endDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) %>
+                    at <%= endDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) %>
+                </div>
+            </div>
+
+            <!-- Duration -->
+            <%
+            const durationMs = endDate - startDate;
+            const days = Math.floor(durationMs / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((durationMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            %>
+            <div style="color: var(--khaki); font-size: 0.85em; margin-bottom: 12px;">
+                ⏱️ Duration: 
+                <% if (days > 0) { %><%= days %> day<%= days > 1 ? 's' : '' %><% } %>
+                <% if (hours > 0) { %><%= hours %> hour<%= hours > 1 ? 's' : '' %><% } %>
+            </div>
+
+            <!-- Superior -->
+            <% if (loa.superior_display_name || loa.superior_username) { %>
+                <div style="color: var(--khaki); font-size: 0.85em; margin-bottom: 12px;">
+                    👤 Superior: <%= loa.superior_display_name || loa.superior_username %>
+                </div>
+            <% } %>
+
+            <!-- Reason (only shown to staff or owner) -->
+            <% if (typeof isOwn !== 'undefined' && isOwn || (typeof user !== 'undefined' && user && user.isAdmin)) { %>
+                <div style="padding: 12px; background: rgba(0,0,0,0.3); border-radius: 4px; margin-top: 12px;">
+                    <div style="color: var(--olive-light); font-weight: 700; font-size: 0.85em; margin-bottom: 6px;">
+                        🔒 Reason (Staff Only):
+                    </div>
+                    <div style="color: var(--khaki); line-height: 1.6;">
+                        <%= loa.reason %>
+                    </div>
+                </div>
+            <% } %>
+
+            <!-- Submission Info -->
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.8em; color: var(--khaki); opacity: 0.7;">
+                Submitted <%= new Date(loa.submitted_at).toLocaleDateString() %>
+            </div>
+        </div>
+
+        <!-- Actions (if shown) -->
+        <% if (typeof showActions !== 'undefined' && showActions && isActive || isUpcoming) { %>
+            <div style="display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;">
+                <a href="/loa/edit/<%= loa.id %>" class="btn" style="padding: 8px 16px; font-size: 0.9em;">
+                    ✏️ Edit
+                </a>
+                <form method="POST" action="/loa/delete/<%= loa.id %>" onsubmit="return confirm('Delete this LOA?');" style="margin: 0;">
+                    <button type="submit" class="btn btn-danger" style="padding: 8px 16px; font-size: 0.9em; width: 100%;">
+                        🗑️ Delete
+                    </button>
+                </form>
+            </div>
+        <% } %>
+    </div>
+</div>

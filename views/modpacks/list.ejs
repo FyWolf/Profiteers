@@ -1,0 +1,96 @@
+<%- include('../partials/header') %>
+
+<div class="page-container" style="max-width: 1100px; margin: 0 auto; padding: 20px;">
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+        <h2 style="margin: 0;">Modpacks</h2>
+        <% if (user && (user.isAdmin || user.isZeus)) { %>
+            <a href="/modpacks/upload/new" class="btn btn-primary">Upload Modpack</a>
+        <% } %>
+    </div>
+
+    <% if (success) { %>
+        <div class="alert alert-success"><%= success %></div>
+    <% } %>
+    
+    <% if (error) { %>
+        <div class="alert alert-error"><%= error %></div>
+    <% } %>
+
+    <% if (modpacks.length === 0) { %>
+        <div style="text-align: center; padding: 60px 20px; background: var(--camo-medium); border-radius: 8px; border: 1px solid var(--olive);">
+            <p style="font-size: 1.2em; color: var(--text-secondary); margin-bottom: 15px;">No modpacks uploaded yet.</p>
+            <% if (user && (user.isAdmin || user.isZeus)) { %>
+                <a href="/modpacks/upload/new" class="btn btn-primary">Upload Your First Modpack</a>
+            <% } %>
+        </div>
+    <% } else { %>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px;">
+            <% modpacks.forEach(mp => { %>
+                <div class="modpack-card" style="background: var(--camo-medium); border: 1px solid var(--olive); border-radius: 8px; overflow: hidden; transition: transform 0.2s, border-color 0.2s;">
+                    
+                    <!-- Header -->
+                    <div style="padding: 20px; border-bottom: 1px solid var(--olive);">
+                        <h3 style="margin: 0 0 8px 0; font-family: 'Orbitron', monospace; font-size: 1.1em;">
+                            <a href="/modpacks/<%= mp.id %>" style="color: var(--accent); text-decoration: none;">
+                                <%= mp.name %>
+                            </a>
+                        </h3>
+                        <% if (mp.description) { %>
+                            <p style="color: var(--text-secondary); font-size: 0.9em; margin: 0 0 10px 0; line-height: 1.4;">
+                                <%= mp.description.length > 100 ? mp.description.substring(0, 100) + '...' : mp.description %>
+                            </p>
+                        <% } %>
+                    </div>
+
+                    <!-- Stats -->
+                    <div style="padding: 15px 20px; display: flex; gap: 20px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.9em;">
+                            <span>🧩</span>
+                            <strong style="color: var(--text-primary);"><%= mp.mod_count %></strong> mods
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.9em;">
+                            <span>💾</span>
+                            <strong style="color: var(--text-primary);"><%= formatSize(mp.total_size) %></strong>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px; font-size: 0.9em;">
+                            <% if (mp.index_status === 'completed') { %>
+                                <span style="color: #4CAF50;">Indexed</span>
+                            <% } else if (mp.index_status === 'indexing') { %>
+                                <span style="color: var(--accent);">Indexing (<%= mp.index_progress %>/<%= mp.mod_count %>)</span>
+                            <% } else if (mp.index_status === 'failed') { %>
+                                <span style="color: #E74C3C;">Failed</span>
+                            <% } else { %>
+                                <span style="color: var(--text-secondary);">Pending</span>
+                            <% } %>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div style="padding: 12px 20px; border-top: 1px solid var(--olive); display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.15);">
+                        <span style="color: var(--text-secondary); font-size: 0.8em;">
+                            by <%= mp.creator_name || 'Unknown' %> · <%= new Date(mp.created_at).toLocaleDateString() %>
+                        </span>
+                        <div style="display: flex; gap: 8px;">
+                            <a href="/modpacks/<%= mp.id %>/download" class="btn btn-sm" style="padding: 4px 10px; font-size: 0.8em;" title="Download preset file">⬇️</a>
+                            <a href="/modpacks/<%= mp.id %>" class="btn btn-sm btn-primary" style="padding: 4px 10px; font-size: 0.8em;">View</a>
+                        </div>
+                    </div>
+
+                </div>
+            <% }) %>
+        </div>
+
+    <% } %>
+
+</div>
+
+<style>
+    .modpack-card:hover {
+        transform: translateY(-2px);
+        border-color: var(--accent) !important;
+    }
+</style>
+
+<%- include('../partials/footer') %>

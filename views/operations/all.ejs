@@ -1,0 +1,149 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>ALL OPERATIONS</h1>
+        <div class="subtitle">Complete Operation History</div>
+    </header>
+
+    <!-- Search Bar -->
+    <section class="section">
+        <form method="GET" action="/operations/all" style="margin-bottom: 20px;">
+            <div style="display: flex; gap: 10px;">
+                <input type="text" 
+                       name="search" 
+                       value="<%= search %>" 
+                       placeholder="Search operations..." 
+                       style="flex: 1; padding: 12px; background: rgba(40,40,40,0.9); color: var(--sand); border: 2px solid var(--olive); border-radius: 4px;">
+                <button type="submit" class="btn btn-primary">🔍 Search</button>
+                <% if (search) { %>
+                    <a href="/operations/all" class="btn">Clear</a>
+                <% } %>
+            </div>
+        </form>
+    </section>
+
+    <% if (operations.length === 0) { %>
+        <section class="section">
+            <div class="card text-center" style="padding: 40px;">
+                <div style="font-size: 4em; opacity: 0.3; margin-bottom: 15px;">📅</div>
+                <h3 style="color: var(--khaki); margin-bottom: 10px;">No Operations Found</h3>
+                <p style="color: var(--khaki); opacity: 0.8;">
+                    <% if (search) { %>
+                        No operations match your search. <a href="/operations/all">Clear search</a>
+                    <% } else { %>
+                        No operations have been created yet.
+                    <% } %>
+                </p>
+            </div>
+        </section>
+    <% } else { %>
+        <!-- Operations Grid -->
+        <section class="section">
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 25px;">
+                <% operations.forEach(op => { 
+                    const isPast = new Date(op.end_time) < new Date();
+                %>
+                    <a href="/operations/<%= op.id %>" style="text-decoration: none; color: inherit;">
+                        <div class="card" style="padding: 0; overflow: hidden; transition: all 0.3s ease; cursor: pointer; <%= isPast ? 'opacity: 0.8;' : '' %>">
+                            <!-- Banner -->
+                            <div style="width: 100%; height: 200px; overflow: hidden; background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%); position: relative;">
+                                <img src="<%= op.banner_url %>" 
+                                     alt="<%= op.title %>" 
+                                     style="width: 100%; height: 100%; object-fit: cover;"
+                                     onerror="this.src='/images/operations/default-banner.jpg';">
+                                <% if (isPast) { %>
+                                    <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: var(--khaki); padding: 6px 12px; border-radius: 4px; font-size: 0.85em; font-weight: 700;">
+                                        ✓ COMPLETED
+                                    </div>
+                                <% } %>
+                            </div>
+                            
+                            <!-- Content -->
+                            <div style="padding: 20px;">
+                                <h3 style="color: <%= isPast ? 'var(--khaki)' : 'var(--accent)' %>; margin-bottom: 12px; font-size: 1.3em;">
+                                    <%= op.title %>
+                                </h3>
+                                
+                                <% if (op.description) { %>
+                                    <p style="color: var(--khaki); margin-bottom: 15px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                        <%= op.description %>
+                                    </p>
+                                <% } %>
+                                
+                                <!-- Date & Time -->
+                                <div style="margin-bottom: 15px; padding: 12px; background: rgba(107,142,35,0.1); border-left: 3px solid var(--olive); border-radius: 4px;">
+                                    <div style="color: var(--olive-light); font-size: 0.9em; margin-bottom: 4px;">
+                                        📅 <span class="local-date" data-utc="<%= new Date(op.start_time).toISOString() %>"></span>
+                                    </div>
+                                    <div style="color: var(--olive-light); font-size: 0.9em;">
+                                        🕐 <span class="local-time" data-utc="<%= new Date(op.start_time).toISOString() %>"></span> 
+                                        - <span class="local-time" data-utc="<%= new Date(op.end_time).toISOString() %>"></span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Attendance -->
+                                <div style="display: flex; align-items: center; gap: 15px; padding-top: 15px; border-top: 1px solid rgba(178, 178, 125, 0.2);">
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 0.85em; color: var(--khaki); margin-bottom: 4px;">Attendance</div>
+                                        <div style="font-size: 1.3em; font-weight: 700; color: #2ecc71;">
+                                            👥 <%= op.present_count %> attended
+                                        </div>
+                                    </div>
+                                    <% if (op.tentative_count > 0) { %>
+                                        <div style="font-size: 0.9em; color: var(--khaki);">
+                                            ⏸️ <%= op.tentative_count %> tentative
+                                        </div>
+                                    <% } %>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                <% }); %>
+            </div>
+        </section>
+        
+        <section class="section">
+            <div style="text-align: center; padding: 20px; background: rgba(52,152,219,0.1); border: 1px solid #3498DB; border-radius: 8px;">
+                <strong style="color: #3498DB;">Total Operations:</strong> <%= operations.length %>
+            </div>
+        </section>
+    <% } %>
+</div>
+
+<style>
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(255, 215, 0, 0.2);
+}
+</style>
+
+<script>
+// Convert UTC times to local timezone
+document.addEventListener('DOMContentLoaded', () => {
+    // Format dates
+    document.querySelectorAll('.local-date').forEach(el => {
+        const utc = el.getAttribute('data-utc');
+        const date = new Date(utc);
+        el.textContent = date.toLocaleDateString(undefined, { 
+            weekday: 'short', 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+        });
+    });
+    
+    // Format times
+    document.querySelectorAll('.local-time').forEach(el => {
+        const utc = el.getAttribute('data-utc');
+        const date = new Date(utc);
+        el.textContent = date.toLocaleTimeString(undefined, { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: true
+        });
+    });
+});
+</script>
+
+<%- include('../partials/footer') %>

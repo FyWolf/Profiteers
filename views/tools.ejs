@@ -1,0 +1,50 @@
+<%- include('partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>INTERNAL TOOLS</h1>
+        <div class="subtitle">Resources for Unit Members</div>
+    </header>
+
+    <% if (tools.length === 0) { %>
+        <section class="section text-center">
+            <h2>No Tools Available</h2>
+            <p>Check back later for internal tools and resources.</p>
+            <% if (user && user.isAdmin) { %>
+                <a href="/admin/tools/add" class="btn btn-primary mt-2">Add First Tool</a>
+            <% } %>
+        </section>
+    <% } else { %>
+        <section class="section">
+            <div class="grid grid-3">
+                <% tools.forEach(tool => { %>
+                    <div class="card">
+                        <% if (tool.image_url) { %>
+                            <img src="<%= tool.image_url %>" alt="<%= tool.title %>" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 15px;">
+                        <% } else { %>
+                            <div class="image-placeholder" style="height: 200px; margin-bottom: 15px;">
+                                [<%= tool.title %>]
+                            </div>
+                        <% } %>
+                        
+                        <h3><%= tool.title %></h3>
+                        <p><%= tool.description %></p>
+                        
+                        <a href="<%= tool.link %>" class="btn mt-2" style="width: 100%;" target="_blank">
+                            Open Tool →
+                        </a>
+                    </div>
+                <% }); %>
+            </div>
+        </section>
+    <% } %>
+
+    <% if (user && user.isAdmin) { %>
+        <section class="section text-center">
+            <h3>Admin Actions</h3>
+            <a href="/admin/tools" class="btn btn-primary">Manage Tools</a>
+        </section>
+    <% } %>
+</div>
+
+<%- include('partials/footer') %>

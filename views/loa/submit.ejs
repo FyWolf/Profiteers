@@ -1,0 +1,150 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>SUBMIT LEAVE OF ABSENCE</h1>
+        <div class="subtitle">Notify Leadership of Your Absence</div>
+    </header>
+
+    <section class="section" style="max-width: 700px; margin: 0 auto;">
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="alert alert-error"><%= error %></div>
+        <% } %>
+
+        <div class="card">
+            <form method="POST" action="/loa/submit">
+                <div class="form-group">
+                    <label for="start_date">Start Date & Time</label>
+                    <input type="datetime-local" 
+                           id="start_date" 
+                           name="start_date" 
+                           required
+                           min="<%= new Date().toISOString().slice(0, 16) %>">
+                    <small style="color: var(--khaki);">When your leave begins</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="end_date">End Date & Time</label>
+                    <input type="datetime-local" 
+                           id="end_date" 
+                           name="end_date" 
+                           required
+                           min="<%= new Date().toISOString().slice(0, 16) %>">
+                    <small style="color: var(--khaki);">When you expect to return</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="superior_search">Notify Superior (Optional)</label>
+                    <input type="text" 
+                           id="superior_search" 
+                           placeholder="Search for a player..."
+                           autocomplete="off"
+                           style="margin-bottom: 5px;">
+                    <input type="hidden" id="superior_id" name="superior_id" value="">
+                    <div id="selected_superior" style="display: none; padding: 10px; background: rgba(107,142,35,0.2); border-radius: 4px; margin-bottom: 10px;">
+                        <strong>Selected:</strong> <span id="selected_name"></span>
+                        <button type="button" onclick="clearSuperior()" style="margin-left: 10px; padding: 2px 8px; font-size: 0.8em; background: #e74c3c; border: none; color: white; border-radius: 3px; cursor: pointer;">Clear</button>
+                    </div>
+                    <div id="superior_results" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--olive); border-radius: 4px; display: none; background: var(--camo-dark);"></div>
+                    <small style="color: var(--khaki);">Search and select a superior to notify (optional)</small>
+                </div>
+
+                <script>
+                    const users = <%- JSON.stringify(users) %>;
+                    const searchInput = document.getElementById('superior_search');
+                    const resultsDiv = document.getElementById('superior_results');
+                    const hiddenInput = document.getElementById('superior_id');
+                    const selectedDiv = document.getElementById('selected_superior');
+                    const selectedName = document.getElementById('selected_name');
+
+                    searchInput.addEventListener('input', function() {
+                        const query = this.value.toLowerCase().trim();
+                        
+                        if (query.length === 0) {
+                            resultsDiv.style.display = 'none';
+                            return;
+                        }
+
+                        const filtered = users.filter(user => {
+                            const name = (user.discord_global_name || user.username).toLowerCase();
+                            const username = (user.discord_username || '').toLowerCase();
+                            return name.includes(query) || username.includes(query);
+                        }).slice(0, 20); // Limit to 20 results
+
+                        if (filtered.length === 0) {
+                            resultsDiv.innerHTML = '<div style="padding: 10px; color: var(--khaki);">No players found</div>';
+                            resultsDiv.style.display = 'block';
+                            return;
+                        }
+
+                        resultsDiv.innerHTML = filtered.map(user => `
+                            <div onclick="selectSuperior(${user.id}, '${(user.discord_global_name || user.username).replace(/'/g, "\\'")}')" 
+                                 style="padding: 10px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.1); transition: background 0.2s;"
+                                 onmouseover="this.style.background='rgba(107,142,35,0.3)'"
+                                 onmouseout="this.style.background='transparent'">
+                                <strong>${user.discord_global_name || user.username}</strong>
+                                ${user.is_admin ? '<span style="color: var(--accent); font-size: 0.8em;"> (Admin)</span>' : ''}
+                            </div>
+                        `).join('');
+                        
+                        resultsDiv.style.display = 'block';
+                    });
+
+                    function selectSuperior(id, name) {
+                        hiddenInput.value = id;
+                        selectedName.textContent = name;
+                        selectedDiv.style.display = 'block';
+                        searchInput.value = '';
+                        resultsDiv.style.display = 'none';
+                    }
+
+                    function clearSuperior() {
+                        hiddenInput.value = '';
+                        selectedDiv.style.display = 'none';
+                    }
+
+                    // Hide results when clicking outside
+                    document.addEventListener('click', function(e) {
+                        if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+                            resultsDiv.style.display = 'none';
+                        }
+                    });
+                </script>
+
+                <div class="form-group">
+                    <label for="reason">Reason (Staff Only)</label>
+                    <textarea id="reason" 
+                              name="reason" 
+                              rows="4" 
+                              required
+                              placeholder="Brief explanation for your absence..."></textarea>
+                    <small style="color: var(--khaki);">
+                        This will only be visible to staff members. Members will only see "On LOA" status.
+                    </small>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">
+                        📝 Submit LOA
+                    </button>
+                    <a href="/loa/my-loas" class="btn" style="flex: 0 0 auto;">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Info Box -->
+        <div style="margin-top: 20px; padding: 15px; background: rgba(52,152,219,0.1); border: 1px solid #3498DB; border-radius: 8px;">
+            <h4 style="color: #3498DB; margin-bottom: 10px;">ℹ️ About Leave of Absence</h4>
+            <ul style="color: var(--khaki); line-height: 1.8; margin: 0; padding-left: 20px; font-size: 0.9em;">
+                <li>Your LOA status will be visible on your profile and ORBAT assignments</li>
+                <li>Only staff can see your reason for absence</li>
+                <li>You can edit or delete your LOA at any time</li>
+                <li>Automatic approval - no waiting period</li>
+            </ul>
+        </div>
+    </section>
+</div>
+
+<%- include('../partials/footer') %>

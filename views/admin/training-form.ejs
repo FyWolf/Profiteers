@@ -1,0 +1,222 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1><%= action === 'add' ? 'CREATE TRAINING' : 'EDIT TRAINING' %></h1>
+        <div class="subtitle">Training Certification System</div>
+    </header>
+
+    <section class="section" style="max-width: 700px; margin: 0 auto;">
+        <form method="POST" action="/admin/trainings/<%= action === 'add' ? 'add' : 'edit/' + training.id %>" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="name">Training Name *</label>
+                <input type="text" id="name" name="name" value="<%= training ? training.name : '' %>" required maxlength="100" placeholder="e.g., Combat Life Saver (CLS)">
+            </div>
+
+            <div class="form-group">
+                <label for="discord_role_id">Discord Role ID *</label>
+                <input type="text" id="discord_role_id" name="discord_role_id" value="<%= training ? training.discord_role_id : '' %>" required maxlength="50" placeholder="e.g., 1265517416071430185">
+                <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                    Get this from Discord: Server Settings → Roles → Right-click role → Copy ID<br>
+                    (Developer Mode must be enabled in Discord settings)
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description (Optional)</label>
+                <textarea id="description" name="description" rows="3" placeholder="Brief description of this training..."><%= training ? training.description || '' : '' %></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="color">Badge Color</label>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <input type="color" id="color" name="color" value="<%= training ? training.color : '#3498DB' %>" style="width: 60px; height: 40px; border: 2px solid var(--olive); border-radius: 4px; cursor: pointer;">
+                    <input type="text" id="colorText" value="<%= training ? training.color : '#3498DB' %>" readonly style="flex: 1; background: rgba(40,40,40,0.9); color: var(--sand); padding: 10px; border: 2px solid var(--olive); border-radius: 4px;">
+                </div>
+                <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                    Choose a color for this training badge
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="image_url">Badge Image</label>
+                
+                <!-- File Upload Option -->
+                <div style="margin-bottom: 20px; padding: 20px; background: rgba(52, 152, 219, 0.1); border: 2px solid #3498DB; border-radius: 8px;">
+                    <strong style="color: #3498DB; display: block; margin-bottom: 10px;">📤 Upload Badge Image</strong>
+                    <input type="file" id="badge_upload" name="badge_upload" accept="image/*" style="padding: 10px; background: rgba(40,40,40,0.9); color: var(--sand); border: 2px solid var(--olive); border-radius: 4px; width: 100%; cursor: pointer;">
+                    <small style="color: var(--khaki); margin-top: 8px; display: block;">
+                        Upload an image and the path will be set automatically.<br>
+                        Recommended: PNG, 512x512px, under 500KB
+                    </small>
+                </div>
+                
+                <!-- OR Manual URL Input -->
+                <div style="margin-bottom: 15px;">
+                    <label for="image_url" style="font-size: 0.9em; color: var(--khaki);">Or enter URL manually:</label>
+                    <input type="text" id="image_url" name="image_url" value="<%= training ? training.image_url : '/images/badges/default-training.png' %>" placeholder="/images/badges/your-badge.png">
+                    <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                        Path will be set automatically when you upload a file
+                    </small>
+                </div>
+                
+                <!-- Image Preview -->
+                <div style="margin-top: 15px; padding: 20px; background: rgba(0,0,0,0.3); border: 2px solid var(--olive); border-radius: 8px; text-align: center;">
+                    <div style="margin-bottom: 10px; color: var(--khaki); font-weight: 700;">Image Preview:</div>
+                    <img id="imagePreview" src="<%= training ? training.image_url : '/images/badges/default-training.png' %>" 
+                         alt="Training Badge Preview" 
+                         style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 3px solid var(--olive);"
+                         onerror="this.src='/images/badges/default-training.png'; this.style.border='3px solid #e74c3c';">
+                    <div id="imageStatus" style="margin-top: 10px; font-size: 0.9em;"></div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="display_order">Display Order</label>
+                <input type="number" id="display_order" name="display_order" value="<%= training ? training.display_order : 0 %>" min="0" placeholder="0">
+                <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                    Lower numbers appear first (0 = first, 1 = second, etc.)
+                </small>
+            </div>
+
+            <!-- Preview -->
+            <div class="form-group">
+                <label>Preview</label>
+                <div class="card" id="preview" style="border-left: 4px solid <%= training ? training.color : '#3498DB' %>;">
+                    <div style="display: flex; align-items: start; gap: 15px;">
+                        <img id="previewBadge" 
+                             src="<%= training ? training.image_url : '/images/badges/default-training.png' %>" 
+                             alt="Training Badge"
+                             style="width: 80px; height: 80px; object-fit: contain; border-radius: 8px; border: 2px solid <%= training ? training.color : '#3498DB' %>;"
+                             onerror="this.src='/images/badges/default-training.png';">
+                        <div style="flex: 1;">
+                            <h3 id="previewName" style="color: <%= training ? training.color : '#3498DB' %>; margin-bottom: 8px;">
+                                <%= training ? training.name : 'Training Name' %>
+                            </h3>
+                            <p id="previewDesc" style="color: var(--khaki);">
+                                <%= training && training.description ? training.description : 'Training description will appear here...' %>
+                            </p>
+                            <div style="font-size: 0.85em; color: var(--khaki); margin-top: 10px;">
+                                <strong>Auto-synced from Discord role</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    <%= action === 'add' ? '➕ Create Training' : '💾 Save Changes' %>
+                </button>
+                <a href="/admin/trainings" class="btn" style="flex: 1; text-align: center;">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </section>
+</div>
+
+<script>
+// Live preview
+const nameInput = document.getElementById('name');
+const descInput = document.getElementById('description');
+const colorInput = document.getElementById('color');
+const colorText = document.getElementById('colorText');
+const imageUrlInput = document.getElementById('image_url');
+const badgeUpload = document.getElementById('badge_upload');
+
+const previewName = document.getElementById('previewName');
+const previewDesc = document.getElementById('previewDesc');
+const previewBadge = document.getElementById('previewBadge');
+const imagePreview = document.getElementById('imagePreview');
+const imageStatus = document.getElementById('imageStatus');
+const preview = document.getElementById('preview');
+
+nameInput.addEventListener('input', () => {
+    previewName.textContent = nameInput.value || 'Training Name';
+});
+
+descInput.addEventListener('input', () => {
+    previewDesc.textContent = descInput.value || 'Training description will appear here...';
+});
+
+colorInput.addEventListener('input', () => {
+    const color = colorInput.value;
+    colorText.value = color;
+    previewName.style.color = color;
+    preview.style.borderLeftColor = color;
+    previewBadge.style.borderColor = color;
+});
+
+// File upload preview
+badgeUpload.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        // Check if it's an image
+        if (!file.type.startsWith('image/')) {
+            imageStatus.textContent = '❌ Please select an image file';
+            imageStatus.style.color = '#e74c3c';
+            return;
+        }
+        
+        // Check file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            imageStatus.textContent = '❌ Image too large (max 5MB)';
+            imageStatus.style.color = '#e74c3c';
+            return;
+        }
+        
+        // Create preview from uploaded file
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            imagePreview.src = event.target.result;
+            previewBadge.src = event.target.result;
+            imageStatus.textContent = '✅ Image ready to upload';
+            imageStatus.style.color = '#2ecc71';
+        };
+        reader.readAsDataURL(file);
+        
+        // Set the image_url to what it will be after upload
+        const filename = file.name.toLowerCase().replace(/[^a-z0-9.-]/g, '-');
+        imageUrlInput.value = '/images/badges/' + filename;
+        imageStatus.textContent = '✅ Will be saved as: ' + filename;
+        imageStatus.style.color = '#2ecc71';
+    }
+});
+
+// Image URL preview
+imageUrlInput.addEventListener('input', () => {
+    const url = imageUrlInput.value;
+    updateImagePreviews(url);
+});
+
+function updateImagePreviews(url) {
+    imagePreview.src = url;
+    previewBadge.src = url;
+    
+    // Check if image loads successfully
+    const testImg = new Image();
+    testImg.onload = () => {
+        imageStatus.textContent = '✅ Image loaded successfully';
+        imageStatus.style.color = '#2ecc71';
+    };
+    testImg.onerror = () => {
+        imageStatus.textContent = '❌ Image not found or failed to load';
+        imageStatus.style.color = '#e74c3c';
+    };
+    testImg.src = url;
+}
+
+// Function to set image from buttons
+function setImage(url) {
+    imageUrlInput.value = url;
+    updateImagePreviews(url);
+}
+
+// Initial load check
+if (!badgeUpload.files || badgeUpload.files.length === 0) {
+    updateImagePreviews(imageUrlInput.value);
+}
+</script>
+
+<%- include('../partials/footer') %>

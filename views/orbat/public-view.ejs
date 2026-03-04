@@ -1,0 +1,49 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>ORBAT TEMPLATES</h1>
+        <div class="subtitle">Standard Battle Formations</div>
+    </header>
+
+    <% if (templates.length === 0) { %>
+        <section class="section">
+            <div class="card text-center">
+                <p style="color: var(--khaki);">No ORBAT templates available yet.</p>
+            </div>
+        </section>
+    <% } else { %>
+        <section class="section">
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                <% templates.forEach(template => { %>
+                    <a href="/orbat/view/<%= template.id %>" style="text-decoration: none;">
+                        <div class="card" style="transition: all 0.3s ease; cursor: pointer;">
+                            <h3 style="color: var(--accent); margin-bottom: 12px;">
+                                <%= template.name %>
+                            </h3>
+                            
+                            <% if (template.description) { %>
+                                <p style="color: var(--khaki); margin-bottom: 15px; line-height: 1.5;">
+                                    <%= template.description %>
+                                </p>
+                            <% } %>
+                            
+                            <div style="text-align: center; padding: 10px; background: rgba(107,142,35,0.1); border-radius: 4px;">
+                                <span style="color: var(--olive); font-weight: 700;">View Formation →</span>
+                            </div>
+                        </div>
+                    </a>
+                <% }); %>
+            </div>
+        </section>
+    <% } %>
+</div>
+
+<style>
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(255, 215, 0, 0.2);
+}
+</style>
+
+<%- include('../partials/footer') %>

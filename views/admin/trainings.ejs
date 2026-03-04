@@ -1,0 +1,103 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>MANAGE TRAININGS</h1>
+        <div class="subtitle">Training Certification System</div>
+    </header>
+
+    <section class="section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+            <h2 style="margin: 0;">All Trainings</h2>
+            <a href="/admin/trainings/add" class="btn btn-primary">➕ Create New Training</a>
+        </div>
+
+        <% if (success) { %>
+            <div class="alert alert-success"><%= success %></div>
+        <% } %>
+        
+        <% if (error) { %>
+            <div class="alert alert-error"><%= error %></div>
+        <% } %>
+
+        <div style="padding: 15px; background: rgba(52, 152, 219, 0.1); border: 1px solid #3498DB; border-radius: 8px; margin-bottom: 25px;">
+            <h4 style="color: #3498DB; margin-bottom: 10px;">ℹ️ How Training Sync Works</h4>
+            <p style="margin-bottom: 8px;">
+                <strong>Automatic:</strong> Trainings are automatically synced when users login via Discord<br>
+                <strong>Manual:</strong> Click "🔄 Trainings" on any user to manually sync their trainings<br>
+                <strong>Discord Roles:</strong> Users must have the corresponding Discord role to receive the training
+            </p>
+        </div>
+
+        <% if (trainings.length === 0) { %>
+            <div class="card text-center">
+                <h3>No Trainings Created</h3>
+                <p>Create your first training to get started!</p>
+                <a href="/admin/trainings/add" class="btn btn-primary mt-2">Create Training</a>
+            </div>
+        <% } else { %>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; margin-bottom: 25px;">
+                <% trainings.forEach(training => { %>
+                    <div class="card" style="border-left: 4px solid <%= training.color %>;">
+                        <div style="display: flex; align-items: start; gap: 15px; margin-bottom: 15px;">
+                            <img src="<%= training.image_url || '/images/badges/default-training.png' %>" 
+                                 alt="<%= training.name %>" 
+                                 style="width: 80px; height: 80px; object-fit: contain; border-radius: 8px; border: 2px solid <%= training.color %>;"
+                                 onerror="this.src='/images/badges/default-training.png';">
+                            <div style="flex: 1;">
+                                <h3 style="color: <%= training.color %>; margin-bottom: 8px;">
+                                    <%= training.name %>
+                                </h3>
+                                <% if (training.description) { %>
+                                    <p style="color: var(--khaki); font-size: 0.95em; margin-bottom: 10px;">
+                                        <%= training.description %>
+                                    </p>
+                                <% } %>
+                            </div>
+                        </div>
+                        
+                        <div style="font-size: 0.9em; color: var(--khaki); padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; margin-bottom: 10px;">
+                            <div style="margin-bottom: 5px;">
+                                <strong>Discord Role ID:</strong><br>
+                                <code style="font-family: 'Roboto Mono', monospace; font-size: 0.85em; background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 3px;">
+                                    <%= training.discord_role_id %>
+                                </code>
+                            </div>
+                            <div style="margin-bottom: 5px;">
+                                <strong>Display Order:</strong> <%= training.display_order %>
+                            </div>
+                            <div>
+                                <strong>Assigned to:</strong> <%= training.assigned_count %> user(s)
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 15px;">
+                            <a href="/admin/trainings/edit/<%= training.id %>" class="btn" style="flex: 1; text-align: center; padding: 8px;">
+                                ✏️ Edit
+                            </a>
+                            <form method="POST" action="/admin/trainings/delete/<%= training.id %>" style="flex: 1;" onsubmit="return confirm('Delete this training? It will be removed from all users.')">
+                                <button type="submit" class="btn btn-danger" style="width: 100%; padding: 8px;">
+                                    🗑️ Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+
+            <div style="padding: 20px; background: rgba(52,152,219,0.1); border: 1px solid #3498DB; border-radius: 8px;">
+                <h4 style="color: #3498DB; margin-bottom: 10px;">📊 Training Statistics</h4>
+                <p>
+                    <strong>Total Trainings:</strong> <%= trainings.length %><br>
+                    <strong>Total Assignments:</strong> <%= trainings.reduce((sum, t) => sum + t.assigned_count, 0) %>
+                </p>
+            </div>
+        <% } %>
+    </section>
+
+    <section class="section">
+        <a href="/admin" class="btn">← Back to Dashboard</a>
+    </section>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arma 3 RPT Log Analyzer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --camo-dark: #1a2a1a;
+            --camo-mid: #2e3b2e;
+            --bg-main: #222222;
+            --olive: #6b8e23;
+            --olive-light: #8ab23a;
+            --khaki: #b2b27d;
+            --sand: #f4f3e8;
+            --accent: #fcb00d;
+            --shadow: rgba(0,0,0,0.6);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto Mono', 'Courier New', monospace;
+            background: linear-gradient(135deg, var(--camo-dark) 0%, var(--camo-mid) 100%);
+            color: var(--sand);
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(30,40,30,0.8) 100%);
+            border-bottom: 3px solid var(--accent);
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px var(--shadow);
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.4em;
+            color: var(--accent);
+            text-shadow: 0 0 15px var(--accent), 0 0 30px rgba(252,176,13,0.5);
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            color: var(--khaki);
+            opacity: 0.9;
+        }
+
+        /* Navigation Bar */
+        nav {
+            background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(30,40,30,0.9) 100%);
+            border-bottom: 3px solid var(--accent);
+            box-shadow: 0 4px 16px var(--shadow);
+            margin: 0;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        nav .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2em;
+            font-weight: 700;
+            color: var(--accent);
+            text-shadow: 0 0 10px rgba(252,176,13,0.5);
+            letter-spacing: 1px;
+        }
+
+        nav .nav-links {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-weight: 600;
+            font-size: 0.9em;
+            background: linear-gradient(135deg, var(--olive) 0%, var(--olive-light) 100%);
+        }
+
+        nav a:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(107,142,35,0.6);
+        }
+
+        nav a.btn-home {
+            background: linear-gradient(135deg, var(--accent) 0%, #e6a600 100%);
+            color: var(--camo-dark);
+        }
+
+        @media (max-width: 768px) {
+            nav {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            nav .nav-links {
+                width: 100%;
+                flex-direction: column;
+            }
+            
+            nav a {
+                width: 100%;
+            }
+        }
+
+        .upload-section {
+            background: linear-gradient(135deg, rgba(30,40,30,0.95) 0%, rgba(20,30,20,0.95) 100%);
+            border: 2px solid var(--olive);
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 24px var(--shadow);
+        }
+
+        .file-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        input[type="file"] {
+            flex: 1;
+            min-width: 300px;
+            padding: 12px;
+            border: 2px dashed var(--khaki);
+            border-radius: 10px;
+            background: rgba(40,40,40,0.9);
+            color: var(--sand);
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        input[type="file"]:hover {
+            border-color: var(--accent);
+            background: rgba(40,40,40,1);
+            box-shadow: 0 0 10px rgba(252,176,13,0.3);
+        }
+
+        input[type="file"]::file-selector-button {
+            background: linear-gradient(135deg, var(--olive) 0%, var(--olive-light) 100%);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 700;
+            margin-right: 10px;
+            font-family: inherit;
+        }
+
+        input[type="file"]::file-selector-button:hover {
+            background: linear-gradient(135deg, var(--olive-light) 0%, var(--olive) 100%);
+        }
+
+        button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, var(--olive) 0%, var(--olive-light) 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(107,142,35,0.4);
+            font-family: inherit;
+        }
+
+        button:hover {
+            background: linear-gradient(135deg, var(--olive-light) 0%, var(--olive) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(107,142,35,0.6);
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.5;
+        }
+
+        #fileInfo {
+            color: var(--khaki);
+            font-size: 0.9em;
+        }
+
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            padding: 20px 0;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(10,20,10,0.5) 100%);
+            border: 2px solid var(--khaki);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+            box-shadow: 0 8px 24px rgba(252,176,13,0.2);
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: var(--khaki);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            flex: 1;
+            min-width: 140px;
+            padding: 14px 30px;
+            background: linear-gradient(135deg, rgba(30,40,30,0.95) 0%, rgba(20,30,20,0.95) 100%);
+            border: 2px solid var(--khaki);
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: 600;
+            color: var(--khaki);
+            transition: all 0.3s;
+            border-radius: 10px;
+        }
+
+        .tab:hover {
+            background: rgba(107,142,35,0.2);
+            border-color: var(--olive);
+            transform: translateY(-2px);
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, var(--accent) 0%, #e6a600 100%);
+            color: var(--camo-dark);
+            border-color: var(--accent);
+            box-shadow: 0 6px 20px rgba(252,176,13,0.4);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .section {
+            background: linear-gradient(135deg, rgba(30,40,30,0.95) 0%, rgba(20,30,20,0.95) 100%);
+            border: 2px solid var(--olive);
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 24px var(--shadow);
+        }
+
+        h2 {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--accent);
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        h3 {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--accent);
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 700;
+            color: var(--khaki);
+            text-transform: uppercase;
+            font-size: 0.9em;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid var(--khaki);
+            border-radius: 8px;
+            background: rgba(40,40,40,0.9);
+            color: var(--sand);
+            font-size: 0.95em;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 10px rgba(252,176,13,0.3);
+        }
+
+        .fps-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .entity-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .entity-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 12px;
+            background: rgba(180,180,140,0.1);
+            border: 2px solid var(--khaki);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .entity-checkbox:hover {
+            background: rgba(180,180,140,0.18);
+            border-color: var(--accent);
+        }
+
+        .entity-checkbox input[type="checkbox"] {
+            cursor: pointer;
+            accent-color: var(--accent);
+        }
+
+        .logs-table-wrapper {
+            overflow-x: auto;
+            max-height: 600px;
+            border: 2px solid var(--khaki);
+            border-radius: 12px;
+            background: rgba(0,0,0,0.4);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: linear-gradient(135deg, var(--camo-mid) 0%, #3a4a3a 100%);
+            z-index: 10;
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid var(--olive);
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(178,178,125,0.2);
+        }
+
+        tr:hover td {
+            background: rgba(180,180,140,0.1);
+        }
+
+        .log-timestamp {
+            font-family: 'Roboto Mono', monospace;
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .log-message {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.9em;
+            color: var(--sand);
+        }
+
+        .chart-container {
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(10,20,10,0.5) 100%);
+            border: 2px solid var(--khaki);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px var(--shadow);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+        }
+
+        canvas {
+            background: rgba(0,0,0,0.4);
+            border-radius: 8px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+            color: var(--khaki);
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid rgba(178,178,125,0.3);
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #logCount {
+            color: var(--khaki);
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+
+        .error-item {
+            background: rgba(231,76,60,0.1);
+            border-left: 4px solid #e74c3c;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.9em;
+        }
+
+        .warning-item {
+            background: rgba(241,196,15,0.1);
+            border-left: 4px solid #f1c40f;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.9em;
+        }
+
+        .panic-item {
+            background: rgba(192,57,43,0.2);
+            border-left: 4px solid #c0392b;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.9em;
+            color: #fff;
+        }
+
+        .crash-time {
+            color: var(--accent);
+            font-weight: 700;
+            margin-right: 10px;
+        }
+
+        .no-crash {
+            color: #2ecc71;
+            font-size: 1.2em;
+            font-weight: 700;
+        }
+
+        .crash-detected {
+            color: #e74c3c;
+            font-size: 1.2em;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav>
+        <div class="logo">🔧 RPT ANALYZER</div>
+        <div class="nav-links">
+            <a href="/" class="btn-home">← Home</a>
+            <a href="/tools">← Tools</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header>
+            <h1>🎮 ARMA 3 RPT LOG ANALYZER</h1>
+            <p class="subtitle">Tactical Performance Analysis & Server Diagnostics</p>
+        </header>
+
+        <div class="upload-section">
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" accept=".rpt,.txt" />
+                <button id="analyzeBtn" disabled>Analyze Log</button>
+            </div>
+            <div id="fileInfo"></div>
+        </div>
+
+        <div id="statsOverview" class="stats-overview" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-label">Total Logs</div>
+                <div class="stat-value" id="totalLogs">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">FPS Entries</div>
+                <div class="stat-value" id="totalFps">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Unique Entities</div>
+                <div class="stat-value" id="uniqueEntities">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Server FPS</div>
+                <div class="stat-value" id="avgServerFps">-</div>
+            </div>
+        </div>
+
+        <div class="tabs" id="tabsContainer" style="display: none;">
+            <button class="tab active" data-tab="fps">FPS Stats</button>
+            <button class="tab" data-tab="crash">Crash Analysis</button>
+            <button class="tab" data-tab="logs">All Logs</button>
+        </div>
+
+        <div class="loading" id="loadingIndicator">
+            <div class="spinner"></div>
+            <p>Analyzing RPT file...</p>
+        </div>
+
+        <div id="fpsTab" class="tab-content active">
+            <div class="section">
+                <h2>FPS Statistics</h2>
+                
+                <div class="fps-controls">
+                    <div class="filter-group" style="flex: 0 0 200px;">
+                        <label>Time Range</label>
+                        <select id="timeRange">
+                            <option value="all">All Time</option>
+                            <option value="30">Last 30 minutes</option>
+                            <option value="60">Last 1 hour</option>
+                            <option value="120">Last 2 hours</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: flex-end;">
+                        <button id="selectAllBtn" style="padding: 10px 20px;">Select All</button>
+                        <button id="unselectAllBtn" style="padding: 10px 20px;">Unselect All</button>
+                    </div>
+                </div>
+
+                <div class="entity-selector" id="entitySelector"></div>
+
+                <div class="chart-container">
+                    <h3>FPS Over Time</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="fpsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Average FPS by Entity</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="avgFpsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="crashTab" class="tab-content">
+            <div class="section">
+                <h2>Crash Analysis</h2>
+                
+                <div style="margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                    <label class="entity-checkbox" style="cursor: pointer;">
+                        <input type="checkbox" id="filterCommonErrors" checked>
+                        <span>Filter Common Addon Errors</span>
+                    </label>
+                    <label class="entity-checkbox" style="cursor: pointer;">
+                        <input type="checkbox" id="filterRepeatedErrors" checked>
+                        <span>Filter Repeated Errors (10+ occurrences)</span>
+                    </label>
+                    <button id="showFilteredBtn" style="padding: 8px 16px; font-size: 0.9em;">Show Filtered Errors</button>
+                </div>
+                
+                <div id="crashSummary" class="stat-card" style="margin-bottom: 25px; text-align: left;">
+                    <h3 style="margin-bottom: 15px;">Crash Status</h3>
+                    <div id="crashStatus"></div>
+                </div>
+
+                <div id="crashCause" style="display: none; margin-bottom: 25px;">
+                    <div class="stat-card" style="text-align: left; border-color: #e74c3c;">
+                        <h3 style="color: #e74c3c; margin-bottom: 15px;">⚠️ Critical Crash Detected</h3>
+                        <div id="crashCauseContent"></div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Error Distribution</h3>
+                    <div class="chart-wrapper" style="height: 300px;">
+                        <canvas id="errorChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Critical Issues</h3>
+                    <div id="criticalIssues"></div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Recent Errors Before Crash</h3>
+                    <div id="recentErrors"></div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Last Events (Final 50 Log Entries)</h3>
+                    <div class="logs-table-wrapper" style="max-height: 400px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Time</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lastEventsTable">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="logsTab" class="tab-content">
+            <div class="section">
+                <h2>All Logs</h2>
+                
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>Search</label>
+                        <input type="text" id="logSearch" placeholder="Search logs..." />
+                    </div>
+                    <div class="filter-group">
+                        <label>Filter Type</label>
+                        <select id="logFilter">
+                            <option value="all">All Logs</option>
+                            <option value="fps">FPS Only</option>
+                            <option value="error">Errors/Warnings</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="logs-table-wrapper">
+                    <table id="logsTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 100px;">Time</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+                <div id="logCount"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for filtered errors -->
+    <div id="filteredModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; padding: 20px; overflow-y: auto;">
+        <div style="max-width: 1000px; margin: 50px auto; background: linear-gradient(135deg, var(--camo-dark) 0%, #101810 100%); border: 2px solid var(--olive); border-radius: 16px; padding: 35px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="color: var(--accent); font-family: 'Orbitron', sans-serif;">Filtered Errors</h3>
+                <button id="closeFilteredBtn" style="padding: 8px 16px;">Close</button>
+            </div>
+            <div id="filteredErrorsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global data storage
+        let allLogs = [];
+        let fpsData = [];
+        let fpsChart = null;
+        let avgFpsChart = null;
+
+        // DOM Elements
+        const fileInput = document.getElementById('fileInput');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const statsOverview = document.getElementById('statsOverview');
+        const tabsContainer = document.getElementById('tabsContainer');
+        const fileInfo = document.getElementById('fileInfo');
+
+        // Event Listeners
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                analyzeBtn.disabled = false;
+                fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+            } else {
+                analyzeBtn.disabled = true;
+                fileInfo.textContent = '';
+            }
+        });
+
+        analyzeBtn.addEventListener('click', analyzeFile);
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                
+                // Update active tab
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Update active content
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(`${tabName}Tab`).classList.add('active');
+            });
+        });
+
+        // Filter listeners
+        document.getElementById('logSearch')?.addEventListener('input', filterLogs);
+        document.getElementById('logFilter')?.addEventListener('change', filterLogs);
+        document.getElementById('timeRange')?.addEventListener('change', updateFPSCharts);
+
+        // Select/Unselect all buttons
+        document.getElementById('selectAllBtn')?.addEventListener('click', () => {
+            document.querySelectorAll('#entitySelector input[type="checkbox"]').forEach(cb => {
+                cb.checked = true;
+            });
+            updateFPSCharts();
+        });
+
+        document.getElementById('unselectAllBtn')?.addEventListener('click', () => {
+            document.querySelectorAll('#entitySelector input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+            });
+            updateFPSCharts();
+        });
+
+        // Filtered errors modal controls
+        document.getElementById('showFilteredBtn')?.addEventListener('click', () => {
+            document.getElementById('filteredModal').style.display = 'block';
+        });
+
+        document.getElementById('closeFilteredBtn')?.addEventListener('click', () => {
+            document.getElementById('filteredModal').style.display = 'none';
+        });
+
+        // Re-analyze when filter changes
+        document.getElementById('filterCommonErrors')?.addEventListener('change', analyzeCrash);
+        document.getElementById('filterRepeatedErrors')?.addEventListener('change', analyzeCrash);
+
+        async function analyzeFile() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            loadingIndicator.classList.add('active');
+            statsOverview.style.display = 'none';
+            tabsContainer.style.display = 'none';
+
+            try {
+                const text = await file.text();
+                parseRPTFile(text);
+                displayStats();
+                displayLogs();
+                displayFPSCharts();
+                analyzeCrash();
+                
+                statsOverview.style.display = 'grid';
+                tabsContainer.style.display = 'flex';
+            } catch (error) {
+                alert('Error analyzing file: ' + error.message);
+                console.error(error);
+            } finally {
+                loadingIndicator.classList.remove('active');
+            }
+        }
+
+        function parseRPTFile(text) {
+            const lines = text.split('\n');
+            allLogs = [];
+            fpsData = [];
+
+            const fpsRegex = /"(.+?)\s*-\s*FPS:\s*([\d.]+)/i;
+            const timeRegex = /^(\d{2}:\d{2}:\d{2})/;
+
+            lines.forEach((line, index) => {
+                if (!line.trim()) return;
+
+                const timeMatch = line.match(timeRegex);
+                const timestamp = timeMatch ? timeMatch[1] : null;
+                const message = timestamp ? line.substring(9).trim() : line.trim();
+
+                allLogs.push({
+                    index,
+                    timestamp,
+                    message,
+                    fullLine: line
+                });
+
+                // Parse FPS data
+                const fpsMatch = message.match(fpsRegex);
+                if (fpsMatch) {
+                    const entity = fpsMatch[1].trim();
+                    const fps = parseFloat(fpsMatch[2]);
+
+                    if (!isNaN(fps)) {
+                        fpsData.push({
+                            timestamp,
+                            entity,
+                            fps,
+                            message
+                        });
+                    }
+                }
+            });
+        }
+
+        function displayStats() {
+            document.getElementById('totalLogs').textContent = allLogs.length.toLocaleString();
+            document.getElementById('totalFps').textContent = fpsData.length.toLocaleString();
+
+            const uniqueEntities = new Set(fpsData.map(d => d.entity));
+            document.getElementById('uniqueEntities').textContent = uniqueEntities.size;
+
+            const serverFps = fpsData.filter(d => d.entity === 'Server');
+            const avgServerFps = serverFps.length > 0
+                ? (serverFps.reduce((sum, d) => sum + d.fps, 0) / serverFps.length).toFixed(2)
+                : '-';
+            document.getElementById('avgServerFps').textContent = avgServerFps;
+        }
+
+        function displayLogs() {
+            const tbody = document.getElementById('logsTableBody');
+            tbody.innerHTML = '';
+
+            // Display first 1000 logs initially
+            const displayLogs = allLogs.slice(0, 1000);
+            
+            displayLogs.forEach(log => {
+                const row = tbody.insertRow();
+                const timeCell = row.insertCell();
+                const messageCell = row.insertCell();
+
+                timeCell.className = 'log-timestamp';
+                timeCell.textContent = log.timestamp || '-';
+                
+                messageCell.className = 'log-message';
+                messageCell.textContent = log.message;
+            });
+
+            updateLogCount();
+        }
+
+        function filterLogs() {
+            const searchTerm = document.getElementById('logSearch').value.toLowerCase();
+            const filterType = document.getElementById('logFilter').value;
+
+            let filteredLogs = allLogs;
+
+            // Apply filter type
+            if (filterType === 'fps') {
+                filteredLogs = filteredLogs.filter(log => 
+                    log.message.toLowerCase().includes('fps:')
+                );
+            } else if (filterType === 'error') {
+                filteredLogs = filteredLogs.filter(log => 
+                    log.message.toLowerCase().includes('error') ||
+                    log.message.toLowerCase().includes('warning') ||
+                    log.message.toLowerCase().includes('failed')
+                );
+            }
+
+            // Apply search term
+            if (searchTerm) {
+                filteredLogs = filteredLogs.filter(log =>
+                    log.message.toLowerCase().includes(searchTerm) ||
+                    (log.timestamp && log.timestamp.includes(searchTerm))
+                );
+            }
+
+            const tbody = document.getElementById('logsTableBody');
+            tbody.innerHTML = '';
+
+            // Display filtered logs (limit to 1000)
+            const displayLogs = filteredLogs.slice(0, 1000);
+            
+            displayLogs.forEach(log => {
+                const row = tbody.insertRow();
+                const timeCell = row.insertCell();
+                const messageCell = row.insertCell();
+
+                timeCell.className = 'log-timestamp';
+                timeCell.textContent = log.timestamp || '-';
+                
+                messageCell.className = 'log-message';
+                messageCell.textContent = log.message;
+            });
+
+            updateLogCount(filteredLogs.length);
+        }
+
+        function updateLogCount(count) {
+            const logCount = document.getElementById('logCount');
+            const total = count !== undefined ? count : allLogs.length;
+            logCount.textContent = `Showing ${Math.min(total, 1000)} of ${total.toLocaleString()} logs`;
+        }
+
+        function displayFPSCharts() {
+            // Get unique entities
+            const entities = [...new Set(fpsData.map(d => d.entity))].sort();
+            
+            // Categorize entities
+            const serverEntities = entities.filter(e => 
+                e === 'Server' || e === 'HC1' || e === 'HC2'
+            );
+            const playerEntities = entities.filter(e => 
+                e !== 'Server' && e !== 'HC1' && e !== 'HC2'
+            );
+            
+            // Create entity selector with categories
+            const selector = document.getElementById('entitySelector');
+            selector.innerHTML = '';
+            
+            // Server category
+            if (serverEntities.length > 0) {
+                const serverCategory = document.createElement('div');
+                serverCategory.style.cssText = 'width: 100%; margin-bottom: 15px;';
+                
+                const serverLabel = document.createElement('div');
+                serverLabel.style.cssText = 'font-weight: 700; color: var(--accent); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; font-size: 0.9em;';
+                serverLabel.textContent = '🖥️ Server Entities';
+                serverCategory.appendChild(serverLabel);
+                
+                const serverGroup = document.createElement('div');
+                serverGroup.style.cssText = 'display: flex; gap: 10px; flex-wrap: wrap;';
+                
+                serverEntities.forEach(entity => {
+                    const label = document.createElement('label');
+                    label.className = 'entity-checkbox';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = entity;
+                    checkbox.checked = true;
+                    checkbox.addEventListener('change', updateFPSCharts);
+                    
+                    label.appendChild(checkbox);
+                    label.appendChild(document.createTextNode(entity));
+                    serverGroup.appendChild(label);
+                });
+                
+                serverCategory.appendChild(serverGroup);
+                selector.appendChild(serverCategory);
+            }
+            
+            // Player category
+            if (playerEntities.length > 0) {
+                const playerCategory = document.createElement('div');
+                playerCategory.style.cssText = 'width: 100%;';
+                
+                const playerLabel = document.createElement('div');
+                playerLabel.style.cssText = 'font-weight: 700; color: var(--accent); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; font-size: 0.9em;';
+                playerLabel.textContent = '👥 Players';
+                playerCategory.appendChild(playerLabel);
+                
+                const playerGroup = document.createElement('div');
+                playerGroup.style.cssText = 'display: flex; gap: 10px; flex-wrap: wrap;';
+                
+                playerEntities.forEach(entity => {
+                    const label = document.createElement('label');
+                    label.className = 'entity-checkbox';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = entity;
+                    checkbox.checked = true;
+                    checkbox.addEventListener('change', updateFPSCharts);
+                    
+                    label.appendChild(checkbox);
+                    label.appendChild(document.createTextNode(entity));
+                    playerGroup.appendChild(label);
+                });
+                
+                playerCategory.appendChild(playerGroup);
+                selector.appendChild(playerCategory);
+            }
+
+            updateFPSCharts();
+        }
+
+        function timeToMinutes(timeStr) {
+            if (!timeStr) return 0;
+            const parts = timeStr.split(':');
+            const hours = parseInt(parts[0]);
+            const minutes = parseInt(parts[1]);
+            const seconds = parseInt(parts[2]);
+            return hours * 60 + minutes + seconds / 60;
+        }
+
+        function updateFPSCharts() {
+            const selectedEntities = Array.from(document.querySelectorAll('#entitySelector input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+
+            const timeRange = document.getElementById('timeRange').value;
+            
+            // Filter FPS data
+            let filteredFps = fpsData.filter(d => selectedEntities.includes(d.entity));
+
+            // Apply time range filter based on actual timestamps
+            if (timeRange !== 'all' && filteredFps.length > 0) {
+                const minutes = parseInt(timeRange);
+                
+                // Get the last timestamp
+                const lastTimestamp = filteredFps[filteredFps.length - 1].timestamp;
+                const lastTime = timeToMinutes(lastTimestamp);
+                const cutoffTime = lastTime - minutes;
+                
+                filteredFps = filteredFps.filter(d => timeToMinutes(d.timestamp) >= cutoffTime);
+            }
+
+            // Create FPS over time chart
+            createFPSTimeChart(filteredFps, selectedEntities);
+            
+            // Create average FPS chart
+            createAvgFPSChart(fpsData, selectedEntities);
+        }
+
+        function createFPSTimeChart(data, entities) {
+            const ctx = document.getElementById('fpsChart').getContext('2d');
+            
+            if (fpsChart) {
+                fpsChart.destroy();
+            }
+
+            // Generate colors for each entity
+            const colors = generateColors(entities.length);
+
+            const datasets = entities.map((entity, index) => {
+                const entityData = data.filter(d => d.entity === entity && d.timestamp);
+                
+                return {
+                    label: entity,
+                    data: entityData.map(d => ({ 
+                        x: timeToMinutes(d.timestamp), 
+                        y: d.fps,
+                        timestamp: d.timestamp
+                    })),
+                    borderColor: colors[index],
+                    backgroundColor: colors[index] + '20',
+                    borderWidth: 2,
+                    pointRadius: 1,
+                    tension: 0.1
+                };
+            });
+
+            fpsChart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: { 
+                                display: true, 
+                                text: 'Time (from log)',
+                                color: '#b2b27d',
+                                font: { size: 14, weight: 'bold' }
+                            },
+                            ticks: {
+                                color: '#b2b27d',
+                                callback: function(value) {
+                                    const hours = Math.floor(value / 60);
+                                    const minutes = Math.floor(value % 60);
+                                    const seconds = Math.floor((value % 1) * 60);
+                                    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                                }
+                            },
+                            grid: { color: 'rgba(178,178,125,0.1)' }
+                        },
+                        y: {
+                            title: { 
+                                display: true, 
+                                text: 'FPS',
+                                color: '#b2b27d',
+                                font: { size: 14, weight: 'bold' }
+                            },
+                            beginAtZero: true,
+                            ticks: { color: '#b2b27d' },
+                            grid: { color: 'rgba(178,178,125,0.1)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { 
+                            display: true, 
+                            position: 'top',
+                            labels: { color: '#f4f3e8', font: { size: 12 } }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleColor: '#fcb00d',
+                            bodyColor: '#f4f3e8',
+                            borderColor: '#fcb00d',
+                            borderWidth: 1,
+                            callbacks: {
+                                title: function(context) {
+                                    const dataPoint = context[0].raw;
+                                    return `${context[0].dataset.label} - ${dataPoint.timestamp}`;
+                                },
+                                label: function(context) {
+                                    return `FPS: ${context.parsed.y.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createAvgFPSChart(data, entities) {
+            const ctx = document.getElementById('avgFpsChart').getContext('2d');
+            
+            if (avgFpsChart) {
+                avgFpsChart.destroy();
+            }
+
+            const avgData = entities.map(entity => {
+                const entityData = data.filter(d => d.entity === entity);
+                const avg = entityData.length > 0
+                    ? entityData.reduce((sum, d) => sum + d.fps, 0) / entityData.length
+                    : 0;
+                return { entity, avg };
+            }).sort((a, b) => b.avg - a.avg);
+
+            const colors = generateColors(avgData.length);
+
+            avgFpsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: avgData.map(d => d.entity),
+                    datasets: [{
+                        label: 'Average FPS',
+                        data: avgData.map(d => d.avg),
+                        backgroundColor: colors,
+                        borderColor: colors.map(c => c.replace('0.7', '1')),
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            ticks: { color: '#b2b27d' },
+                            grid: { color: 'rgba(178,178,125,0.1)' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { 
+                                display: true, 
+                                text: 'Average FPS',
+                                color: '#b2b27d',
+                                font: { size: 14, weight: 'bold' }
+                            },
+                            ticks: { color: '#b2b27d' },
+                            grid: { color: 'rgba(178,178,125,0.1)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleColor: '#fcb00d',
+                            bodyColor: '#f4f3e8',
+                            borderColor: '#fcb00d',
+                            borderWidth: 1
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateColors(count) {
+            const colors = [
+                'rgba(252,176,13,0.7)',
+                'rgba(107,142,35,0.7)',
+                'rgba(138,178,58,0.7)',
+                'rgba(178,178,125,0.7)',
+                'rgba(52,152,219,0.7)',
+                'rgba(231,76,60,0.7)',
+                'rgba(155,89,182,0.7)',
+                'rgba(26,188,156,0.7)',
+                'rgba(230,126,34,0.7)',
+                'rgba(149,165,166,0.7)'
+            ];
+
+            if (count <= colors.length) {
+                return colors.slice(0, count);
+            }
+
+            // Generate additional colors if needed
+            const extraColors = [];
+            for (let i = colors.length; i < count; i++) {
+                const hue = (i * 137.508) % 360;
+                extraColors.push(`hsla(${hue}, 70%, 50%, 0.7)`);
+            }
+
+            return [...colors, ...extraColors];
+        }
+
+        // Crash Analysis Functions
+        let errorChart = null;
+        let filteredErrors = [];
+
+        // Common error patterns from badly coded addons (noise)
+        const commonErrorPatterns = [
+            /bone .+ doesn't exist in skeleton/i,
+            /no entry 'bin\\config\.bin\/CfgVehicles\/.+\.(crewCrashProtection|soundCrashes|soundLandCrashes|soundWaterCrashes|soundWoodCrash|soundBushCrash|soundBuildingCrash|soundArmorCrash)'/i,
+            /unsupported language .+ in stringtable/i,
+            /item .+ listed twice/i,
+            /unexpected stringtable format/i,
+            /speaker .+ not found in CfgVoiceTypes/i,
+            /string .+ not found/i,
+            /cannot load surface info/i,
+            /cannot load material file/i,
+            /error: creating weapon (ItemInfo|WeaponSlotsInfo) with scope=private/i,
+            /no entry 'bin\\config\.bin\/CfgVehicles\/AnimationSources/i
+        ];
+
+        function isCommonError(message) {
+            return commonErrorPatterns.some(pattern => pattern.test(message));
+        }
+
+        function analyzeCrash() {
+            const filterCommon = document.getElementById('filterCommonErrors')?.checked ?? true;
+            const filterRepeated = document.getElementById('filterRepeatedErrors')?.checked ?? true;
+
+            // Categorize log entries
+            const errors = [];
+            const warnings = [];
+            const panics = [];
+            const criticalIssues = [];
+            filteredErrors = [];
+
+            // Count error occurrences for repeated error detection
+            const errorCounts = {};
+
+            // First pass: count occurrences
+            allLogs.forEach(log => {
+                const msg = log.message.toLowerCase();
+                if (msg.includes('error') || msg.includes('warning')) {
+                    const key = log.message.substring(0, 100); // Use first 100 chars as key
+                    errorCounts[key] = (errorCounts[key] || 0) + 1;
+                }
+            });
+
+            // Second pass: categorize and filter
+            allLogs.forEach(log => {
+                const msg = log.message.toLowerCase();
+                const fullLine = log.fullLine.toLowerCase();
+                
+                // Never filter panics - these are always critical
+                if (fullLine.includes('panic:') || fullLine.includes('fatal error') || 
+                    fullLine.includes('segmentation fault') || fullLine.includes('out of memory')) {
+                    panics.push(log);
+                    criticalIssues.push({
+                        type: 'PANIC/FATAL',
+                        message: log.message,
+                        timestamp: log.timestamp
+                    });
+                    return;
+                }
+
+                // Check if this is a common/repeated error that should be filtered
+                const isCommon = filterCommon && isCommonError(log.message);
+                const isRepeated = filterRepeated && errorCounts[log.message.substring(0, 100)] >= 10;
+                const shouldFilter = isCommon || isRepeated;
+
+                // Detect errors
+                if (msg.includes('error in expression') || msg.includes('error:') || 
+                    msg.includes('cannot load') || msg.includes('corrupted')) {
+                    
+                    if (shouldFilter) {
+                        filteredErrors.push({
+                            ...log,
+                            reason: isCommon ? 'Common addon error' : 'Repeated error (10+ times)'
+                        });
+                    } else {
+                        errors.push(log);
+                        if (msg.includes('corrupted') || (msg.includes('cannot load') && !isCommonError(log.message))) {
+                            criticalIssues.push({
+                                type: 'ERROR',
+                                message: log.message,
+                                timestamp: log.timestamp
+                            });
+                        }
+                    }
+                }
+                // Detect warnings
+                else if (msg.includes('warning') || msg.includes('no entry')) {
+                    if (shouldFilter) {
+                        filteredErrors.push({
+                            ...log,
+                            reason: isCommon ? 'Common addon warning' : 'Repeated warning (10+ times)'
+                        });
+                    } else {
+                        warnings.push(log);
+                    }
+                }
+            });
+
+            // Update filtered errors display
+            updateFilteredErrorsButton();
+
+            // Check if server crashed (panic at the end)
+            const lastLogs = allLogs.slice(-10);
+            const hasCrash = lastLogs.some(log => 
+                log.fullLine.toLowerCase().includes('panic:') || 
+                log.fullLine.toLowerCase().includes('fatal error') ||
+                log.fullLine.toLowerCase().includes('segmentation fault')
+            );
+
+            // Display crash status
+            const crashStatus = document.getElementById('crashStatus');
+            if (hasCrash) {
+                crashStatus.innerHTML = '<span class="crash-detected">⚠️ SERVER CRASH DETECTED</span>';
+                
+                // Find crash cause
+                const crashLog = lastLogs.find(log => 
+                    log.fullLine.toLowerCase().includes('panic:') ||
+                    log.fullLine.toLowerCase().includes('fatal error')
+                );
+                
+                if (crashLog) {
+                    document.getElementById('crashCause').style.display = 'block';
+                    const crashCauseContent = document.getElementById('crashCauseContent');
+                    
+                    // Extract crash details
+                    let crashDetails = '<div style="margin-bottom: 15px;">';
+                    crashDetails += `<strong>Crash Time:</strong> ${crashLog.timestamp || 'Unknown'}<br>`;
+                    
+                    // Parse panic message
+                    const crashLines = allLogs.slice(-10).map(l => l.fullLine).join('\n');
+                    if (crashLines.includes('panic:')) {
+                        const panicMatch = crashLines.match(/panic: (.+?)(\n|$)/);
+                        if (panicMatch) {
+                            crashDetails += `<strong>Panic Message:</strong> ${panicMatch[1]}<br>`;
+                        }
+                    }
+                    
+                    // Identify likely cause
+                    if (crashLines.includes('OCAP') || crashLines.includes('ocap')) {
+                        crashDetails += `<strong>Likely Cause:</strong> OCAP Extension Error<br>`;
+                        crashDetails += `<strong>Recommendation:</strong> Check OCAP configuration, update to latest version, or disable temporarily`;
+                    } else if (crashLines.includes('index out of range')) {
+                        crashDetails += `<strong>Likely Cause:</strong> Array Index Out of Bounds<br>`;
+                        crashDetails += `<strong>Recommendation:</strong> Check recent script changes or mod updates`;
+                    } else if (crashLines.includes('out of memory')) {
+                        crashDetails += `<strong>Likely Cause:</strong> Memory Exhaustion<br>`;
+                        crashDetails += `<strong>Recommendation:</strong> Increase server memory or reduce AI units`;
+                    } else {
+                        crashDetails += `<strong>Likely Cause:</strong> Unknown Runtime Error<br>`;
+                        crashDetails += `<strong>Recommendation:</strong> Review recent errors and stack trace`;
+                    }
+                    
+                    crashDetails += '</div>';
+                    crashDetails += '<div class="panic-item" style="white-space: pre-wrap; overflow-x: auto;">' + 
+                                   allLogs.slice(-10).map(l => l.fullLine).join('\n') + '</div>';
+                    
+                    crashCauseContent.innerHTML = crashDetails;
+                }
+            } else {
+                crashStatus.innerHTML = '<span class="no-crash">✓ No crash detected - Server shutdown normally</span>';
+            }
+
+            // Display error statistics
+            crashStatus.innerHTML += `<div style="margin-top: 15px; color: var(--khaki);">
+                <strong>Total Errors:</strong> ${errors.length} | 
+                <strong>Warnings:</strong> ${warnings.length} | 
+                <strong>Critical Issues:</strong> ${criticalIssues.length} | 
+                <strong style="color: var(--olive-light);">Filtered:</strong> ${filteredErrors.length}
+            </div>`;
+
+            // Create error distribution chart
+            createErrorChart(errors.length, warnings.length, panics.length);
+
+            // Display critical issues
+            displayCriticalIssues(criticalIssues);
+
+            // Display recent errors before crash
+            displayRecentErrors(errors.slice(-20));
+
+            // Display last events
+            displayLastEvents();
+        }
+
+        function updateFilteredErrorsButton() {
+            const btn = document.getElementById('showFilteredBtn');
+            if (btn) {
+                btn.textContent = `Show Filtered Errors (${filteredErrors.length})`;
+            }
+
+            // Update modal content
+            const content = document.getElementById('filteredErrorsContent');
+            if (!content) return;
+
+            if (filteredErrors.length === 0) {
+                content.innerHTML = '<p style="color: var(--khaki);">No errors were filtered</p>';
+                return;
+            }
+
+            // Group by reason
+            const grouped = {};
+            filteredErrors.forEach(error => {
+                const reason = error.reason || 'Other';
+                if (!grouped[reason]) grouped[reason] = [];
+                grouped[reason].push(error);
+            });
+
+            let html = '';
+            for (const [reason, errors] of Object.entries(grouped)) {
+                html += `<div style="margin-bottom: 25px;">
+                    <h4 style="color: var(--olive-light); margin-bottom: 10px;">${reason} (${errors.length})</h4>`;
+                
+                // Show first 10 of each type
+                errors.slice(0, 10).forEach(error => {
+                    html += `<div class="warning-item">
+                        <span class="crash-time">${error.timestamp || 'Unknown'}</span>
+                        ${error.message}
+                    </div>`;
+                });
+
+                if (errors.length > 10) {
+                    html += `<p style="color: var(--khaki); margin-top: 10px; font-style: italic;">
+                        ... and ${errors.length - 10} more similar errors
+                    </p>`;
+                }
+
+                html += '</div>';
+            }
+
+            content.innerHTML = html;
+        }
+
+        function createErrorChart(errorCount, warningCount, panicCount) {
+            const ctx = document.getElementById('errorChart').getContext('2d');
+            
+            if (errorChart) {
+                errorChart.destroy();
+            }
+
+            errorChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Errors', 'Warnings', 'Panics/Fatal'],
+                    datasets: [{
+                        data: [errorCount, warningCount, panicCount],
+                        backgroundColor: [
+                            'rgba(231,76,60,0.7)',
+                            'rgba(241,196,15,0.7)',
+                            'rgba(192,57,43,0.7)'
+                        ],
+                        borderColor: [
+                            '#e74c3c',
+                            '#f1c40f',
+                            '#c0392b'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { 
+                                color: '#f4f3e8',
+                                font: { size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleColor: '#fcb00d',
+                            bodyColor: '#f4f3e8',
+                            borderColor: '#fcb00d',
+                            borderWidth: 1
+                        }
+                    }
+                }
+            });
+        }
+
+        function displayCriticalIssues(issues) {
+            const container = document.getElementById('criticalIssues');
+            
+            if (issues.length === 0) {
+                container.innerHTML = '<p style="color: var(--khaki);">No critical issues found</p>';
+                return;
+            }
+
+            let html = '';
+            issues.forEach(issue => {
+                const itemClass = issue.type === 'PANIC/FATAL' ? 'panic-item' : 'error-item';
+                html += `<div class="${itemClass}">
+                    <span class="crash-time">${issue.timestamp || 'Unknown Time'}</span>
+                    <strong>[${issue.type}]</strong> ${issue.message}
+                </div>`;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function displayRecentErrors(errors) {
+            const container = document.getElementById('recentErrors');
+            
+            if (errors.length === 0) {
+                container.innerHTML = '<p style="color: var(--khaki);">No recent errors found</p>';
+                return;
+            }
+
+            let html = '';
+            errors.forEach(error => {
+                html += `<div class="error-item">
+                    <span class="crash-time">${error.timestamp || 'Unknown'}</span>
+                    ${error.message}
+                </div>`;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function displayLastEvents() {
+            const tbody = document.getElementById('lastEventsTable');
+            tbody.innerHTML = '';
+
+            const lastLogs = allLogs.slice(-50);
+            
+            lastLogs.forEach(log => {
+                const row = tbody.insertRow();
+                const timeCell = row.insertCell();
+                const messageCell = row.insertCell();
+
+                timeCell.className = 'log-timestamp';
+                timeCell.textContent = log.timestamp || '-';
+                
+                messageCell.className = 'log-message';
+                messageCell.textContent = log.message;
+
+                // Highlight errors/warnings
+                const msg = log.message.toLowerCase();
+                if (msg.includes('panic') || msg.includes('fatal')) {
+                    row.style.backgroundColor = 'rgba(192,57,43,0.2)';
+                } else if (msg.includes('error')) {
+                    row.style.backgroundColor = 'rgba(231,76,60,0.1)';
+                } else if (msg.includes('warning')) {
+                    row.style.backgroundColor = 'rgba(241,196,15,0.1)';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

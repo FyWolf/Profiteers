@@ -1,0 +1,86 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>MANAGE MEDALS</h1>
+        <div class="subtitle">Medal System Administration</div>
+    </header>
+
+    <section class="section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+            <h2 style="margin: 0;">All Medals</h2>
+            <a href="/admin/medals/add" class="btn btn-primary">➕ Create New Medal</a>
+        </div>
+
+        <% if (success) { %>
+            <div class="alert alert-success"><%= success %></div>
+        <% } %>
+        
+        <% if (error) { %>
+            <div class="alert alert-error"><%= error %></div>
+        <% } %>
+
+        <% if (medals.length === 0) { %>
+            <div class="card text-center">
+                <h3>No Medals Created</h3>
+                <p>Create your first medal to get started!</p>
+                <a href="/admin/medals/add" class="btn btn-primary mt-2">Create Medal</a>
+            </div>
+        <% } else { %>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; margin-bottom: 25px;">
+                <% medals.forEach(medal => { %>
+                    <div class="card" style="border-left: 4px solid <%= medal.color %>;">
+                        <div style="display: flex; align-items: start; gap: 15px; margin-bottom: 15px;">
+                            <div style="font-size: 3em;">
+                                <%= medal.icon %>
+                            </div>
+                            <div style="flex: 1;">
+                                <h3 style="color: <%= medal.color %>; margin-bottom: 8px;">
+                                    <%= medal.name %>
+                                </h3>
+                                <p style="color: var(--khaki); font-size: 0.95em;">
+                                    <%= medal.description %>
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 15px; border-top: 1px solid rgba(178, 178, 125, 0.2); font-size: 0.9em; color: var(--khaki);">
+                            <div>
+                                <strong>Awarded:</strong> <%= medal.awarded_count %> times
+                            </div>
+                            <div>
+                                <strong>Color:</strong> 
+                                <span style="display: inline-block; width: 20px; height: 20px; background: <%= medal.color %>; border-radius: 4px; vertical-align: middle; border: 1px solid rgba(255,255,255,0.3);"></span>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 15px;">
+                            <a href="/admin/medals/edit/<%= medal.id %>" class="btn" style="flex: 1; text-align: center; padding: 8px;">
+                                ✏️ Edit
+                            </a>
+                            <form method="POST" action="/admin/medals/delete/<%= medal.id %>" style="flex: 1;" onsubmit="return confirm('Delete this medal? It will be removed from all users who have it.')">
+                                <button type="submit" class="btn btn-danger" style="width: 100%; padding: 8px;">
+                                    🗑️ Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+
+            <div style="padding: 20px; background: rgba(107,142,35,0.1); border: 1px solid var(--olive); border-radius: 8px;">
+                <h4 style="color: var(--olive-light); margin-bottom: 10px;">📊 Medal Statistics</h4>
+                <p>
+                    <strong>Total Medals:</strong> <%= medals.length %><br>
+                    <strong>Total Awards:</strong> <%= medals.reduce((sum, m) => sum + m.awarded_count, 0) %>
+                </p>
+            </div>
+        <% } %>
+    </section>
+
+    <section class="section">
+        <a href="/admin" class="btn">← Back to Dashboard</a>
+    </section>
+</div>
+
+<%- include('../partials/footer') %>

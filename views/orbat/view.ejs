@@ -1,0 +1,497 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>ORBAT</h1>
+        <div class="subtitle"><%= operation.title %></div>
+    </header>
+
+    <div style="margin-bottom: 20px; padding: 15px; background: rgba(52, 152, 219, 0.1); border: 1px solid #3498DB; border-radius: 8px;">
+        <strong style="color: #3498DB;">
+            <% if (operation.orbat_type === 'fixed') { %>
+                📋 Fixed ORBAT - Showing only attending players
+                <% if (canManage) { %>
+                    <br>
+                    <small style="opacity: 0.8; font-weight: normal;">
+                        To assign players to this ORBAT, edit the template in <a href="/orbat/templates" style="color: #3498DB; text-decoration: underline;">ORBAT Management</a>
+                    </small>
+                <% } %>
+            <% } else if (operation.orbat_type === 'dynamic') { %>
+                🎯 Dynamic ORBAT - First come, first served
+            <% } %>
+        </strong>
+    </div>
+
+    <% if (squads.length === 0) { %>
+        <section class="section">
+            <div class="card text-center">
+                <h3>No ORBAT Created</h3>
+                <% if (canManage && operation.orbat_type === 'dynamic') { %>
+                    <p>Create squads and roles for this operation.</p>
+                    
+                    <div style="max-width: 600px; margin: 20px auto; text-align: left;">
+                        <h4 style="margin-bottom: 15px;">Create Your First Squad</h4>
+                        <form id="createSquadForm">
+                            <div class="form-group">
+                                <label for="squadName">Squad Name</label>
+                                <input type="text" id="squadName" placeholder="e.g., Alpha Squad" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="squadColor">Squad Color</label>
+                                <input type="color" id="squadColor" value="#3498DB" style="width: 100%; height: 50px;">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="initialRole">First Role Name</label>
+                                <input type="text" id="initialRole" placeholder="e.g., Squad Leader" required>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                                ➕ Create Squad
+                            </button>
+                        </form>
+                    </div>
+                <% } else if (operation.orbat_type === 'dynamic') { %>
+                    <p>The Zeus has not set up an ORBAT for this operation yet.</p>
+                <% } else { %>
+                    <p>No ORBAT has been set up for this operation.</p>
+                <% } %>
+            </div>
+        </section>
+    <% } else { %>
+        <!-- Existing ORBAT Display -->
+        
+        <% if (canManage && operation.orbat_type === 'dynamic') { %>
+            <!-- Zeus controls to add more squads -->
+            <section class="section">
+                <h2>➕ Add New Squad</h2>
+                <form id="addSquadForm" class="card">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; align-items: end;">
+                        <div class="form-group" style="margin: 0;">
+                            <label for="newSquadName">Squad Name</label>
+                            <input type="text" id="newSquadName" placeholder="e.g., Bravo Squad" required>
+                        </div>
+                        
+                        <div class="form-group" style="margin: 0;">
+                            <label for="newSquadColor">Color</label>
+                            <input type="color" id="newSquadColor" value="#E74C3C" style="width: 100%; height: 42px;">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary" style="height: 42px;">
+                            ➕ Add Squad
+                        </button>
+                    </div>
+                </form>
+            </section>
+        <% } %>
+        
+        <!-- ORBAT Display - Multi-Column Grid -->
+        <section class="section">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+                <% squads.forEach(squad => { %>
+                    <!-- Squad Card -->
+                    <div class="card" style="border-left: 4px solid <%= squad.color %>; padding: 20px;">
+                        <!-- Squad Header -->
+                        <div style="margin-bottom: 15px; padding-bottom: 12px; border-bottom: 2px solid <%= squad.color %>;">
+                            <h3 style="color: <%= squad.color %>; margin: 0;">
+                                <%= squad.name %>
+                            </h3>
+                        </div>
+
+                        <% const roles = rolesBySquad[squad.id] || []; %>
+                        
+                        <!-- Roles List -->
+                        <div style="display: grid; gap: 10px;">
+                            <% roles.forEach(role => { %>
+                        <% const assignment = assignments[role.id]; %>
+                        <% const isEmpty = !assignment; %>
+                        <% const isOwnAssignment = assignment && user && assignment.user_id === user.id; %>
+                        <% const attendanceStatus = assignment ? assignment.attendance_status : null; %>
+                        
+                        <% 
+                        // For fixed ORBAT (non-admin view), don't show absent or empty slots
+                        // But admins always see all slots for assignment
+                        if (operation.orbat_type === 'fixed' && !canManage) {
+                            if (!assignment || attendanceStatus === 'absent') {
+                                return; // Skip this slot for regular users
+                            }
+                        }
+                        
+                        // Determine opacity based on attendance
+                        let opacity = '1';
+                        let statusBadge = '';
+                        if (operation.orbat_type === 'fixed' && attendanceStatus === 'tentative') {
+                            opacity = '0.5';
+                            statusBadge = '⏸️ Tentative';
+                        } else if (attendanceStatus === 'present') {
+                            statusBadge = '✅ Present';
+                        } else if (operation.orbat_type === 'fixed' && attendanceStatus === 'absent') {
+                            opacity = '0.3';
+                            statusBadge = '❌ Absent';
+                        }
+                        %>
+                        
+                        <div class="card" style="padding: 12px; opacity: <%= opacity %>; transition: opacity 0.3s; background: rgba(0,0,0,0.3);">
+                            <!-- Role Name -->
+                            <div style="font-weight: 700; color: <%= squad.color %>; margin-bottom: 8px; font-size: 0.9em;">
+                                <%= role.role_name %>
+                            </div>
+                            
+                            <!-- Player Assignment -->
+                            <% if (assignment) { %>
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                    <% if (assignment.discord_avatar) { %>
+                                        <img src="https://cdn.discordapp.com/avatars/<%= assignment.discord_id %>/<%= assignment.discord_avatar %>.png?size=64" 
+                                             style="width: 28px; height: 28px; border-radius: 50%; border: 2px solid <%= squad.color %>;">
+                                    <% } else { %>
+                                        <div style="width: 28px; height: 28px; border-radius: 50%; background: <%= squad.color %>; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 0.75em;">
+                                            <%= (assignment.discord_global_name || assignment.username).charAt(0).toUpperCase() %>
+                                        </div>
+                                    <% } %>
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div style="font-weight: 600; color: var(--sand); font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                            <%= assignment.discord_global_name || assignment.username %>
+                                        </div>
+                                        <% if (statusBadge) { %>
+                                            <div style="font-size: 0.7em; color: var(--khaki);">
+                                                <%= statusBadge %>
+                                            </div>
+                                        <% } %>
+                                        <% if (assignment.loa_id) { %>
+                                            <div style="display: inline-block; padding: 2px 6px; background: #e74c3c; color: white; border-radius: 3px; font-size: 0.65em; font-weight: 700; margin-top: 2px;">
+                                                🛑 ON LOA
+                                                <% if (canManage && assignment.loa_reason) { %>
+                                                    <span style="cursor: help;" title="<%= assignment.loa_reason %>">ℹ️</span>
+                                                <% } %>
+                                            </div>
+                                            <div style="font-size: 0.65em; color: var(--khaki); margin-top: 2px;">
+                                                Until <%= new Date(assignment.loa_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %>
+                                            </div>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            <% } else { %>
+                                <div style="color: var(--khaki); opacity: 0.7; font-style: italic; font-size: 0.85em; margin-bottom: 8px;">
+                                    Empty Slot
+                                </div>
+                            <% } %>
+                            
+                            <!-- Actions -->
+                            <% if ((canClaim && isEmpty && user) || (canClaim && isOwnAssignment) || (canManage && operation.orbat_type === 'dynamic')) { %>
+                                <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                                    <% if (canClaim && isEmpty && user) { %>
+                                        <button onclick="claimSlot(<%= role.id %>)" class="btn btn-primary" style="padding: 4px 8px; font-size: 0.8em; flex: 1;">
+                                            Claim
+                                        </button>
+                                    <% } else if (canClaim && isOwnAssignment) { %>
+                                        <button onclick="unclaimSlot(<%= role.id %>)" class="btn" style="background: #e74c3c; padding: 4px 8px; font-size: 0.8em; flex: 1;">
+                                            Leave
+                                        </button>
+                                    <% } %>
+
+                                    <% if (canManage && operation.orbat_type === 'dynamic') { %>
+                                        <% if (assignment) { %>
+                                            <button onclick="unassignPlayer(<%= role.id %>)" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.8em;">
+                                                ❌
+                                            </button>
+                                        <% } %>
+                                        <button onclick="showAssignModal(<%= role.id %>, '<%= role.role_name %>')" class="btn" style="padding: 4px 8px; font-size: 0.8em; flex: 1;">
+                                            <% if (assignment) { %>🔄<% } else { %>➕<% } %>
+                                        </button>
+                                    <% } %>
+                                </div>
+                            <% } %>
+                        </div>
+                    <% }); %>
+                </div>
+                
+                <!-- Add Role to Squad (Dynamic ORBAT only) -->
+                <% if (canManage && operation.orbat_type === 'dynamic') { %>
+                    <form class="addRoleForm" data-squad-id="<%= squad.id %>" style="margin-top: 12px; padding: 12px; background: rgba(<%= parseInt(squad.color.slice(1,3), 16) %>, <%= parseInt(squad.color.slice(3,5), 16) %>, <%= parseInt(squad.color.slice(5,7), 16) %>, 0.1); border-radius: 4px; border: 2px dashed <%= squad.color %>;">
+                        <div style="display: flex; gap: 8px; align-items: end;">
+                            <div class="form-group" style="margin: 0; flex: 2;">
+                                <input type="text" class="roleNameInput" placeholder="Role name" required style="margin: 0; font-size: 0.9em; padding: 8px;">
+                            </div>
+                            <div class="form-group" style="margin: 0; flex: 0 0 60px;">
+                                <input type="number" class="roleOrderInput" value="<%= roles.length %>" min="0" style="margin: 0; font-size: 0.9em; padding: 8px;">
+                            </div>
+                            <button type="submit" class="btn" style="background: <%= squad.color %>; color: white; height: 36px; padding: 0 12px; font-size: 0.85em;">
+                                ➕
+                            </button>
+                        </div>
+                    </form>
+                <% } %>
+            </div>
+            <!-- End Squad Card -->
+        <% }); %>
+        </div>
+        <!-- End Grid -->
+    </section>
+    <% } %>
+
+    <section class="section">
+        <a href="/operations/<%= operation.id %>" class="btn">← Back to Operation</a>
+    </section>
+</div>
+
+<!-- Assignment Modal (Zeus/Admin - Dynamic ORBAT only) -->
+<% if (canManage && operation.orbat_type === 'dynamic') { %>
+<div id="assignModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
+    <div class="card" style="max-width: 500px; width: 90%;">
+        <h3 style="margin-bottom: 15px;">Assign Player to <span id="modalRoleName"></span></h3>
+        
+        <div class="form-group">
+            <label for="playerSearch">Search Roster</label>
+            <input type="text" id="playerSearch" placeholder="Type player name..." oninput="searchPlayers(this.value)">
+        </div>
+        
+        <div id="playerResults" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;">
+            <p style="color: var(--khaki); text-align: center;">Start typing to search...</p>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+            <button onclick="closeAssignModal()" class="btn" style="flex: 1;">Cancel</button>
+        </div>
+    </div>
+</div>
+<% } %>
+
+<script>
+let currentRoleId = null;
+
+<% if (canClaim) { %>
+// Claim slot (dynamic ORBAT)
+async function claimSlot(roleId) {
+    try {
+        const response = await fetch(`/orbat/claim/${roleId}`, { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Failed to claim slot');
+        }
+    } catch (error) {
+        console.error('Error claiming slot:', error);
+        alert('Failed to claim slot');
+    }
+}
+
+// Unclaim slot
+async function unclaimSlot(roleId) {
+    if (!confirm('Leave this slot?')) return;
+    
+    try {
+        const response = await fetch(`/orbat/unclaim/${roleId}`, { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Failed to leave slot');
+        }
+    } catch (error) {
+        console.error('Error unclaiming slot:', error);
+        alert('Failed to leave slot');
+    }
+}
+<% } %>
+
+<% if (canManage && operation.orbat_type === 'dynamic') { %>
+// Show assign modal
+function showAssignModal(roleId, roleName) {
+    currentRoleId = roleId;
+    document.getElementById('modalRoleName').textContent = roleName;
+    document.getElementById('assignModal').style.display = 'flex';
+    document.getElementById('playerSearch').value = '';
+    document.getElementById('playerResults').innerHTML = '<p style="color: var(--khaki); text-align: center;">Start typing to search...</p>';
+}
+
+// Close assign modal
+function closeAssignModal() {
+    document.getElementById('assignModal').style.display = 'none';
+    currentRoleId = null;
+}
+
+// Search players from roster
+async function searchPlayers(query) {
+    if (query.length < 2) {
+        document.getElementById('playerResults').innerHTML = '<p style="color: var(--khaki); text-align: center;">Type at least 2 characters...</p>';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/roster/search?q=${encodeURIComponent(query)}`);
+        const players = await response.json();
+        
+        if (players.length === 0) {
+            document.getElementById('playerResults').innerHTML = '<p style="color: var(--khaki); text-align: center;">No players found</p>';
+            return;
+        }
+        
+        let html = '<div style="display: grid; gap: 8px;">';
+        players.forEach(player => {
+            const badge = player.needs_registration ? '<span style="background: rgba(241,196,15,0.3); color: #f1c40f; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; margin-left: 8px;">Not logged in</span>' : '';
+            html += `
+                <div onclick='assignPlayer(${JSON.stringify(player)})' 
+                     style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; cursor: pointer; transition: background 0.2s;"
+                     onmouseover="this.style.background='rgba(107,142,35,0.3)'"
+                     onmouseout="this.style.background='rgba(0,0,0,0.3)'">
+                    <strong>${player.name}</strong>${badge}
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        document.getElementById('playerResults').innerHTML = html;
+    } catch (error) {
+        console.error('Error searching players:', error);
+    }
+}
+
+// Assign player to slot
+async function assignPlayer(player) {
+    const confirmMsg = player.needs_registration 
+        ? `Assign ${player.name}? (They haven't logged in yet - we'll create an account for them)`
+        : `Assign ${player.name} to this slot?`;
+    
+    if (!confirm(confirmMsg)) return;
+    
+    try {
+        const response = await fetch(`/orbat/assign/${currentRoleId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                userId: player.user_id,
+                discordId: player.discord_id
+            })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Failed to assign player');
+        }
+    } catch (error) {
+        console.error('Error assigning player:', error);
+        alert('Failed to assign player');
+    }
+}
+
+// Unassign player from slot
+async function unassignPlayer(roleId) {
+    if (!confirm('Remove player from this slot?')) return;
+    
+    try {
+        const response = await fetch(`/orbat/unassign/${roleId}`, { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Failed to remove player');
+        }
+    } catch (error) {
+        console.error('Error removing player:', error);
+        alert('Failed to remove player');
+    }
+}
+
+// Close modal on outside click
+document.getElementById('assignModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'assignModal') {
+        closeAssignModal();
+    }
+});
+<% } %>
+
+<% if (canManage && operation.orbat_type === 'dynamic') { %>
+// Dynamic ORBAT Management
+
+// Create first squad
+document.getElementById('createSquadForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const squadName = document.getElementById('squadName').value;
+    const squadColor = document.getElementById('squadColor').value;
+    const roleName = document.getElementById('initialRole').value;
+
+    try {
+        const response = await fetch('/orbat/operation/<%= operation.id %>/create-dynamic', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ squadName, squadColor, roleName })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Failed to create squad');
+        }
+    } catch (error) {
+        console.error('Error creating squad:', error);
+        alert('Failed to create squad');
+    }
+});
+
+// Add additional squad
+document.getElementById('addSquadForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const squadName = document.getElementById('newSquadName').value;
+    const squadColor = document.getElementById('newSquadColor').value;
+
+    try {
+        const response = await fetch('/orbat/operation/<%= operation.id %>/add-squad', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ squadName, squadColor })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Failed to add squad');
+        }
+    } catch (error) {
+        console.error('Error adding squad:', error);
+        alert('Failed to add squad');
+    }
+});
+
+// Add role to existing squad
+document.querySelectorAll('.addRoleForm').forEach(form => {
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const squadId = form.getAttribute('data-squad-id');
+        const roleName = form.querySelector('.roleNameInput').value;
+        const displayOrder = form.querySelector('.roleOrderInput').value;
+
+        try {
+            const response = await fetch(`/orbat/squads/${squadId}/add-role-dynamic`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ roleName, displayOrder })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.error || 'Failed to add role');
+            }
+        } catch (error) {
+            console.error('Error adding role:', error);
+            alert('Failed to add role');
+        }
+    });
+});
+<% } %>
+</script>
+
+<%- include('../partials/footer') %>

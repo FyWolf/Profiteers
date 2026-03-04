@@ -1,0 +1,35 @@
+{
+  "name": "profiteers-pmc-website",
+  "version": "1.0.0",
+  "description": "Profiteers PMC - LGBTQ+ Arma 3 Unit Website",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "arma3",
+    "pmc",
+    "lgbtq",
+    "gaming"
+  ],
+  "author": "Profiteers PMC",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.2",
+    "bcryptjs": "^2.4.3",
+    "discord.js": "^14.25.1",
+    "dotenv": "^16.3.1",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "express-fileupload": "^1.4.3",
+    "express-session": "^1.17.3",
+    "mysql2": "^3.6.5",
+    "node-cron": "^4.2.1",
+    "passport": "^0.7.0",
+    "passport-discord": "^0.1.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

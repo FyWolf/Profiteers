@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="/" class="logo">PROFITEERS PMC</a>
+            <button class="menu-toggle" onclick="toggleMenu()">☰ Menu</button>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="/">Home</a></li>
+                <li><a href="/about">About & Lore</a></li>
+                <li><a href="/roster">Roster</a></li>
+                <li class="dropdown">
+                    <a href="#" class="dropbtn">Operations ▼</a>
+                    <div class="dropdown-content">
+                        <a href="/operations/upcoming">Upcoming Operations</a>
+                        <a href="/operations/all">All Operations</a>
+                        <a href="/orbat/view-all">ORBAT Templates</a>
+                        <a href="/modpacks">Modpacks</a>
+                        <% if (user && (user.isAdmin || user.isZeus)) { %>
+                            <a href="/operations/manage/list" style="border-top: 1px solid var(--olive); padding-top: 8px; margin-top: 8px;">Manage Operations</a>
+                            <a href="/modpacks/upload/new">Upload Modpack</a>
+                        <% } %>
+                    </div>
+                </li>
+                <li><a href="/join">Join Us</a></li>
+                <li><a href="/gallery">Gallery</a></li>
+                <li><a href="/tools" class="btn" style="background: linear-gradient(135deg, var(--accent) 0%, #e6a600 100%); color: var(--camo-dark); padding: 8px 16px; font-size: 0.9em;">Internal Tools</a></li>
+                <% if (user) { %>
+                    <li class="dropdown">
+                        <a href="#" class="dropbtn"><%= user.username %> ▼</a>
+                        <div class="dropdown-content">
+                            <a href="/profile">My Profile</a>
+                            <a href="/loa/my-loas">My Leave of Absence</a>
+                            <% if (user.isAdmin) { %>
+                                <a href="/admin">Admin Panel</a>
+                            <% } %>
+                            <a href="/logout" style="border-top: 1px solid var(--olive); padding-top: 8px; margin-top: 8px; color: #e74c3c;">Logout</a>
+                        </div>
+                    </li>
+                <% } else { %>
+                    <li><a href="/login">Login</a></li>
+                <% } %>
+            </ul>
+        </div>
+    </nav>
+
+    <script>
+        function toggleMenu() {
+            const navLinks = document.getElementById('navLinks');
+            navLinks.classList.toggle('active');
+        }
+    </script>

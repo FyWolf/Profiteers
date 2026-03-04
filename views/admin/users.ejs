@@ -1,0 +1,227 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>MANAGE USERS</h1>
+        <div class="subtitle">User Account Administration</div>
+    </header>
+
+    <section class="section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+            <h2 style="margin: 0;">All Users (<%= totalUsers %>)</h2>
+            
+            <!-- Search Bar -->
+            <form method="GET" action="/admin/users" style="flex: 1; max-width: 400px;">
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" 
+                           name="search" 
+                           value="<%= search %>" 
+                           placeholder="Search users..." 
+                           style="flex: 1; padding: 10px; background: rgba(40,40,40,0.9); color: var(--sand); border: 2px solid var(--olive); border-radius: 4px;">
+                    <button type="submit" class="btn btn-primary">🔍</button>
+                    <% if (search) { %>
+                        <a href="/admin/users" class="btn">Clear</a>
+                    <% } %>
+                </div>
+            </form>
+        </div>
+
+        <% if (success) { %>
+            <div class="alert alert-success"><%= success %></div>
+        <% } %>
+        
+        <% if (error) { %>
+            <div class="alert alert-error"><%= error %></div>
+        <% } %>
+
+        <% if (users.length === 0) { %>
+            <div class="card text-center">
+                <% if (search) { %>
+                    <h3>No Users Found</h3>
+                    <p>No users match your search. <a href="/admin/users">Clear search</a></p>
+                <% } else { %>
+                    <h3>No Users Yet</h3>
+                    <p>Users will appear here when they login via Discord.</p>
+                <% } %>
+            </div>
+        <% } else { %>
+            <table>
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Auth Type</th>
+                        <th>Admin</th>
+                        <th>Joined</th>
+                        <th>Last Login</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% users.forEach(user => { %>
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <% if (user.discord_avatar) { %>
+                                        <img src="https://cdn.discordapp.com/avatars/<%= user.discord_id %>/<%= user.discord_avatar %>.png?size=64" 
+                                             alt="<%= user.username %>" 
+                                             style="width: 32px; height: 32px; border-radius: 50%;">
+                                    <% } else { %>
+                                        <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--olive); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700;">
+                                            <%= user.username.charAt(0).toUpperCase() %>
+                                        </div>
+                                    <% } %>
+                                    <div>
+                                        <strong><%= user.username %></strong>
+                                        <% if (user.discord_global_name && user.discord_global_name !== user.discord_username) { %>
+                                            <br><small style="color: var(--khaki);">Display: <%= user.discord_global_name %></small>
+                                        <% } %>
+                                        <% if (user.discord_username) { %>
+                                            <br><small style="color: var(--khaki); opacity: 0.7;">@<%= user.discord_username %></small>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <% if (user.auth_type === 'discord') { %>
+                                    <span style="padding: 4px 8px; background: rgba(88, 101, 242, 0.2); border: 1px solid #5865F2; border-radius: 4px; font-size: 0.85em;">
+                                        Discord
+                                    </span>
+                                <% } else { %>
+                                    <span style="padding: 4px 8px; background: rgba(107,142,35,0.2); border: 1px solid var(--olive); border-radius: 4px; font-size: 0.85em;">
+                                        Local
+                                    </span>
+                                <% } %>
+                            </td>
+                            <td>
+                                <button onclick="toggleAdmin(<%= user.id %>)" 
+                                        class="btn" 
+                                        style="<%= user.is_admin ? 'background: var(--olive);' : 'background: #888;' %> padding: 6px 12px;"
+                                        <%= user.id === locals.user.id ? 'disabled title="Cannot modify yourself"' : '' %>>
+                                    <%= user.is_admin ? '✅ Admin' : '❌ User' %>
+                                </button>
+                            </td>
+                            <td>
+                                <%= new Date(user.created_at).toLocaleDateString() %>
+                            </td>
+                            <td>
+                                <% if (user.last_login) { %>
+                                    <%= new Date(user.last_login).toLocaleDateString() %>
+                                <% } else { %>
+                                    <span style="color: var(--khaki);">Never</span>
+                                <% } %>
+                            </td>
+                            <td>
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <a href="/admin/users/<%= user.id %>/medals" class="btn" style="padding: 6px 12px; font-size: 0.9em;">
+                                        🏅 Medals
+                                    </a>
+                                    <a href="/admin/users/<%= user.id %>/trainings" class="btn" style="padding: 6px 12px; font-size: 0.9em; background: #3498DB;">
+                                        🎓 Trainings
+                                    </a>
+                                    <form method="POST" 
+                                          action="/admin/users/delete/<%= user.id %>" 
+                                          style="display: inline;" 
+                                          onsubmit="return <%= user.id === locals.user.id ? 'false' : 'confirm(\'Are you sure you want to delete this user?\')' %>">
+                                        <button type="submit" 
+                                                class="btn btn-danger" 
+                                                style="padding: 6px 12px; font-size: 0.9em;"
+                                                <%= user.id === locals.user.id ? 'disabled title="Cannot delete yourself"' : '' %>>
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+
+            <!-- Pagination -->
+            <% if (totalPages > 1) { %>
+                <div style="margin-top: 25px; padding: 20px; background: rgba(107,142,35,0.1); border-radius: 8px;">
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <% if (currentPage > 1) { %>
+                            <a href="/admin/users?page=<%= currentPage - 1 %><%= search ? '&search=' + encodeURIComponent(search) : '' %>" class="btn">
+                                ← Previous
+                            </a>
+                        <% } %>
+                        
+                        <div style="display: flex; gap: 5px;">
+                            <% 
+                            const startPage = Math.max(1, currentPage - 2);
+                            const endPage = Math.min(totalPages, currentPage + 2);
+                            
+                            if (startPage > 1) { %>
+                                <a href="/admin/users?page=1<%= search ? '&search=' + encodeURIComponent(search) : '' %>" class="btn">1</a>
+                                <% if (startPage > 2) { %>
+                                    <span style="padding: 8px; color: var(--khaki);">...</span>
+                                <% } %>
+                            <% }
+                            
+                            for (let i = startPage; i <= endPage; i++) { %>
+                                <% if (i === currentPage) { %>
+                                    <span class="btn btn-primary" style="cursor: default;"><%= i %></span>
+                                <% } else { %>
+                                    <a href="/admin/users?page=<%= i %><%= search ? '&search=' + encodeURIComponent(search) : '' %>" class="btn"><%= i %></a>
+                                <% } %>
+                            <% }
+                            
+                            if (endPage < totalPages) { %>
+                                <% if (endPage < totalPages - 1) { %>
+                                    <span style="padding: 8px; color: var(--khaki);">...</span>
+                                <% } %>
+                                <a href="/admin/users?page=<%= totalPages %><%= search ? '&search=' + encodeURIComponent(search) : '' %>" class="btn"><%= totalPages %></a>
+                            <% } %>
+                        </div>
+                        
+                        <% if (currentPage < totalPages) { %>
+                            <a href="/admin/users?page=<%= currentPage + 1 %><%= search ? '&search=' + encodeURIComponent(search) : '' %>" class="btn">
+                                Next →
+                            </a>
+                        <% } %>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 10px; color: var(--khaki); font-size: 0.9em;">
+                        Page <%= currentPage %> of <%= totalPages %> (Showing <%= users.length %> of <%= totalUsers %> users)
+                    </div>
+                </div>
+            <% } %>
+
+            <div style="margin-top: 20px; padding: 15px; background: rgba(107,142,35,0.1); border: 1px solid var(--olive); border-radius: 8px;">
+                <h4 style="color: var(--olive-light); margin-bottom: 10px;">📊 Summary</h4>
+                <p>
+                    <strong>Total Users:</strong> <%= totalUsers %><br>
+                    <strong>Showing:</strong> <%= users.length %> users on this page<br>
+                    <strong>Admins on Page:</strong> <%= users.filter(u => u.is_admin).length %>
+                </p>
+            </div>
+        <% } %>
+    </section>
+
+    <section class="section">
+        <a href="/admin" class="btn">← Back to Dashboard</a>
+    </section>
+</div>
+
+<script>
+async function toggleAdmin(id) {
+    if (!confirm('Are you sure you want to toggle admin status for this user?')) return;
+    
+    try {
+        const response = await fetch(`/admin/users/toggle-admin/${id}`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Failed to toggle admin status');
+        }
+    } catch (error) {
+        alert('Error toggling admin status');
+    }
+}
+</script>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,480 @@
+<%
+// Helper function to convert unix timestamp to datetime-local format
+function timestampToDatetimeLocal(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp * 1000); // Convert to milliseconds
+    return date.toISOString().slice(0, 16); // "2024-02-26T14:00"
+}
+%>
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1><%= action === 'create' ? 'CREATE OPERATION' : 'EDIT OPERATION' %></h1>
+        <div class="subtitle">Operation Details</div>
+    </header>
+
+    <section class="section" style="max-width: 800px; margin: 0 auto;">
+        <form method="POST" action="/operations/manage/<%= action === 'create' ? 'create' : 'edit/' + operation.id %>" enctype="multipart/form-data">
+            
+            <!-- Title -->
+            <div class="form-group">
+                <label for="title">Operation Title *</label>
+                <input type="text" id="title" name="title" value="<%= operation ? operation.title : '' %>" required maxlength="200" placeholder="e.g., Operation Midnight Storm">
+            </div>
+
+            <!-- Description -->
+            <div class="form-group">
+                <label for="description">Mission Briefing *</label>
+                <textarea id="description" name="description" rows="6" required placeholder="Detailed mission description..."><%= operation ? operation.description : '' %></textarea>
+                <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                    Provide a detailed briefing of the operation objectives and situation.
+                </small>
+            </div>
+
+            <!-- Date & Time -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-group">
+                    <label for="start_time">Start Time (UTC) *</label>
+                    <input type="datetime-local" id="start_time" name="start_time" 
+                           value="<%= operation ? timestampToDatetimeLocal(operation.start_timestamp) : '' %>" 
+                           required>
+                    <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                        Enter time in UTC timezone
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="end_time">End Time (UTC) *</label>
+                    <input type="datetime-local" id="end_time" name="end_time" 
+                           value="<%= operation ? timestampToDatetimeLocal(operation.end_timestamp) : '' %>" 
+                           required>
+                    <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                        Enter expected end time in UTC
+                    </small>
+                </div>
+            </div>
+
+            <!-- UTC Time Helper -->
+            <div style="padding: 12px; background: rgba(107, 142, 35, 0.1); border-left: 3px solid var(--accent); border-radius: 4px; margin-bottom: 20px;">
+                <div style="font-weight: 700; color: var(--accent); margin-bottom: 5px;">🌍 Current UTC Time</div>
+                <div id="currentUtcTime" style="font-size: 1.1em; color: var(--sand); font-family: monospace;"></div>
+                <small style="color: var(--khaki); display: block; margin-top: 5px;">
+                    Your local time: <span id="currentLocalTime" style="font-family: monospace;"></span>
+                </small>
+            </div>
+
+            <!-- Banner Upload -->
+            <div class="form-group">
+                <label for="banner_url">Operation Banner</label>
+                
+                <!-- File Upload Option -->
+                <div style="margin-bottom: 20px; padding: 20px; background: rgba(52, 152, 219, 0.1); border: 2px solid #3498DB; border-radius: 8px;">
+                    <strong style="color: #3498DB; display: block; margin-bottom: 10px;">📤 Upload Banner Image</strong>
+                    <input type="file" id="banner_upload" name="banner_upload" accept="image/*" style="padding: 10px; background: rgba(40,40,40,0.9); color: var(--sand); border: 2px solid var(--olive); border-radius: 4px; width: 100%; cursor: pointer;">
+                    <small style="color: var(--khaki); margin-top: 8px; display: block;">
+                        Recommended: 1920x300px or similar wide banner. Max 5MB.
+                    </small>
+                </div>
+                
+                <!-- OR Manual URL Input -->
+                <div style="margin-bottom: 15px;">
+                    <label for="banner_url" style="font-size: 0.9em; color: var(--khaki);">Or enter URL manually:</label>
+                    <input type="text" id="banner_url" name="banner_url" value="<%= operation ? operation.banner_url : '/images/operations/default-banner.jpg' %>" placeholder="/images/operations/your-banner.jpg">
+                    <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                        Path will be set automatically when you upload a file
+                    </small>
+                </div>
+                
+                <!-- Banner Preview -->
+                <div style="margin-top: 15px; border-radius: 8px; overflow: hidden; border: 2px solid var(--olive);">
+                    <div style="margin-bottom: 10px; padding: 10px; background: rgba(0,0,0,0.3); color: var(--khaki); font-weight: 700;">Banner Preview:</div>
+                    <img id="bannerPreview" src="<%= operation ? operation.banner_url : '/images/operations/default-banner.jpg' %>" 
+                         alt="Banner Preview" 
+                         style="width: 100%; height: 200px; object-fit: cover; display: block;"
+                         onerror="this.src='/images/operations/default-banner.jpg';">
+                    <div id="bannerStatus" style="padding: 10px; background: rgba(0,0,0,0.3); font-size: 0.9em;"></div>
+                </div>
+            </div>
+
+            <!-- Operation Host -->
+            <div class="form-group">
+                <label for="host_search">Operation Host (Optional)</label>
+                <input type="text" 
+                       id="host_search" 
+                       placeholder="Search for a host..."
+                       autocomplete="off"
+                       style="margin-bottom: 5px;">
+                <input type="hidden" id="host_id" name="host_id" value="<%= operation ? operation.host_id || '' : '' %>">
+                <div id="selected_host" style="<%= operation && operation.host_id ? '' : 'display: none;' %> padding: 10px; background: rgba(107,142,35,0.2); border-radius: 4px; margin-bottom: 10px;">
+                    <strong>Selected Host:</strong> <span id="selected_host_name">
+                        <% if (operation && operation.host_id && typeof users !== 'undefined' && users) { %>
+                            <% const selectedHost = users.find(u => u.id === operation.host_id); %>
+                            <%= selectedHost ? (selectedHost.discord_global_name || selectedHost.username) : 'Unknown' %>
+                        <% } %>
+                    </span>
+                    <button type="button" onclick="clearHost()" style="margin-left: 10px; padding: 2px 8px; font-size: 0.8em; background: #e74c3c; border: none; color: white; border-radius: 3px; cursor: pointer;">Clear</button>
+                </div>
+                <div id="host_results" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--olive); border-radius: 4px; display: none; background: var(--camo-dark);"></div>
+                <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                    Select the player who will host this operation
+                </small>
+            </div>
+
+            <!-- Operation Type -->
+            <div class="form-group">
+                <label for="operation_type">Operation Type</label>
+                <select id="operation_type" name="operation_type" required>
+                    <option value="main" <%= operation && operation.operation_type === 'main' ? 'selected' : (!operation ? 'selected' : '') %>>🎖️ Main Operation</option>
+                    <option value="side" <%= operation && operation.operation_type === 'side' ? 'selected' : '' %>>⚡ Side Operation</option>
+                </select>
+                <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                    <strong>Main Ops:</strong> Large-scale operations with full attendance<br>
+                    <strong>Side Ops:</strong> Smaller operations, optional participation
+                </small>
+            </div>
+
+            <!-- ORBAT Selection -->
+            <div class="form-group">
+                <label for="orbat_type">ORBAT (Order of Battle)</label>
+                <select id="orbat_type" name="orbat_type" onchange="toggleOrbatOptions()">
+                    <option value="none" <%= operation && operation.orbat_type === 'none' ? 'selected' : '' %>>No ORBAT</option>
+                    <option value="fixed" <%= operation && operation.orbat_type === 'fixed' ? 'selected' : '' %>>Fixed ORBAT (from template)</option>
+                    <option value="dynamic" <%= operation && operation.orbat_type === 'dynamic' ? 'selected' : '' %>>Dynamic ORBAT (create on operation page)</option>
+                </select>
+                <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                    <strong>Fixed:</strong> Use admin-managed template, assign players manually<br>
+                    <strong>Dynamic:</strong> Players claim slots first-come-first-served
+                </small>
+            </div>
+
+            <!-- Fixed ORBAT Template Selection -->
+            <div id="fixedOrbatSelect" class="form-group" style="display: none;">
+                <label for="orbat_template_id">Select ORBAT Template</label>
+                <select id="orbat_template_id" name="orbat_template_id">
+                    <option value="">-- Select Template --</option>
+                    <!-- Templates will be loaded here -->
+                </select>
+                <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                    No templates? <a href="/orbat/templates/create" target="_blank">Create one first</a>
+                </small>
+            </div>
+
+            <!-- Modpack Selection -->
+            <div class="form-group">
+                <label for="modpack_id">📦 Required Modpack</label>
+                <select id="modpack_id" name="modpack_id">
+                    <option value="">— No modpack required —</option>
+                    <% if (typeof modpacks !== 'undefined' && modpacks) { %>
+                        <% modpacks.forEach(mp => { %>
+                            <option value="<%= mp.id %>" <%= (operation && operation.modpack_id == mp.id) ? 'selected' : '' %>>
+                                <%= mp.name %> (<%= mp.mod_count %> mods)
+                            </option>
+                        <% }) %>
+                    <% } %>
+                </select>
+                <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                    Select a modpack players will need for this operation, or <a href="/modpacks/upload/new" style="color: var(--accent);">upload a new one</a>.
+                </small>
+            </div>
+
+            <!-- Published Status (Edit only) -->
+            <% if (action === 'edit') { %>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="is_published" name="is_published" <%= operation && operation.is_published ? 'checked' : '' %> style="width: 20px; height: 20px;">
+                        <span>Published (visible to all users)</span>
+                    </label>
+                    <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                        Uncheck to save as draft
+                    </small>
+                </div>
+            <% } %>
+
+            <!-- Preview -->
+            <div class="form-group">
+                <label>Operation Preview</label>
+                <div class="card" style="padding: 0; overflow: hidden;">
+                    <!-- Banner -->
+                    <div style="width: 100%; height: 200px; overflow: hidden; background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);">
+                        <img id="previewBanner" src="<%= operation ? operation.banner_url : '/images/operations/default-banner.jpg' %>" 
+                             style="width: 100%; height: 100%; object-fit: cover;"
+                             onerror="this.src='/images/operations/default-banner.jpg';">
+                    </div>
+                    
+                    <!-- Content -->
+                    <div style="padding: 20px;">
+                        <h3 id="previewTitle" style="color: var(--accent); margin-bottom: 12px;">
+                            <%= operation ? operation.title : 'Operation Title' %>
+                        </h3>
+                        <p id="previewDesc" style="color: var(--khaki); margin-bottom: 15px; line-height: 1.5;">
+                            <%= operation && operation.description ? operation.description : 'Operation description will appear here...' %>
+                        </p>
+                        <div style="padding: 12px; background: rgba(107,142,35,0.1); border-left: 3px solid var(--olive); border-radius: 4px;">
+                            <div style="color: var(--olive-light); font-size: 0.9em;">
+                                📅 <span id="previewDate">Select dates</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Buttons -->
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    <%= action === 'create' ? '➕ Create Operation' : '💾 Save Changes' %>
+                </button>
+                <a href="/operations/manage/list" class="btn" style="flex: 1; text-align: center;">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </section>
+</div>
+
+<script>
+// Live preview
+const titleInput = document.getElementById('title');
+const descInput = document.getElementById('description');
+const startTimeInput = document.getElementById('start_time');
+const endTimeInput = document.getElementById('end_time');
+const bannerUrlInput = document.getElementById('banner_url');
+const bannerUpload = document.getElementById('banner_upload');
+
+const previewTitle = document.getElementById('previewTitle');
+const previewDesc = document.getElementById('previewDesc');
+const previewDate = document.getElementById('previewDate');
+const previewBanner = document.getElementById('previewBanner');
+const bannerPreview = document.getElementById('bannerPreview');
+const bannerStatus = document.getElementById('bannerStatus');
+
+titleInput.addEventListener('input', () => {
+    previewTitle.textContent = titleInput.value || 'Operation Title';
+});
+
+descInput.addEventListener('input', () => {
+    previewDesc.textContent = descInput.value || 'Operation description will appear here...';
+});
+
+function updateDatePreview() {
+    const start = startTimeInput.value;
+    const end = endTimeInput.value;
+    
+    if (start && end) {
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        previewDate.textContent = `${startDate.toLocaleDateString()} ${startDate.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} - ${endDate.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`;
+    } else if (start) {
+        const startDate = new Date(start);
+        previewDate.textContent = `${startDate.toLocaleDateString()} ${startDate.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`;
+    } else {
+        previewDate.textContent = 'Select dates';
+    }
+}
+
+startTimeInput.addEventListener('input', updateDatePreview);
+endTimeInput.addEventListener('input', updateDatePreview);
+
+// Banner upload preview
+bannerUpload.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        // Check if it's an image
+        if (!file.type.startsWith('image/')) {
+            bannerStatus.textContent = '❌ Please select an image file';
+            bannerStatus.style.color = '#e74c3c';
+            return;
+        }
+        
+        // Check file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            bannerStatus.textContent = '❌ Image too large (max 5MB)';
+            bannerStatus.style.color = '#e74c3c';
+            return;
+        }
+        
+        // Create preview from uploaded file
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            bannerPreview.src = event.target.result;
+            previewBanner.src = event.target.result;
+            bannerStatus.textContent = '✅ Banner ready to upload';
+            bannerStatus.style.color = '#2ecc71';
+        };
+        reader.readAsDataURL(file);
+        
+        // Set the banner_url to what it will be after upload
+        const filename = file.name.toLowerCase().replace(/[^a-z0-9.-]/g, '-');
+        bannerUrlInput.value = '/images/operations/' + filename;
+        bannerStatus.textContent = '✅ Will be saved as: ' + filename;
+        bannerStatus.style.color = '#2ecc71';
+    }
+});
+
+// Banner URL preview
+bannerUrlInput.addEventListener('input', () => {
+    const url = bannerUrlInput.value;
+    updateBannerPreviews(url);
+});
+
+function updateBannerPreviews(url) {
+    bannerPreview.src = url;
+    previewBanner.src = url;
+    
+    // Check if image loads successfully
+    const testImg = new Image();
+    testImg.onload = () => {
+        bannerStatus.textContent = '✅ Banner loaded successfully';
+        bannerStatus.style.color = '#2ecc71';
+    };
+    testImg.onerror = () => {
+        bannerStatus.textContent = '❌ Banner not found or failed to load';
+        bannerStatus.style.color = '#e74c3c';
+    };
+    testImg.src = url;
+}
+
+// Initial preview update
+updateDatePreview();
+if (!bannerUpload.files || bannerUpload.files.length === 0) {
+    updateBannerPreviews(bannerUrlInput.value);
+}
+
+// ORBAT type handling
+function toggleOrbatOptions() {
+    const orbatType = document.getElementById('orbat_type').value;
+    const fixedSelect = document.getElementById('fixedOrbatSelect');
+    
+    if (orbatType === 'fixed') {
+        fixedSelect.style.display = 'block';
+        loadOrbatTemplates();
+    } else {
+        fixedSelect.style.display = 'none';
+    }
+}
+
+// Load ORBAT templates
+async function loadOrbatTemplates() {
+    try {
+        const response = await fetch('/orbat/api/templates');
+        const templates = await response.json();
+        
+        const select = document.getElementById('orbat_template_id');
+        select.innerHTML = '<option value="">-- Select Template --</option>';
+        
+        templates.forEach(template => {
+            const option = document.createElement('option');
+            option.value = template.id;
+            option.textContent = `${template.name} (${template.squad_count} squads)`;
+            <% if (operation && operation.orbat_template_id) { %>
+            if (template.id === <%= operation.orbat_template_id %>) {
+                option.selected = true;
+            }
+            <% } %>
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading templates:', error);
+    }
+}
+
+// Initialize on page load
+toggleOrbatOptions();
+
+// Host search functionality
+<% if (typeof users !== 'undefined' && users) { %>
+const hostUsers = <%- JSON.stringify(users) %>;
+console.log('Host search initialized with', hostUsers.length, 'users');
+const hostSearchInput = document.getElementById('host_search');
+const hostResultsDiv = document.getElementById('host_results');
+const hostHiddenInput = document.getElementById('host_id');
+const selectedHostDiv = document.getElementById('selected_host');
+const selectedHostName = document.getElementById('selected_host_name');
+
+if (!hostSearchInput) {
+    console.error('Host search input not found!');
+}
+
+hostSearchInput.addEventListener('input', function() {
+    const query = this.value.toLowerCase().trim();
+    console.log('Searching for:', query);
+    
+    if (query.length === 0) {
+        hostResultsDiv.style.display = 'none';
+        return;
+    }
+
+    const filtered = hostUsers.filter(user => {
+        const name = (user.discord_global_name || user.username).toLowerCase();
+        const username = (user.discord_username || '').toLowerCase();
+        return name.includes(query) || username.includes(query);
+    }).slice(0, 20);
+
+    console.log('Found', filtered.length, 'matching users');
+
+    if (filtered.length === 0) {
+        hostResultsDiv.innerHTML = '<div style="padding: 10px; color: var(--khaki);">No players found</div>';
+        hostResultsDiv.style.display = 'block';
+        return;
+    }
+
+    hostResultsDiv.innerHTML = filtered.map(user => `
+        <div onclick="selectHost(${user.id}, '${(user.discord_global_name || user.username).replace(/'/g, "\\'")}')" 
+             style="padding: 10px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.1); transition: background 0.2s;"
+             onmouseover="this.style.background='rgba(107,142,35,0.3)'"
+             onmouseout="this.style.background='transparent'">
+            <strong>${user.discord_global_name || user.username}</strong>
+            ${user.is_admin ? '<span style="color: var(--accent); font-size: 0.8em;"> (Admin)</span>' : ''}
+        </div>
+    `).join('');
+    
+    hostResultsDiv.style.display = 'block';
+});
+
+function selectHost(id, name) {
+    console.log('Selected host:', id, name);
+    hostHiddenInput.value = id;
+    selectedHostName.textContent = name;
+    selectedHostDiv.style.display = 'block';
+    hostSearchInput.value = '';
+    hostResultsDiv.style.display = 'none';
+}
+
+function clearHost() {
+    hostHiddenInput.value = '';
+    selectedHostDiv.style.display = 'none';
+}
+
+// Hide results when clicking outside
+document.addEventListener('click', function(e) {
+    if (!hostSearchInput.contains(e.target) && !hostResultsDiv.contains(e.target)) {
+        hostResultsDiv.style.display = 'none';
+    }
+});
+
+// Update current UTC time display
+function updateUtcTime() {
+    const now = new Date();
+    const utcTime = now.toISOString().slice(0, 16).replace('T', ' ');
+    const localTime = now.toLocaleString(undefined, { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true,
+        month: 'short',
+        day: 'numeric'
+    });
+    
+    document.getElementById('currentUtcTime').textContent = utcTime + ' UTC';
+    document.getElementById('currentLocalTime').textContent = localTime;
+}
+
+// Update immediately and every second
+updateUtcTime();
+setInterval(updateUtcTime, 1000);
+
+<% } else { %>
+console.error('Users data not available for host search - users:', typeof users);
+<% } %>
+</script>
+
+<%- include('../partials/footer') %>

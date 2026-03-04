@@ -1,0 +1,82 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>ORBAT TEMPLATES</h1>
+        <div class="subtitle">Fixed ORBAT Management</div>
+    </header>
+
+    <section class="section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+            <h2 style="margin: 0;">All Templates</h2>
+            <a href="/orbat/templates/create" class="btn btn-primary">➕ Create New Template</a>
+        </div>
+
+        <% if (success) { %>
+            <div class="alert alert-success"><%= success %></div>
+        <% } %>
+        
+        <% if (error) { %>
+            <div class="alert alert-error"><%= error %></div>
+        <% } %>
+
+        <div style="padding: 15px; background: rgba(52, 152, 219, 0.1); border: 1px solid #3498DB; border-radius: 8px; margin-bottom: 25px;">
+            <h4 style="color: #3498DB; margin-bottom: 10px;">ℹ️ About Fixed ORBATs</h4>
+            <p style="margin-bottom: 8px;">
+                <strong>Fixed ORBATs</strong> are reusable templates for major operations.<br>
+                Create squads, define roles, and assign players from the roster.<br>
+                Only attending players will be shown on the operation ORBAT view.
+            </p>
+        </div>
+
+        <% if (templates.length === 0) { %>
+            <div class="card text-center">
+                <h3>No Templates Created</h3>
+                <p>Create your first ORBAT template to get started!</p>
+                <a href="/orbat/templates/create" class="btn btn-primary mt-2">Create Template</a>
+            </div>
+        <% } else { %>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;">
+                <% templates.forEach(template => { %>
+                    <div class="card">
+                        <h3 style="color: var(--accent); margin-bottom: 12px;">
+                            <%= template.name %>
+                        </h3>
+                        
+                        <% if (template.description) { %>
+                            <p style="color: var(--khaki); margin-bottom: 15px;">
+                                <%= template.description %>
+                            </p>
+                        <% } %>
+                        
+                        <div style="padding: 12px; background: rgba(107,142,35,0.1); border-left: 3px solid var(--olive); border-radius: 4px; margin-bottom: 15px;">
+                            <div style="font-size: 0.9em; color: var(--olive-light); margin-bottom: 5px;">
+                                <strong>📊 Squads:</strong> <%= template.squad_count %>
+                            </div>
+                            <div style="font-size: 0.9em; color: var(--olive-light);">
+                                <strong>📋 Used in:</strong> <%= template.usage_count %> operation<%= template.usage_count !== 1 ? 's' : '' %>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px;">
+                            <a href="/orbat/templates/edit/<%= template.id %>" class="btn" style="flex: 1; text-align: center;">
+                                ✏️ Edit
+                            </a>
+                            <form method="POST" action="/orbat/templates/delete/<%= template.id %>" style="flex: 1;" onsubmit="return confirm('Delete this template? This will remove it from <%= template.usage_count %> operation(s).')">
+                                <button type="submit" class="btn btn-danger" style="width: 100%;">
+                                    🗑️ Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
+    </section>
+
+    <section class="section">
+        <a href="/admin" class="btn">← Back to Admin</a>
+    </section>
+</div>
+
+<%- include('../partials/footer') %>
