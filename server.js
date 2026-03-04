@@ -7,6 +7,7 @@ require('dotenv').config();
 const { attachUser } = require('./middleware/auth');
 const passport = require('./config/passport.js');
 
+
 const homeRoutes = require('./routes/home');
 const authRoutes = require('./routes/auth');
 const toolsRoutes = require('./routes/tools');
