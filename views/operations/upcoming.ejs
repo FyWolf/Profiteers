@@ -67,11 +67,11 @@
                                 <!-- Date & Time -->
                                 <div style="margin-bottom: 15px; padding: 12px; background: rgba(107,142,35,0.1); border-left: 3px solid var(--olive); border-radius: 4px;">
                                     <div style="color: var(--olive-light); font-size: 0.9em; margin-bottom: 4px;">
-                                        📅 <span class="local-date" data-utc="<%= new Date(op.start_time).toISOString() %>"></span>
+                                        📅 <span class="local-date" data-utc="<%= new Date(op.start_time * 1000).toISOString() %>"></span>
                                     </div>
                                     <div style="color: var(--olive-light); font-size: 0.9em;">
-                                        🕐 <span class="local-time" data-utc="<%= new Date(op.start_time).toISOString() %>"></span> 
-                                        - <span class="local-time" data-utc="<%= new Date(op.end_time).toISOString() %>"></span>
+                                        🕐 <span class="local-time" data-utc="<%= new Date(op.start_time * 1000).toISOString() %>"></span>
+                                        - <span class="local-time" data-utc="<%= new Date(op.end_time * 1000).toISOString() %>"></span>
                                     </div>
                                 </div>
                                 

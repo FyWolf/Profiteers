@@ -115,12 +115,12 @@ async function createOperationPost(client, operation) {
             .addFields(
                 {
                     name: '📅 Date & Time',
-                    value: `<t:${operation.start_timestamp}:F>`,
+                    value: `<t:${operation.start_time}:F>`,
                     inline: false
                 },
                 {
                     name: '⏰ Duration',
-                    value: `<t:${operation.start_timestamp}:t> - <t:${operation.end_timestamp}:t>`,
+                    value: `<t:${operation.start_time}:t> - <t:${operation.end_time}:t>`,
                     inline: false
                 },
                 {
@@ -229,12 +229,12 @@ async function updateOperationPost(client, operation) {
             .addFields(
                 {
                     name: '📅 Date & Time',
-                    value: `<t:${operation.start_timestamp}:F>`,
+                    value: `<t:${operation.start_time}:F>`,
                     inline: false
                 },
                 {
                     name: '⏰ Duration',
-                    value: `<t:${operation.start_timestamp}:t> - <t:${operation.end_timestamp}:t>`,
+                    value: `<t:${operation.start_time}:t> - <t:${operation.end_time}:t>`,
                     inline: false
                 },
                 {

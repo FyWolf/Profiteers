@@ -40,7 +40,7 @@ router.get('/upcoming', async (req, res) => {
             FROM operations o
             LEFT JOIN users u ON o.created_by = u.id
             LEFT JOIN operation_attendance oa ON o.id = oa.operation_id
-            WHERE o.start_time >= NOW() AND o.is_published = TRUE
+            WHERE o.start_time >= UNIX_TIMESTAMP() AND o.is_published = TRUE
         `;
         
         const params = [];
@@ -397,7 +397,7 @@ router.post('/manage/create', isZeus, async (req, res) => {
 
         const [result] = await db.query(`
             INSERT INTO operations 
-            (title, description, banner_url, start_timestamp, end_timestamp, created_by, orbat_type, orbat_template_id, host_id, operation_type, is_published, modpack_id)
+            (title, description, banner_url, start_time, end_time, created_by, orbat_type, orbat_template_id, host_id, operation_type, is_published, modpack_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [title, description, finalBannerUrl, startTimestamp, endTimestamp, req.session.userId, finalOrbatType, finalOrbatTemplateId, finalHostId, finalOperationType, published, finalModpackId]);
 
@@ -413,8 +413,8 @@ router.post('/manage/create', isZeus, async (req, res) => {
                     id: newOpId,
                     title: title,
                     description: description,
-                    start_timestamp: startTimestamp,
-                    end_timestamp: endTimestamp,
+                    start_time: startTimestamp,
+                    end_time: endTimestamp,
                     banner_url: finalBannerUrl,
                     operation_type: finalOperationType
                 });
@@ -497,7 +497,7 @@ router.post('/manage/edit/:id', isZeus, async (req, res) => {
 
         await db.query(`
             UPDATE operations 
-            SET title = ?, description = ?, banner_url = ?, start_timestamp = ?, end_timestamp = ?, is_published = ?,
+            SET title = ?, description = ?, banner_url = ?, start_time = ?, end_time = ?, is_published = ?,
                 orbat_type = ?, orbat_template_id = ?, host_id = ?, operation_type = ?, modpack_id = ?
             WHERE id = ?
         `, [title, description, finalBannerUrl, startTimestamp, endTimestamp, published, finalOrbatType, finalOrbatTemplateId, finalHostId, finalOperationType, finalModpackId, req.params.id]);

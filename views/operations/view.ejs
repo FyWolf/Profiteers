@@ -50,15 +50,15 @@ function timestampToUTC(timestamp) {
                     <div style="display: grid; gap: 15px;">
                         <div>
                             <div style="font-weight: 700; color: var(--accent); margin-bottom: 5px;">📅 Date</div>
-                            <div style="font-size: 1.1em; color: var(--sand);" class="local-date" data-utc="<%= timestampToUTC(operation.start_timestamp) %>"></div>
+                            <div style="font-size: 1.1em; color: var(--sand);" class="local-date" data-utc="<%= timestampToUTC(operation.start_time) %>"></div>
                         </div>
                         <div>
                             <div style="font-weight: 700; color: var(--accent); margin-bottom: 5px;">🕐 Start Time</div>
-                            <div style="font-size: 1.1em; color: var(--sand);" class="local-datetime" data-utc="<%= timestampToUTC(operation.start_timestamp) %>"></div>
+                            <div style="font-size: 1.1em; color: var(--sand);" class="local-datetime" data-utc="<%= timestampToUTC(operation.start_time) %>"></div>
                         </div>
                         <div>
                             <div style="font-weight: 700; color: var(--accent); margin-bottom: 5px;">🕐 End Time</div>
-                            <div style="font-size: 1.1em; color: var(--sand);" class="local-datetime" data-utc="<%= timestampToUTC(operation.end_timestamp) %>"></div>
+                            <div style="font-size: 1.1em; color: var(--sand);" class="local-datetime" data-utc="<%= timestampToUTC(operation.end_time) %>"></div>
                         </div>
                         <div style="padding: 10px; background: rgba(52, 152, 219, 0.1); border-left: 3px solid #3498DB; border-radius: 4px;">
                             <small style="color: #3498DB;">

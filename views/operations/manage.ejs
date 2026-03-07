@@ -40,8 +40,8 @@
                     </thead>
                     <tbody>
                         <% operations.forEach(op => { 
-                            const isPast = new Date(op.end_time) < new Date();
-                            const isUpcoming = new Date(op.start_time) > new Date();
+                            const isPast = new Date(op.end_time * 1000) < new Date();
+                            const isUpcoming = new Date(op.start_time * 1000) > new Date();
                         %>
                             <tr style="border-bottom: 1px solid rgba(178, 178, 125, 0.2);">
                                 <td style="padding: 12px;">
@@ -61,9 +61,9 @@
                                 </td>
                                 <td style="padding: 12px;">
                                     <div style="font-size: 0.9em;">
-                                        <div><%= new Date(op.start_time).toLocaleDateString() %></div>
+                                        <div><%= new Date(op.start_time * 1000).toLocaleDateString() %></div>
                                         <div style="color: var(--khaki); opacity: 0.7;">
-                                            <%= new Date(op.start_time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) %>
+                                            <%= new Date(op.start_time * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) %>
                                         </div>
                                     </div>
                                 </td>

@@ -37,7 +37,7 @@ function timestampToDatetimeLocal(timestamp) {
                 <div class="form-group">
                     <label for="start_time">Start Time (UTC) *</label>
                     <input type="datetime-local" id="start_time" name="start_time" 
-                           value="<%= operation ? timestampToDatetimeLocal(operation.start_timestamp) : '' %>" 
+                           value="<%= operation ? timestampToDatetimeLocal(operation.start_time) : '' %>" 
                            required>
                     <small style="color: var(--khaki); margin-top: 5px; display: block;">
                         Enter time in UTC timezone
@@ -47,7 +47,7 @@ function timestampToDatetimeLocal(timestamp) {
                 <div class="form-group">
                     <label for="end_time">End Time (UTC) *</label>
                     <input type="datetime-local" id="end_time" name="end_time" 
-                           value="<%= operation ? timestampToDatetimeLocal(operation.end_timestamp) : '' %>" 
+                           value="<%= operation ? timestampToDatetimeLocal(operation.end_time) : '' %>" 
                            required>
                     <small style="color: var(--khaki); margin-top: 5px; display: block;">
                         Enter expected end time in UTC
