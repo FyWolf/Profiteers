@@ -1,5 +1,6 @@
 /.env
 /migrations
 /public/images
+/public/uploads
 /node_modules
 readme.md
