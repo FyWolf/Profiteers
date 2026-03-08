@@ -84,6 +84,13 @@ async function checkUserAccess(discordUserId, guildId, requiredRoles, botToken) 
     }
 }
 
+if (!DISCORD_CONFIG.clientID || !DISCORD_CONFIG.clientSecret || !DISCORD_CONFIG.callbackURL) {
+    throw new Error(
+        'Missing required Discord OAuth2 environment variables.\n' +
+        'Ensure DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, and DISCORD_CALLBACK_URL are set.'
+    );
+}
+
 passport.use(new DiscordStrategy({
     clientID: DISCORD_CONFIG.clientID,
     clientSecret: DISCORD_CONFIG.clientSecret,

@@ -19,7 +19,7 @@
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
                 <% squads.forEach(squad => { %>
                 <% const canEditThisSquad = user && editorSquadIds && editorSquadIds.includes(squad.id); %>
-                    <div class="card" style="border-left: 4px solid <%= squad.color %>;">
+                    <div class="card" style="border-left: 4px solid <%= squad.color %>; padding: 20px;">
                         <div style="margin-bottom: 15px; padding-bottom: 12px; border-bottom: 2px solid <%= squad.color %>;">
                             <h3 style="color: <%= squad.color %>; margin: 0;">
                                 <%= squad.name %>
@@ -38,13 +38,12 @@
                             <div style="display: grid; gap: 8px;" id="roleList_<%= squad.id %>">
                                 <% roles.forEach(role => { %>
                                     <% const assignment = assignments[role.id]; %>
-                                    <div id="roleRow_<%= role.id %>" style="padding: 10px; background: rgba(0,0,0,0.2); border-radius: 4px;">
+                                    <div class="card" data-role-id="<%= role.id %>" style="padding: 12px; background: rgba(0,0,0,0.3);<% if (canEditThisSquad) { %> cursor: grab;<% } %>">
 
                                         <div id="roleView_<%= role.id %>">
-                                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
-                                                <div style="display: flex; align-items: center; gap: 8px;">
-                                                    <div style="width: 8px; height: 8px; border-radius: 50%; background: <%= squad.color %>; flex-shrink: 0;"></div>
-                                                    <strong style="color: var(--sand); font-size: 0.95em;"><%= role.role_name %></strong>
+                                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px;">
+                                                <div style="font-weight: 700; color: <%= squad.color %>; font-size: 0.9em;">
+                                                    <%= role.role_name %>
                                                 </div>
                                                 <% if (canEditThisSquad) { %>
                                                     <div style="display: flex; gap: 4px;">
@@ -55,19 +54,19 @@
                                             </div>
 
                                             <% if (assignment) { %>
-                                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-left: 16px;">
-                                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                                        <% if (assignment.discord_avatar) { %>
-                                                            <img src="https://cdn.discordapp.com/avatars/<%= assignment.discord_id %>/<%= assignment.discord_avatar %>.png?size=64"
-                                                                 style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid <%= squad.color %>;">
-                                                        <% } else { %>
-                                                            <div style="width: 24px; height: 24px; border-radius: 50%; background: <%= squad.color %>; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 0.7em;">
-                                                                <%= (assignment.discord_global_name || assignment.username).charAt(0).toUpperCase() %>
-                                                            </div>
-                                                        <% } %>
-                                                        <span style="color: var(--khaki); font-size: 0.85em;">
+                                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                                    <% if (assignment.discord_avatar) { %>
+                                                        <img src="https://cdn.discordapp.com/avatars/<%= assignment.discord_id %>/<%= assignment.discord_avatar %>.png?size=64"
+                                                             style="width: 28px; height: 28px; border-radius: 50%; border: 2px solid <%= squad.color %>;">
+                                                    <% } else { %>
+                                                        <div style="width: 28px; height: 28px; border-radius: 50%; background: <%= squad.color %>; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 0.75em;">
+                                                            <%= (assignment.discord_global_name || assignment.username).charAt(0).toUpperCase() %>
+                                                        </div>
+                                                    <% } %>
+                                                    <div style="flex: 1; min-width: 0;">
+                                                        <div style="font-weight: 600; color: var(--sand); font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                                             <%= assignment.discord_global_name || assignment.username %>
-                                                        </span>
+                                                        </div>
                                                     </div>
                                                     <% if (canEditThisSquad) { %>
                                                         <div style="display: flex; gap: 4px;">
@@ -77,8 +76,8 @@
                                                     <% } %>
                                                 </div>
                                             <% } else { %>
-                                                <div style="display: flex; align-items: center; justify-content: space-between; margin-left: 16px;">
-                                                    <span style="color: var(--khaki); opacity: 0.5; font-size: 0.8em; font-style: italic;">Empty</span>
+                                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                                    <span style="color: var(--khaki); opacity: 0.7; font-size: 0.85em; font-style: italic;">Empty</span>
                                                     <% if (canEditThisSquad) { %>
                                                         <button onclick="showAssignModal(<%= role.id %>, '<%= role.role_name.replace(/'/g, "\\'") %>')" class="btn" style="padding: 3px 8px; font-size: 0.78em; background: <%= squad.color %>; color: white;">➕ Assign</button>
                                                     <% } %>
@@ -143,6 +142,9 @@
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<style>.sortable-ghost { opacity: 0.4; }</style>
 
 <script>
 let currentRoleId = null;
@@ -281,6 +283,33 @@ async function addRole(squadId) {
         alert('Failed to add slot');
     }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    <% squads.forEach(squad => { %>
+    <% const canEditThis = user && editorSquadIds && editorSquadIds.includes(squad.id); %>
+    <% if (canEditThis) { %>
+    new Sortable(document.getElementById('roleList_<%= squad.id %>'), {
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        handle: '[data-role-id]',
+        onEnd: async function() {
+            const container = document.getElementById('roleList_<%= squad.id %>');
+            const roleIds = Array.from(container.querySelectorAll('[data-role-id]'))
+                .map(el => el.getAttribute('data-role-id'));
+            try {
+                await fetch('/orbat/api/squads/<%= squad.id %>/reorder-roles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roleIds })
+                });
+            } catch (e) {
+                console.error('Failed to save role order:', e);
+            }
+        }
+    });
+    <% } %>
+    <% }); %>
+});
 </script>
 <% } %>
 

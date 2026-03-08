@@ -771,14 +771,16 @@ router.post('/api/squads/:squadId/add-role', isAuthenticated, async (req, res) =
             }
         }
 
-        const { roleName, displayOrder } = req.body;
+        const { roleName, displayOrder, isEditor } = req.body;
         if (!roleName || !roleName.trim()) {
             return res.json({ success: false, error: 'Role name is required' });
         }
 
+        const isEditorValue = userIsZeus && isEditor ? 1 : 0;
+
         const [result] = await db.query(
-            'INSERT INTO orbat_roles (squad_id, role_name, display_order) VALUES (?, ?, ?)',
-            [req.params.squadId, roleName.trim(), displayOrder || 0]
+            'INSERT INTO orbat_roles (squad_id, role_name, display_order, is_editor) VALUES (?, ?, ?, ?)',
+            [req.params.squadId, roleName.trim(), displayOrder || 0, isEditorValue]
         );
 
         res.json({ success: true, roleId: result.insertId });
@@ -798,15 +800,22 @@ router.post('/api/roles/:id/edit', isAuthenticated, async (req, res) => {
             }
         }
 
-        const { roleName, displayOrder } = req.body;
+        const { roleName, displayOrder, isEditor } = req.body;
         if (!roleName || !roleName.trim()) {
             return res.json({ success: false, error: 'Role name is required' });
         }
 
-        await db.query(
-            'UPDATE orbat_roles SET role_name = ?, display_order = ? WHERE id = ?',
-            [roleName.trim(), displayOrder || 0, req.params.id]
-        );
+        if (userIsZeus) {
+            await db.query(
+                'UPDATE orbat_roles SET role_name = ?, display_order = ?, is_editor = ? WHERE id = ?',
+                [roleName.trim(), displayOrder || 0, isEditor ? 1 : 0, req.params.id]
+            );
+        } else {
+            await db.query(
+                'UPDATE orbat_roles SET role_name = ?, display_order = ? WHERE id = ?',
+                [roleName.trim(), displayOrder || 0, req.params.id]
+            );
+        }
 
         res.json({ success: true });
     } catch (error) {
@@ -867,6 +876,59 @@ router.post('/api/roles/:id/delete', isAuthenticated, async (req, res) => {
     } catch (error) {
         console.error('Error deleting role:', error);
         res.json({ success: false, error: 'Failed to delete role' });
+    }
+});
+
+router.post('/api/templates/:templateId/squads/add', isAuthenticated, async (req, res) => {
+    try {
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus) return res.status(403).json({ success: false, error: 'Permission denied' });
+
+        const { name, color, displayOrder } = req.body;
+        if (!name || !name.trim()) return res.json({ success: false, error: 'Squad name is required' });
+
+        const [result] = await db.query(
+            'INSERT INTO orbat_squads (orbat_id, name, color, display_order) VALUES (?, ?, ?, ?)',
+            [req.params.templateId, name.trim(), color || '#3498DB', displayOrder || 0]
+        );
+
+        res.json({ success: true, squadId: result.insertId });
+    } catch (error) {
+        console.error('Error adding squad:', error);
+        res.json({ success: false, error: 'Failed to add squad' });
+    }
+});
+
+router.post('/api/squads/:id/edit', isAuthenticated, async (req, res) => {
+    try {
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus) return res.status(403).json({ success: false, error: 'Permission denied' });
+
+        const { name, color, displayOrder } = req.body;
+        if (!name || !name.trim()) return res.json({ success: false, error: 'Squad name is required' });
+
+        await db.query(
+            'UPDATE orbat_squads SET name = ?, color = ?, display_order = ? WHERE id = ?',
+            [name.trim(), color || '#3498DB', displayOrder || 0, req.params.id]
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error updating squad:', error);
+        res.json({ success: false, error: 'Failed to update squad' });
+    }
+});
+
+router.post('/api/squads/:id/delete', isAuthenticated, async (req, res) => {
+    try {
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus) return res.status(403).json({ success: false, error: 'Permission denied' });
+
+        await db.query('DELETE FROM orbat_squads WHERE id = ?', [req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting squad:', error);
+        res.json({ success: false, error: 'Failed to delete squad' });
     }
 });
 
