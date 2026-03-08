@@ -39,7 +39,7 @@ async function checkUpcomingOperations(client) {
         `, [now, oneHourLater]);
 
         for (const operation of operations) {
-            const timeUntilStart = operation.start_timestamp - now;
+            const timeUntilStart = operation.start_time - now;
             const minutesUntil = Math.floor(timeUntilStart / 60);
 
             if (minutesUntil >= 55 && minutesUntil <= 65) {
