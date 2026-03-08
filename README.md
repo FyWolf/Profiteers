@@ -23,8 +23,8 @@ Unit management website for Profiteers PMC, an Arma 3 gaming community. Built wi
 ## Installation
 
 ```bash
-git clone https://github.com/your-org/profiteers-pmc-website.git
-cd profiteers-pmc-website
+git clone https://github.com/FyWolf/Profiteers.git
+cd Profiteers
 npm install
 ```
 
