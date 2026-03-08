@@ -80,7 +80,6 @@ function previewImages(input) {
         captionsContainer.style.display = 'block';
         
         Array.from(input.files).forEach((file, index) => {
-            // Preview
             const reader = new FileReader();
             reader.onload = function(e) {
                 const div = document.createElement('div');
@@ -93,7 +92,6 @@ function previewImages(input) {
             };
             reader.readAsDataURL(file);
             
-            // Caption input
             const captionDiv = document.createElement('div');
             captionDiv.className = 'form-group';
             captionDiv.innerHTML = `

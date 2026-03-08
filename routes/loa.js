@@ -3,9 +3,6 @@ const router = express.Router();
 const db = require('../config/database');
 const { isAuthenticated, isAdmin } = require('../middleware/auth');
 
-// ====== USER ROUTES ======
-
-// My LOAs page
 router.get('/my-loas', isAuthenticated, async (req, res) => {
     try {
         const [loas] = await db.query(`
@@ -36,10 +33,8 @@ router.get('/my-loas', isAuthenticated, async (req, res) => {
     }
 });
 
-// Submit LOA form
 router.get('/submit', isAuthenticated, async (req, res) => {
     try {
-        // Get all users for superior selection (sorted by display name)
         const [users] = await db.query(`
             SELECT id, username, discord_global_name, discord_username, is_admin
             FROM users 
@@ -62,12 +57,10 @@ router.get('/submit', isAuthenticated, async (req, res) => {
     }
 });
 
-// Submit LOA POST
 router.post('/submit', isAuthenticated, async (req, res) => {
     try {
         const { start_date, end_date, reason, superior_id } = req.body;
 
-        // Validate dates
         const startDate = new Date(start_date);
         const endDate = new Date(end_date);
 
@@ -75,14 +68,12 @@ router.post('/submit', isAuthenticated, async (req, res) => {
             return res.redirect('/loa/submit?error=End date must be after start date');
         }
 
-        // Insert LOA
         const [result] = await db.query(`
             INSERT INTO leave_of_absence 
             (user_id, start_date, end_date, reason, superior_id, status)
             VALUES (?, ?, ?, ?, ?, 'approved')
         `, [req.session.userId, start_date, end_date, reason, superior_id || null]);
 
-        // Send Discord notification
         if (process.env.DISCORD_BOT_TOKEN) {
             try {
                 const { sendLOANotification } = require('../discord/loa');
@@ -113,7 +104,6 @@ router.post('/submit', isAuthenticated, async (req, res) => {
     }
 });
 
-// Edit LOA form
 router.get('/edit/:id', isAuthenticated, async (req, res) => {
     try {
         const [loas] = await db.query(
@@ -125,10 +115,9 @@ router.get('/edit/:id', isAuthenticated, async (req, res) => {
             return res.redirect('/loa/my-loas?error=LOA not found');
         }
 
-        // Get all users for superior selection (sorted by display name)
         const [users] = await db.query(`
             SELECT id, username, discord_global_name, discord_username, is_admin
-            FROM users 
+            FROM users
             WHERE id != ?
             ORDER BY discord_global_name ASC, username ASC
         `, [req.session.userId]); // Exclude self from list
@@ -144,12 +133,10 @@ router.get('/edit/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-// Update LOA
 router.post('/edit/:id', isAuthenticated, async (req, res) => {
     try {
         const { start_date, end_date, reason, superior_id } = req.body;
 
-        // Validate dates
         const startDate = new Date(start_date);
         const endDate = new Date(end_date);
 
@@ -157,7 +144,6 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             return res.redirect(`/loa/edit/${req.params.id}?error=End date must be after start date`);
         }
 
-        // Update LOA (only if it belongs to the user)
         const [result] = await db.query(`
             UPDATE leave_of_absence 
             SET start_date = ?, end_date = ?, reason = ?, superior_id = ?
@@ -168,7 +154,6 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             return res.redirect('/loa/my-loas?error=LOA not found');
         }
 
-        // Send Discord update notification
         if (process.env.DISCORD_BOT_TOKEN) {
             try {
                 const { sendLOANotification } = require('../discord/loa');
@@ -202,7 +187,6 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-// Delete LOA
 router.post('/delete/:id', isAuthenticated, async (req, res) => {
     try {
         // Get LOA and user info BEFORE deleting for Discord notification
@@ -231,7 +215,6 @@ router.post('/delete/:id', isAuthenticated, async (req, res) => {
             [req.params.id, req.session.userId]
         );
 
-        // Send Discord deletion notification
         if (process.env.DISCORD_BOT_TOKEN && loaData && userData) {
             try {
                 const { sendLOANotification } = require('../discord/loa');
@@ -257,9 +240,6 @@ router.post('/delete/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-// ====== ADMIN ROUTES ======
-
-// All LOAs (admin view)
 router.get('/all', isAdmin, async (req, res) => {
     try {
         const [loas] = await db.query(`
@@ -278,7 +258,6 @@ router.get('/all', isAdmin, async (req, res) => {
             ORDER BY loa.start_date DESC
         `);
 
-        // Separate into active and past
         const now = new Date();
         const activeLoas = loas.filter(loa => new Date(loa.end_date) >= now && loa.status === 'approved');
         const pastLoas = loas.filter(loa => new Date(loa.end_date) < now || loa.status !== 'approved');
@@ -299,7 +278,6 @@ router.get('/all', isAdmin, async (req, res) => {
     }
 });
 
-// API: Check if user is on LOA (for dynamic display)
 router.get('/api/check/:userId', async (req, res) => {
     try {
         const [loas] = await db.query(`

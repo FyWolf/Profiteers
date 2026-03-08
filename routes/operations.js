@@ -24,9 +24,6 @@ function fromUnixTimestamp(timestamp) {
     return date.toISOString().slice(0, 16); // "2024-02-26T14:00"
 }
 
-// ====== PUBLIC ROUTES ======
-
-// Upcoming operations (public, no login required)
 router.get('/upcoming', async (req, res) => {
     try {
         const search = req.query.search || '';
@@ -69,7 +66,6 @@ router.get('/upcoming', async (req, res) => {
     }
 });
 
-// All operations (public)
 router.get('/all', async (req, res) => {
     try {
         const search = req.query.search || '';
@@ -112,10 +108,8 @@ router.get('/all', async (req, res) => {
     }
 });
 
-// View single operation
 router.get('/:id', async (req, res) => {
     try {
-        // Get operation details
         const [operations] = await db.query(`
             SELECT 
                 o.*,
@@ -146,9 +140,8 @@ router.get('/:id', async (req, res) => {
         
         const operation = operations[0];
         
-        // Get attendance counts
         const [attendance] = await db.query(`
-            SELECT 
+            SELECT
                 status,
                 COUNT(*) as count
             FROM operation_attendance
@@ -165,7 +158,6 @@ router.get('/:id', async (req, res) => {
             attendanceCounts[a.status] = a.count;
         });
         
-        // Get attendee list (for logged in users)
         let attendees = { present: [], tentative: [], absent: [] };
         if (req.session.userId) {
             const [allAttendees] = await db.query(`
@@ -187,7 +179,6 @@ router.get('/:id', async (req, res) => {
             });
         }
         
-        // Get user's attendance status
         let userAttendance = null;
         if (req.session.userId) {
             const [userAtt] = await db.query(
@@ -197,7 +188,6 @@ router.get('/:id', async (req, res) => {
             userAttendance = userAtt.length > 0 ? userAtt[0].status : null;
         }
         
-        // Get news feed
         const [news] = await db.query(`
             SELECT 
                 opn.*,
@@ -211,7 +201,6 @@ router.get('/:id', async (req, res) => {
             ORDER BY opn.posted_at DESC
         `, [req.params.id]);
         
-        // Check if user can manage this operation
         let canManage = false;
         if (req.session.userId) {
             canManage = await checkZeusStatus(req.session.userId);
@@ -237,9 +226,6 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// ====== AUTHENTICATED ROUTES ======
-
-// Update attendance
 router.post('/:id/attendance', isAuthenticated, async (req, res) => {
     try {
         const { status } = req.body;
@@ -254,9 +240,8 @@ router.post('/:id/attendance', isAuthenticated, async (req, res) => {
             ON DUPLICATE KEY UPDATE status = ?, updated_at = NOW()
         `, [req.params.id, req.session.userId, status, status]);
         
-        // Get updated counts
         const [attendance] = await db.query(`
-            SELECT 
+            SELECT
                 status,
                 COUNT(*) as count
             FROM operation_attendance
@@ -273,7 +258,6 @@ router.post('/:id/attendance', isAuthenticated, async (req, res) => {
             counts[a.status] = a.count;
         });
         
-        // Update Discord post with new attendance counts
         if (process.env.DISCORD_BOT_TOKEN) {
             try {
                 const { updateOperationPost } = require('../discord/operations');
@@ -296,9 +280,6 @@ router.post('/:id/attendance', isAuthenticated, async (req, res) => {
     }
 });
 
-// ====== ZEUS ROUTES ======
-
-// Operations management page
 router.get('/manage/list', isZeus, async (req, res) => {
     try {
         const [operations] = await db.query(`
@@ -332,17 +313,14 @@ router.get('/manage/list', isZeus, async (req, res) => {
     }
 });
 
-// Create operation form
 router.get('/manage/create', isZeus, async (req, res) => {
     try {
-        // Get all users for host selection
         const [users] = await db.query(`
             SELECT id, username, discord_global_name, discord_username, is_admin
-            FROM users 
+            FROM users
             ORDER BY discord_global_name ASC, username ASC
         `);
 
-        // Get all modpacks for modpack selection
         const [modpacks] = await db.query('SELECT id, name, mod_count FROM modpacks ORDER BY name ASC');
         
         res.render('operations/form', {
@@ -363,13 +341,11 @@ router.get('/manage/create', isZeus, async (req, res) => {
     }
 });
 
-// Create operation
 router.post('/manage/create', isZeus, async (req, res) => {
     try {
         const { title, description, start_time, end_time, banner_url, orbat_type, orbat_template_id, host_id, operation_type, modpack_id } = req.body;
         let finalBannerUrl = banner_url || '/images/operations/default-banner.jpg';
 
-        // Handle file upload if present
         if (req.files && req.files.banner_upload) {
             const bannerFile = req.files.banner_upload;
             
@@ -403,7 +379,6 @@ router.post('/manage/create', isZeus, async (req, res) => {
 
         const newOpId = result.insertId;
 
-        // Create Discord forum post if published and Discord is enabled
         if (published && process.env.DISCORD_BOT_TOKEN) {
             try {
                 const { createOperationPost } = require('../discord/operations');
@@ -431,23 +406,20 @@ router.post('/manage/create', isZeus, async (req, res) => {
     }
 });
 
-// Edit operation form
 router.get('/manage/edit/:id', isZeus, async (req, res) => {
     try {
         const [operations] = await db.query('SELECT * FROM operations WHERE id = ?', [req.params.id]);
-        
+
         if (operations.length === 0) {
             return res.redirect('/operations/manage/list?error=Operation not found');
         }
 
-        // Get all users for host selection
         const [users] = await db.query(`
             SELECT id, username, discord_global_name, discord_username, is_admin
-            FROM users 
+            FROM users
             ORDER BY discord_global_name ASC, username ASC
         `);
 
-        // Get all modpacks for modpack selection
         const [modpacks] = await db.query('SELECT id, name, mod_count FROM modpacks ORDER BY name ASC');
 
         res.render('operations/form', {
@@ -463,13 +435,11 @@ router.get('/manage/edit/:id', isZeus, async (req, res) => {
     }
 });
 
-// Update operation
 router.post('/manage/edit/:id', isZeus, async (req, res) => {
     try {
         const { title, description, start_time, end_time, banner_url, is_published, orbat_type, orbat_template_id, host_id, operation_type, modpack_id } = req.body;
         let finalBannerUrl = banner_url;
 
-        // Handle file upload if present
         if (req.files && req.files.banner_upload) {
             const bannerFile = req.files.banner_upload;
             
@@ -502,7 +472,6 @@ router.post('/manage/edit/:id', isZeus, async (req, res) => {
             WHERE id = ?
         `, [title, description, finalBannerUrl, startTimestamp, endTimestamp, published, finalOrbatType, finalOrbatTemplateId, finalHostId, finalOperationType, finalModpackId, req.params.id]);
 
-        // Update Discord post if published and Discord is enabled
         if (published && process.env.DISCORD_BOT_TOKEN) {
             try {
                 const { updateOperationPost } = require('../discord/operations');
@@ -525,7 +494,6 @@ router.post('/manage/edit/:id', isZeus, async (req, res) => {
     }
 });
 
-// Delete operation
 router.post('/manage/delete/:id', isZeus, async (req, res) => {
     try {
         await db.query('DELETE FROM operations WHERE id = ?', [req.params.id]);
@@ -536,7 +504,6 @@ router.post('/manage/delete/:id', isZeus, async (req, res) => {
     }
 });
 
-// Post news update
 router.post('/:id/news', isZeus, async (req, res) => {
     try {
         const { content } = req.body;
@@ -546,7 +513,6 @@ router.post('/:id/news', isZeus, async (req, res) => {
             VALUES (?, ?, ?)
         `, [req.params.id, content, req.session.userId]);
         
-        // Post to Discord thread
         if (process.env.DISCORD_BOT_TOKEN) {
             try {
                 const { postOperationNews } = require('../discord/operations');
@@ -574,7 +540,6 @@ router.post('/:id/news', isZeus, async (req, res) => {
     }
 });
 
-// Delete news
 router.post('/news/delete/:newsId', isZeus, async (req, res) => {
     try {
         await db.query('DELETE FROM operation_news WHERE id = ?', [req.params.newsId]);

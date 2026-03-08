@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 
-// Tools listing page
 router.get('/', async (req, res) => {
     try {
         const [tools] = await db.query(

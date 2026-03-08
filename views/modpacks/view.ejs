@@ -2,7 +2,6 @@
 
 <div class="page-container" style="max-width: 1100px; margin: 0 auto; padding: 20px;">
 
-    <!-- Back link -->
     <a href="/modpacks" style="color: var(--accent); text-decoration: none; font-size: 0.9em; display: inline-block; margin-bottom: 15px;">
         ← Back to Modpacks
     </a>
@@ -11,7 +10,6 @@
         <div class="alert alert-success"><%= success %></div>
     <% } %>
 
-    <!-- Modpack Header -->
     <div style="background: var(--camo-medium); border: 1px solid var(--olive); border-radius: 8px; padding: 25px; margin-bottom: 25px;">
         
         <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px;">
@@ -37,7 +35,6 @@
             </div>
         </div>
 
-        <!-- Stats bar -->
         <div style="display: flex; gap: 30px; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--olive); flex-wrap: wrap;">
             <div style="text-align: center;">
                 <div style="font-family: 'Orbitron', monospace; font-size: 1.8em; color: var(--accent);"><%= modpack.mod_count %></div>
@@ -81,12 +78,10 @@
 
     </div>
 
-    <!-- Mod List -->
     <div style="background: var(--camo-medium); border: 1px solid var(--olive); border-radius: 8px; overflow: hidden;">
         
         <div style="padding: 15px 20px; border-bottom: 1px solid var(--olive); display: flex; justify-content: space-between; align-items: center;">
             <h3 style="margin: 0; font-size: 1em; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary);">Mod List</h3>
-            <!-- Search/filter -->
             <input type="text" id="modSearch" placeholder="Filter mods..." 
                    style="background: var(--camo-dark); border: 1px solid var(--olive); color: var(--text-primary); padding: 6px 12px; border-radius: 4px; font-size: 0.9em; width: 200px;">
         </div>
@@ -116,7 +111,6 @@
                                 data-name="<%= (mod.steam_name || mod.display_name).toLowerCase() %>" 
                                 data-size="<%= parseInt(mod.file_size) || 0 %>" 
                                 style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.15s;<%= index % 2 === 0 ? '' : ' background: rgba(0,0,0,0.1);' %>">
-                                <!-- Icon -->
                                 <td style="padding: 8px 15px;">
                                     <% if (mod.icon_url) { %>
                                         <img src="<%= mod.icon_url %>" alt="" 
@@ -127,7 +121,6 @@
                                         </div>
                                     <% } %>
                                 </td>
-                                <!-- Name -->
                                 <td style="padding: 8px 15px;">
                                     <div style="font-weight: 500; color: var(--text-primary);">
                                         <%= mod.steam_name || mod.display_name %>
@@ -138,11 +131,9 @@
                                         </div>
                                     <% } %>
                                 </td>
-                                <!-- Size -->
                                 <td style="padding: 8px 15px; text-align: right; font-family: 'Roboto Mono', monospace; font-size: 0.85em; color: var(--text-secondary);">
                                     <%= formatSize(mod.file_size) %>
                                 </td>
-                                <!-- Steam link -->
                                 <td style="padding: 8px 15px; text-align: center;">
                                     <a href="<%= mod.steam_url %>" target="_blank" rel="noopener" 
                                        style="color: #449EBD; text-decoration: none; font-size: 0.9em;" title="Open on Steam Workshop">
@@ -169,7 +160,6 @@
 </style>
 
 <script>
-// Filter mods by name
 document.getElementById('modSearch').addEventListener('input', function() {
     const query = this.value.toLowerCase();
     document.querySelectorAll('.mod-row').forEach(row => {
@@ -178,7 +168,6 @@ document.getElementById('modSearch').addEventListener('input', function() {
     });
 });
 
-// Sort table
 let currentSort = { column: null, direction: 'asc' };
 
 function sortTable(column) {
@@ -221,7 +210,6 @@ function sortTable(column) {
         tbody.appendChild(row);
     });
     
-    // Update sort icons
     document.getElementById('sort-name-icon').style.opacity = '0.4';
     document.getElementById('sort-name-icon').textContent = '▼';
     document.getElementById('sort-size-icon').style.opacity = '0.4';

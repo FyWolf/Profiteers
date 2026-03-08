@@ -1,23 +1,19 @@
 const db = require('../config/database');
 const axios = require('axios');
 
-// Zeus Discord Role ID
 const ZEUS_ROLE_ID = '1413651879304495255';
 const GUILD_ID = '1172956513069973596';
 
-// Check if user has Zeus permissions (Zeus role OR admin)
 async function isZeus(req, res, next) {
     if (!req.session.userId) {
         return res.redirect('/login');
     }
 
     try {
-        // Check if user is admin (admins always have Zeus permissions)
         if (req.session.isAdmin) {
             return next();
         }
 
-        // Get user's Discord ID
         const [users] = await db.query('SELECT discord_id FROM users WHERE id = ?', [req.session.userId]);
         
         if (users.length === 0 || !users[0].discord_id) {
@@ -31,7 +27,6 @@ async function isZeus(req, res, next) {
 
         const discordId = users[0].discord_id;
 
-        // Check cached Zeus permission
         const [cachedPerms] = await db.query(
             'SELECT has_zeus_role, last_synced FROM zeus_permissions WHERE user_id = ?',
             [req.session.userId]
@@ -45,7 +40,6 @@ async function isZeus(req, res, next) {
             }
         }
 
-        // Fetch fresh data from Discord
         const botToken = process.env.DISCORD_BOT_TOKEN;
         if (!botToken) {
             console.error('❌ DISCORD_BOT_TOKEN not set');
@@ -69,7 +63,6 @@ async function isZeus(req, res, next) {
         const userRoles = response.data.roles || [];
         const hasZeusRole = userRoles.includes(ZEUS_ROLE_ID);
 
-        // Update cache
         await db.query(`
             INSERT INTO zeus_permissions (user_id, has_zeus_role)
             VALUES (?, ?)
@@ -80,7 +73,6 @@ async function isZeus(req, res, next) {
             return next();
         }
 
-        // Access denied
         return res.status(403).render('error', {
             title: 'Access Denied',
             message: 'Zeus Permissions Required',
@@ -99,7 +91,6 @@ async function isZeus(req, res, next) {
     }
 }
 
-// Helper function to check Zeus status without blocking
 async function checkZeusStatus(userId) {
     try {
         const [users] = await db.query('SELECT is_admin, discord_id FROM users WHERE id = ?', [userId]);
@@ -108,7 +99,6 @@ async function checkZeusStatus(userId) {
         if (users[0].is_admin) return true;
         if (!users[0].discord_id) return false;
 
-        // Check cache
         const [cachedPerms] = await db.query(
             'SELECT has_zeus_role FROM zeus_permissions WHERE user_id = ?',
             [userId]

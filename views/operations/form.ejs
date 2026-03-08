@@ -17,13 +17,11 @@ function timestampToDatetimeLocal(timestamp) {
     <section class="section" style="max-width: 800px; margin: 0 auto;">
         <form method="POST" action="/operations/manage/<%= action === 'create' ? 'create' : 'edit/' + operation.id %>" enctype="multipart/form-data">
             
-            <!-- Title -->
             <div class="form-group">
                 <label for="title">Operation Title *</label>
                 <input type="text" id="title" name="title" value="<%= operation ? operation.title : '' %>" required maxlength="200" placeholder="e.g., Operation Midnight Storm">
             </div>
 
-            <!-- Description -->
             <div class="form-group">
                 <label for="description">Mission Briefing *</label>
                 <textarea id="description" name="description" rows="6" required placeholder="Detailed mission description..."><%= operation ? operation.description : '' %></textarea>
@@ -32,7 +30,6 @@ function timestampToDatetimeLocal(timestamp) {
                 </small>
             </div>
 
-            <!-- Date & Time -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div class="form-group">
                     <label for="start_time">Start Time (UTC) *</label>
@@ -55,7 +52,6 @@ function timestampToDatetimeLocal(timestamp) {
                 </div>
             </div>
 
-            <!-- UTC Time Helper -->
             <div style="padding: 12px; background: rgba(107, 142, 35, 0.1); border-left: 3px solid var(--accent); border-radius: 4px; margin-bottom: 20px;">
                 <div style="font-weight: 700; color: var(--accent); margin-bottom: 5px;">🌍 Current UTC Time</div>
                 <div id="currentUtcTime" style="font-size: 1.1em; color: var(--sand); font-family: monospace;"></div>
@@ -64,11 +60,9 @@ function timestampToDatetimeLocal(timestamp) {
                 </small>
             </div>
 
-            <!-- Banner Upload -->
             <div class="form-group">
                 <label for="banner_url">Operation Banner</label>
-                
-                <!-- File Upload Option -->
+
                 <div style="margin-bottom: 20px; padding: 20px; background: rgba(52, 152, 219, 0.1); border: 2px solid #3498DB; border-radius: 8px;">
                     <strong style="color: #3498DB; display: block; margin-bottom: 10px;">📤 Upload Banner Image</strong>
                     <input type="file" id="banner_upload" name="banner_upload" accept="image/*" style="padding: 10px; background: rgba(40,40,40,0.9); color: var(--sand); border: 2px solid var(--olive); border-radius: 4px; width: 100%; cursor: pointer;">
@@ -77,7 +71,6 @@ function timestampToDatetimeLocal(timestamp) {
                     </small>
                 </div>
                 
-                <!-- OR Manual URL Input -->
                 <div style="margin-bottom: 15px;">
                     <label for="banner_url" style="font-size: 0.9em; color: var(--khaki);">Or enter URL manually:</label>
                     <input type="text" id="banner_url" name="banner_url" value="<%= operation ? operation.banner_url : '/images/operations/default-banner.jpg' %>" placeholder="/images/operations/your-banner.jpg">
@@ -86,7 +79,6 @@ function timestampToDatetimeLocal(timestamp) {
                     </small>
                 </div>
                 
-                <!-- Banner Preview -->
                 <div style="margin-top: 15px; border-radius: 8px; overflow: hidden; border: 2px solid var(--olive);">
                     <div style="margin-bottom: 10px; padding: 10px; background: rgba(0,0,0,0.3); color: var(--khaki); font-weight: 700;">Banner Preview:</div>
                     <img id="bannerPreview" src="<%= operation ? operation.banner_url : '/images/operations/default-banner.jpg' %>" 
@@ -97,7 +89,6 @@ function timestampToDatetimeLocal(timestamp) {
                 </div>
             </div>
 
-            <!-- Operation Host -->
             <div class="form-group">
                 <label for="host_search">Operation Host (Optional)</label>
                 <input type="text" 
@@ -121,7 +112,6 @@ function timestampToDatetimeLocal(timestamp) {
                 </small>
             </div>
 
-            <!-- Operation Type -->
             <div class="form-group">
                 <label for="operation_type">Operation Type</label>
                 <select id="operation_type" name="operation_type" required>
@@ -134,7 +124,6 @@ function timestampToDatetimeLocal(timestamp) {
                 </small>
             </div>
 
-            <!-- ORBAT Selection -->
             <div class="form-group">
                 <label for="orbat_type">ORBAT (Order of Battle)</label>
                 <select id="orbat_type" name="orbat_type" onchange="toggleOrbatOptions()">
@@ -148,19 +137,16 @@ function timestampToDatetimeLocal(timestamp) {
                 </small>
             </div>
 
-            <!-- Fixed ORBAT Template Selection -->
             <div id="fixedOrbatSelect" class="form-group" style="display: none;">
                 <label for="orbat_template_id">Select ORBAT Template</label>
                 <select id="orbat_template_id" name="orbat_template_id">
                     <option value="">-- Select Template --</option>
-                    <!-- Templates will be loaded here -->
                 </select>
                 <small style="color: var(--khaki); margin-top: 5px; display: block;">
                     No templates? <a href="/orbat/templates/create" target="_blank">Create one first</a>
                 </small>
             </div>
 
-            <!-- Modpack Selection -->
             <div class="form-group">
                 <label for="modpack_id">📦 Required Modpack</label>
                 <select id="modpack_id" name="modpack_id">
@@ -178,7 +164,6 @@ function timestampToDatetimeLocal(timestamp) {
                 </small>
             </div>
 
-            <!-- Published Status (Edit only) -->
             <% if (action === 'edit') { %>
                 <div class="form-group">
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
@@ -191,18 +176,15 @@ function timestampToDatetimeLocal(timestamp) {
                 </div>
             <% } %>
 
-            <!-- Preview -->
             <div class="form-group">
                 <label>Operation Preview</label>
                 <div class="card" style="padding: 0; overflow: hidden;">
-                    <!-- Banner -->
                     <div style="width: 100%; height: 200px; overflow: hidden; background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);">
-                        <img id="previewBanner" src="<%= operation ? operation.banner_url : '/images/operations/default-banner.jpg' %>" 
+                        <img id="previewBanner" src="<%= operation ? operation.banner_url : '/images/operations/default-banner.jpg' %>"
                              style="width: 100%; height: 100%; object-fit: cover;"
                              onerror="this.src='/images/operations/default-banner.jpg';">
                     </div>
-                    
-                    <!-- Content -->
+
                     <div style="padding: 20px;">
                         <h3 id="previewTitle" style="color: var(--accent); margin-bottom: 12px;">
                             <%= operation ? operation.title : 'Operation Title' %>
@@ -219,7 +201,6 @@ function timestampToDatetimeLocal(timestamp) {
                 </div>
             </div>
 
-            <!-- Submit Buttons -->
             <div style="display: flex; gap: 15px; margin-top: 25px;">
                 <button type="submit" class="btn btn-primary" style="flex: 1;">
                     <%= action === 'create' ? '➕ Create Operation' : '💾 Save Changes' %>
@@ -233,7 +214,6 @@ function timestampToDatetimeLocal(timestamp) {
 </div>
 
 <script>
-// Live preview
 const titleInput = document.getElementById('title');
 const descInput = document.getElementById('description');
 const startTimeInput = document.getElementById('start_time');
@@ -275,25 +255,21 @@ function updateDatePreview() {
 startTimeInput.addEventListener('input', updateDatePreview);
 endTimeInput.addEventListener('input', updateDatePreview);
 
-// Banner upload preview
 bannerUpload.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
-        // Check if it's an image
         if (!file.type.startsWith('image/')) {
             bannerStatus.textContent = '❌ Please select an image file';
             bannerStatus.style.color = '#e74c3c';
             return;
         }
         
-        // Check file size (max 5MB)
         if (file.size > 5 * 1024 * 1024) {
             bannerStatus.textContent = '❌ Image too large (max 5MB)';
             bannerStatus.style.color = '#e74c3c';
             return;
         }
         
-        // Create preview from uploaded file
         const reader = new FileReader();
         reader.onload = (event) => {
             bannerPreview.src = event.target.result;
@@ -303,7 +279,6 @@ bannerUpload.addEventListener('change', (e) => {
         };
         reader.readAsDataURL(file);
         
-        // Set the banner_url to what it will be after upload
         const filename = file.name.toLowerCase().replace(/[^a-z0-9.-]/g, '-');
         bannerUrlInput.value = '/images/operations/' + filename;
         bannerStatus.textContent = '✅ Will be saved as: ' + filename;
@@ -311,7 +286,6 @@ bannerUpload.addEventListener('change', (e) => {
     }
 });
 
-// Banner URL preview
 bannerUrlInput.addEventListener('input', () => {
     const url = bannerUrlInput.value;
     updateBannerPreviews(url);
@@ -321,7 +295,6 @@ function updateBannerPreviews(url) {
     bannerPreview.src = url;
     previewBanner.src = url;
     
-    // Check if image loads successfully
     const testImg = new Image();
     testImg.onload = () => {
         bannerStatus.textContent = '✅ Banner loaded successfully';
@@ -334,13 +307,11 @@ function updateBannerPreviews(url) {
     testImg.src = url;
 }
 
-// Initial preview update
 updateDatePreview();
 if (!bannerUpload.files || bannerUpload.files.length === 0) {
     updateBannerPreviews(bannerUrlInput.value);
 }
 
-// ORBAT type handling
 function toggleOrbatOptions() {
     const orbatType = document.getElementById('orbat_type').value;
     const fixedSelect = document.getElementById('fixedOrbatSelect');
@@ -353,7 +324,6 @@ function toggleOrbatOptions() {
     }
 }
 
-// Load ORBAT templates
 async function loadOrbatTemplates() {
     try {
         const response = await fetch('/orbat/api/templates');
@@ -378,10 +348,8 @@ async function loadOrbatTemplates() {
     }
 }
 
-// Initialize on page load
 toggleOrbatOptions();
 
-// Host search functionality
 <% if (typeof users !== 'undefined' && users) { %>
 const hostUsers = <%- JSON.stringify(users) %>;
 console.log('Host search initialized with', hostUsers.length, 'users');
@@ -445,14 +413,12 @@ function clearHost() {
     selectedHostDiv.style.display = 'none';
 }
 
-// Hide results when clicking outside
 document.addEventListener('click', function(e) {
     if (!hostSearchInput.contains(e.target) && !hostResultsDiv.contains(e.target)) {
         hostResultsDiv.style.display = 'none';
     }
 });
 
-// Update current UTC time display
 function updateUtcTime() {
     const now = new Date();
     const utcTime = now.toISOString().slice(0, 16).replace('T', ' ');
@@ -468,7 +434,6 @@ function updateUtcTime() {
     document.getElementById('currentLocalTime').textContent = localTime;
 }
 
-// Update immediately and every second
 updateUtcTime();
 setInterval(updateUtcTime, 1000);
 

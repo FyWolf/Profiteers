@@ -4,7 +4,6 @@ const db = require('../config/database');
 const { isAuthenticated, isAdmin } = require('../middleware/auth');
 const { isZeus, checkZeusStatus } = require('../middleware/zeus');
 
-// Returns true if userId is the editor of the squad that contains roleId
 async function isSquadEditor(userId, roleId) {
     if (!userId) return false;
     const [result] = await db.query(`
@@ -19,9 +18,6 @@ async function isSquadEditor(userId, roleId) {
     return result.length > 0;
 }
 
-// ====== API ENDPOINTS ======
-
-// Get all templates (for operation form)
 router.get('/api/templates', async (req, res) => {
     try {
         const [templates] = await db.query(`
@@ -43,9 +39,6 @@ router.get('/api/templates', async (req, res) => {
     }
 });
 
-// ====== PUBLIC ROUTES ======
-
-// Public view of all ORBAT templates
 router.get('/view-all', async (req, res) => {
     try {
         const [templates] = await db.query(`
@@ -69,10 +62,8 @@ router.get('/view-all', async (req, res) => {
     }
 });
 
-// Public view of a single ORBAT template
 router.get('/view/:templateId', async (req, res) => {
     try {
-        // Get template
         const [templates] = await db.query(
             'SELECT * FROM orbat_templates WHERE id = ? AND is_active = TRUE',
             [req.params.templateId]
@@ -88,15 +79,13 @@ router.get('/view/:templateId', async (req, res) => {
         }
         
         const template = templates[0];
-        
-        // Get squads
+
         const [squads] = await db.query(`
             SELECT * FROM orbat_squads 
             WHERE orbat_id = ?
             ORDER BY display_order ASC
         `, [req.params.templateId]);
         
-        // Get roles
         const rolesBySquad = {};
         const assignments = {};
         
@@ -114,8 +103,7 @@ router.get('/view/:templateId', async (req, res) => {
                 }
                 rolesBySquad[role.squad_id].push(role);
             });
-            
-            // Get assignments
+
             const roleIds = roles.map(r => r.id);
             if (roleIds.length > 0) {
                 const [assignmentData] = await db.query(`
@@ -135,8 +123,7 @@ router.get('/view/:templateId', async (req, res) => {
                 });
             }
         }
-        
-        // Determine which squads the current user is editor of
+
         const editorSquadIds = [];
         if (req.session.userId) {
             Object.values(rolesBySquad).forEach(roles => {
@@ -167,9 +154,6 @@ router.get('/view/:templateId', async (req, res) => {
     }
 });
 
-// ====== ADMIN ROUTES - FIXED ORBAT TEMPLATES ======
-
-// List all ORBAT templates
 router.get('/templates', isAdmin, async (req, res) => {
     try {
         const [templates] = await db.query(`
@@ -203,7 +187,6 @@ router.get('/templates', isAdmin, async (req, res) => {
     }
 });
 
-// Create template form
 router.get('/templates/create', isAdmin, (req, res) => {
     res.render('orbat/template-form', {
         title: 'Create ORBAT Template - Admin',
@@ -212,7 +195,6 @@ router.get('/templates/create', isAdmin, (req, res) => {
     });
 });
 
-// Create template
 router.post('/templates/create', isAdmin, async (req, res) => {
     try {
         const { name, description } = req.body;
@@ -229,17 +211,14 @@ router.post('/templates/create', isAdmin, async (req, res) => {
     }
 });
 
-// Edit template (with squads and roles)
 router.get('/templates/edit/:id', isAdmin, async (req, res) => {
     try {
-        // Get template
         const [templates] = await db.query('SELECT * FROM orbat_templates WHERE id = ?', [req.params.id]);
         
         if (templates.length === 0) {
             return res.redirect('/orbat/templates?error=Template not found');
         }
 
-        // Get squads with roles
         const [squads] = await db.query(`
             SELECT 
                 os.*,
@@ -251,7 +230,6 @@ router.get('/templates/edit/:id', isAdmin, async (req, res) => {
             ORDER BY os.display_order ASC
         `, [req.params.id]);
 
-        // Get all roles for all squads
         const [roles] = await db.query(`
             SELECT orp.*
             FROM orbat_roles orp
@@ -260,7 +238,6 @@ router.get('/templates/edit/:id', isAdmin, async (req, res) => {
             ORDER BY orp.display_order ASC
         `, [req.params.id]);
 
-        // Group roles by squad
         const rolesBySquad = {};
         roles.forEach(role => {
             if (!rolesBySquad[role.squad_id]) {
@@ -269,7 +246,6 @@ router.get('/templates/edit/:id', isAdmin, async (req, res) => {
             rolesBySquad[role.squad_id].push(role);
         });
 
-        // Get player assignments for this template (default assignments)
         const roleIds = roles.map(r => r.id);
         const assignmentsByRole = {};
         
@@ -306,7 +282,6 @@ router.get('/templates/edit/:id', isAdmin, async (req, res) => {
     }
 });
 
-// Update template info
 router.post('/templates/edit/:id', isAdmin, async (req, res) => {
     try {
         const { name, description } = req.body;
@@ -323,7 +298,6 @@ router.post('/templates/edit/:id', isAdmin, async (req, res) => {
     }
 });
 
-// Delete template
 router.post('/templates/delete/:id', isAdmin, async (req, res) => {
     try {
         await db.query('DELETE FROM orbat_templates WHERE id = ?', [req.params.id]);
@@ -334,7 +308,6 @@ router.post('/templates/delete/:id', isAdmin, async (req, res) => {
     }
 });
 
-// Add squad to template
 router.post('/templates/:id/squads/add', isAdmin, async (req, res) => {
     try {
         const { name, color, display_order } = req.body;
@@ -351,7 +324,6 @@ router.post('/templates/:id/squads/add', isAdmin, async (req, res) => {
     }
 });
 
-// Delete squad
 router.post('/squads/delete/:id', isAdmin, async (req, res) => {
     try {
         const [squads] = await db.query('SELECT orbat_id FROM orbat_squads WHERE id = ?', [req.params.id]);
@@ -366,7 +338,6 @@ router.post('/squads/delete/:id', isAdmin, async (req, res) => {
     }
 });
 
-// Edit squad
 router.post('/squads/edit/:id', isAdmin, async (req, res) => {
     try {
         const { name, color, display_order } = req.body;
@@ -386,7 +357,6 @@ router.post('/squads/edit/:id', isAdmin, async (req, res) => {
     }
 });
 
-// Add role to squad
 router.post('/squads/:id/roles/add', isAdmin, async (req, res) => {
     try {
         const { role_name, display_order, is_editor } = req.body;
@@ -406,7 +376,6 @@ router.post('/squads/:id/roles/add', isAdmin, async (req, res) => {
     }
 });
 
-// Delete role
 router.post('/roles/delete/:id', isAdmin, async (req, res) => {
     try {
         const [roles] = await db.query(`
@@ -426,7 +395,6 @@ router.post('/roles/delete/:id', isAdmin, async (req, res) => {
     }
 });
 
-// Edit role
 router.post('/roles/edit/:id', isAdmin, async (req, res) => {
     try {
         const { role_name, display_order, is_editor } = req.body;
@@ -451,12 +419,8 @@ router.post('/roles/edit/:id', isAdmin, async (req, res) => {
     }
 });
 
-// ====== OPERATION ORBAT ROUTES ======
-
-// View ORBAT for an operation (public)
 router.get('/operation/:operationId', async (req, res) => {
     try {
-        // Get operation
         const [operations] = await db.query('SELECT * FROM operations WHERE id = ?', [req.params.operationId]);
         
         if (operations.length === 0) {
@@ -471,29 +435,25 @@ router.get('/operation/:operationId', async (req, res) => {
         const operation = operations[0];
         const canManage = req.session.userId && (req.session.isAdmin || (res.locals.user && res.locals.user.isZeus));
 
-        // Get squads and roles based on ORBAT type
         let squads = [];
         let rolesBySquad = {};
         let assignments = {};
 
         if (operation.orbat_type === 'fixed' && operation.orbat_template_id) {
-            // Get template squads
             [squads] = await db.query(`
-                SELECT * FROM orbat_squads 
+                SELECT * FROM orbat_squads
                 WHERE orbat_id = ?
                 ORDER BY display_order ASC
             `, [operation.orbat_template_id]);
 
         } else if (operation.orbat_type === 'dynamic') {
-            // Get dynamic squads for this operation
             [squads] = await db.query(`
-                SELECT * FROM orbat_squads 
+                SELECT * FROM orbat_squads
                 WHERE operation_id = ?
                 ORDER BY display_order ASC
             `, [req.params.operationId]);
         }
 
-        // Get roles for all squads
         if (squads.length > 0) {
             const squadIds = squads.map(s => s.id);
             const [roles] = await db.query(`
@@ -503,7 +463,6 @@ router.get('/operation/:operationId', async (req, res) => {
                 ORDER BY orp.display_order ASC
             `, [squadIds]);
 
-            // Group roles by squad
             roles.forEach(role => {
                 if (!rolesBySquad[role.squad_id]) {
                     rolesBySquad[role.squad_id] = [];
@@ -511,7 +470,6 @@ router.get('/operation/:operationId', async (req, res) => {
                 rolesBySquad[role.squad_id].push(role);
             });
 
-            // Get assignments with user info
             const roleIds = roles.map(r => r.id);
             if (roleIds.length > 0) {
                 const [assignmentData] = await db.query(`
@@ -542,7 +500,6 @@ router.get('/operation/:operationId', async (req, res) => {
             }
         }
 
-        // Check if user can claim slots (dynamic ORBAT only, and must be logged in)
         const canClaim = req.session.userId && operation.orbat_type === 'dynamic';
 
         res.render('orbat/view', {
@@ -565,10 +522,8 @@ router.get('/operation/:operationId', async (req, res) => {
     }
 });
 
-// Claim slot (dynamic ORBAT, users)
 router.post('/claim/:roleId', isAuthenticated, async (req, res) => {
     try {
-        // Get role and check if it's from a dynamic ORBAT
         const [roles] = await db.query(`
             SELECT orp.*, os.operation_id, oper.orbat_type
             FROM orbat_roles orp
@@ -587,14 +542,20 @@ router.post('/claim/:roleId', isAuthenticated, async (req, res) => {
             return res.json({ success: false, error: 'Can only claim slots in dynamic ORBATs' });
         }
 
-        // Check if slot is already taken
         const [existing] = await db.query('SELECT * FROM orbat_assignments WHERE role_id = ?', [req.params.roleId]);
-        
+
         if (existing.length > 0) {
             return res.json({ success: false, error: 'Slot already taken' });
         }
 
-        // Assign user to slot
+        // Remove any existing assignment this user has in the same operation
+        await db.query(`
+            DELETE oa FROM orbat_assignments oa
+            JOIN orbat_roles orp ON oa.role_id = orp.id
+            JOIN orbat_squads os ON orp.squad_id = os.id
+            WHERE os.operation_id = ? AND oa.user_id = ?
+        `, [role.operation_id, req.session.userId]);
+
         await db.query(
             'INSERT INTO orbat_assignments (role_id, user_id, assigned_by) VALUES (?, ?, ?)',
             [req.params.roleId, req.session.userId, req.session.userId]
@@ -607,10 +568,8 @@ router.post('/claim/:roleId', isAuthenticated, async (req, res) => {
     }
 });
 
-// Unclaim slot (dynamic ORBAT, users - own slot only)
 router.post('/unclaim/:roleId', isAuthenticated, async (req, res) => {
     try {
-        // Delete only if the user owns this assignment
         await db.query(
             'DELETE FROM orbat_assignments WHERE role_id = ? AND user_id = ?',
             [req.params.roleId, req.session.userId]
@@ -623,7 +582,6 @@ router.post('/unclaim/:roleId', isAuthenticated, async (req, res) => {
     }
 });
 
-// Assign player to slot (admin/zeus OR squad editor)
 router.post('/assign/:roleId', isAuthenticated, async (req, res) => {
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
@@ -637,10 +595,9 @@ router.post('/assign/:roleId', isAuthenticated, async (req, res) => {
         const { userId, discordId } = req.body;
         
         let finalUserId = userId;
-        
-        // If no userId but we have discordId, create/find the user account
+
+        // If discordId provided without userId, create/find the user account from the roster
         if (!userId && discordId) {
-            // Get Discord info from roster
             const [rosterMembers] = await db.query(
                 'SELECT * FROM roster_members WHERE discord_id = ?',
                 [discordId]
@@ -651,17 +608,15 @@ router.post('/assign/:roleId', isAuthenticated, async (req, res) => {
             }
             
             const member = rosterMembers[0];
-            
-            // Check if user already exists
+
             const [existingUsers] = await db.query(
                 'SELECT id FROM users WHERE discord_id = ?',
                 [discordId]
             );
-            
+
             if (existingUsers.length > 0) {
                 finalUserId = existingUsers[0].id;
             } else {
-                // Create user account automatically
                 const [result] = await db.query(`
                     INSERT INTO users 
                     (discord_id, username, discord_global_name, discord_avatar, is_admin)
@@ -681,10 +636,8 @@ router.post('/assign/:roleId', isAuthenticated, async (req, res) => {
             return res.json({ success: false, error: 'No user selected' });
         }
 
-        // Remove existing assignment for this role
         await db.query('DELETE FROM orbat_assignments WHERE role_id = ?', [req.params.roleId]);
 
-        // Assign new user
         await db.query(
             'INSERT INTO orbat_assignments (role_id, user_id, assigned_by) VALUES (?, ?, ?)',
             [req.params.roleId, finalUserId, req.session.userId]
@@ -697,7 +650,6 @@ router.post('/assign/:roleId', isAuthenticated, async (req, res) => {
     }
 });
 
-// Unassign player from slot (admin/zeus OR squad editor)
 router.post('/unassign/:roleId', isAuthenticated, async (req, res) => {
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
@@ -716,12 +668,10 @@ router.post('/unassign/:roleId', isAuthenticated, async (req, res) => {
     }
 });
 
-// Create dynamic ORBAT for operation (Zeus)
 router.post('/operation/:operationId/create-dynamic', isZeus, async (req, res) => {
     try {
         const { squadName, squadColor, roleName } = req.body;
 
-        // Create squad
         const [result] = await db.query(
             'INSERT INTO orbat_squads (operation_id, name, color, display_order) VALUES (?, ?, ?, 0)',
             [req.params.operationId, squadName, squadColor || '#3498DB']
@@ -729,13 +679,12 @@ router.post('/operation/:operationId/create-dynamic', isZeus, async (req, res) =
 
         const squadId = result.insertId;
 
-        // Add initial role
         await db.query(
             'INSERT INTO orbat_roles (squad_id, role_name, display_order) VALUES (?, ?, 0)',
             [squadId, roleName]
         );
 
-        // Update operation to use dynamic ORBAT
+        // Flag the operation as dynamic so the ORBAT view renders the correct mode
         await db.query(
             'UPDATE operations SET orbat_type = ? WHERE id = ?',
             ['dynamic', req.params.operationId]
@@ -748,12 +697,10 @@ router.post('/operation/:operationId/create-dynamic', isZeus, async (req, res) =
     }
 });
 
-// Add squad to dynamic ORBAT
 router.post('/operation/:operationId/add-squad', isZeus, async (req, res) => {
     try {
         const { squadName, squadColor } = req.body;
-        
-        // Get current max display_order
+
         const [maxOrder] = await db.query(
             'SELECT MAX(display_order) as max_order FROM orbat_squads WHERE operation_id = ?',
             [req.params.operationId]
@@ -773,12 +720,11 @@ router.post('/operation/:operationId/add-squad', isZeus, async (req, res) => {
     }
 });
 
-// Add role to squad (dynamic ORBAT - zeus/admin OR squad editor)
 router.post('/squads/:squadId/add-role-dynamic', isAuthenticated, async (req, res) => {
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
         if (!userIsZeus) {
-            // Squad editor can only add roles to their own squad
+            // Squad editors can only add roles to their own squad
             const [editorCheck] = await db.query(`
                 SELECT 1
                 FROM orbat_roles er
@@ -807,9 +753,6 @@ router.post('/squads/:squadId/add-role-dynamic', isAuthenticated, async (req, re
     }
 });
 
-// ====== SQUAD EDITOR API ROUTES (JSON, used from public template view) ======
-
-// Add role to any squad (squad editor or admin/zeus)
 router.post('/api/squads/:squadId/add-role', isAuthenticated, async (req, res) => {
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
@@ -845,7 +788,6 @@ router.post('/api/squads/:squadId/add-role', isAuthenticated, async (req, res) =
     }
 });
 
-// Edit role name/order (squad editor or admin/zeus)
 router.post('/api/roles/:id/edit', isAuthenticated, async (req, res) => {
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
@@ -873,7 +815,43 @@ router.post('/api/roles/:id/edit', isAuthenticated, async (req, res) => {
     }
 });
 
-// Delete role (squad editor or admin/zeus)
+router.post('/api/squads/:squadId/reorder-roles', isAuthenticated, async (req, res) => {
+    try {
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus) {
+            const [editorCheck] = await db.query(`
+                SELECT 1
+                FROM orbat_roles er
+                JOIN orbat_assignments oa ON er.id = oa.role_id
+                WHERE er.squad_id = ?
+                  AND er.is_editor = TRUE
+                  AND oa.user_id = ?
+                LIMIT 1
+            `, [req.params.squadId, req.session.userId]);
+            if (editorCheck.length === 0) {
+                return res.status(403).json({ success: false, error: 'Permission denied' });
+            }
+        }
+
+        const { roleIds } = req.body;
+        if (!Array.isArray(roleIds) || roleIds.length === 0) {
+            return res.json({ success: false, error: 'Invalid role order data' });
+        }
+
+        for (let i = 0; i < roleIds.length; i++) {
+            await db.query(
+                'UPDATE orbat_roles SET display_order = ? WHERE id = ? AND squad_id = ?',
+                [i, roleIds[i], req.params.squadId]
+            );
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error reordering roles:', error);
+        res.json({ success: false, error: 'Failed to reorder roles' });
+    }
+});
+
 router.post('/api/roles/:id/delete', isAuthenticated, async (req, res) => {
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);

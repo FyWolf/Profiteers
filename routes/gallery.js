@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 
-// Gallery main page - show all images
 router.get('/', async (req, res) => {
     try {
         const [images] = await db.query(`
@@ -33,12 +32,10 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Gallery folder view
 router.get('/folder/:id', async (req, res) => {
     const folderId = req.params.id;
 
     try {
-        // Get current folder
         const [folders] = await db.query('SELECT * FROM gallery_folders WHERE id = ?', [folderId]);
         
         if (folders.length === 0) {
@@ -47,16 +44,13 @@ router.get('/folder/:id', async (req, res) => {
 
         const currentFolder = folders[0];
 
-        // Get all folders for sidebar
         const [allFolders] = await db.query('SELECT * FROM gallery_folders ORDER BY path ASC');
 
-        // Get subfolders
         const [subfolders] = await db.query(
             'SELECT * FROM gallery_folders WHERE parent_id = ? ORDER BY name ASC',
             [folderId]
         );
 
-        // Get images in this folder
         const [images] = await db.query(`
             SELECT gi.*, u.username
             FROM gallery_images gi

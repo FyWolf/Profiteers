@@ -7,15 +7,13 @@
     </header>
 
     <section class="section">
-        <!-- Active LOAs -->
         <% if (activeLoas.length > 0) { %>
             <h2 style="color: #e74c3c; margin-bottom: 20px;">🔴 Currently On Leave (<%= activeLoas.length %>)</h2>
             <% activeLoas.forEach(loa => { %>
                 <div class="card" style="margin-bottom: 15px; border-left: 4px solid #e74c3c;">
                     <div style="display: flex; align-items: start; gap: 15px;">
-                        <!-- Avatar -->
                         <% if (loa.discord_avatar) { %>
-                            <img src="https://cdn.discordapp.com/avatars/<%= loa.discord_id %>/<%= loa.discord_avatar %>.png?size=128" 
+                            <img src="https://cdn.discordapp.com/avatars/<%= loa.discord_id %>/<%= loa.discord_avatar %>.png?size=128"
                                  style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid #e74c3c;">
                         <% } else { %>
                             <div style="width: 50px; height: 50px; border-radius: 50%; background: #e74c3c; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white;">
@@ -23,7 +21,6 @@
                             </div>
                         <% } %>
 
-                        <!-- Content -->
                         <div style="flex: 1;">
                             <h3 style="color: var(--sand); margin-bottom: 8px;">
                                 <%= loa.discord_global_name || loa.username %>
@@ -61,7 +58,6 @@
             </div>
         <% } %>
 
-        <!-- Past/All LOAs -->
         <% if (pastLoas.length > 0) { %>
             <h2 style="color: var(--khaki); margin: 40px 0 20px;">📋 Past & Upcoming Leave (<%= pastLoas.length %>)</h2>
             
@@ -82,9 +78,8 @@
                         
                         <div class="card" style="margin-bottom: 15px; border-left: 4px solid <%= borderColor %>; opacity: 0.8;">
                             <div style="display: flex; align-items: start; gap: 15px;">
-                                <!-- Avatar -->
                                 <% if (loa.discord_avatar) { %>
-                                    <img src="https://cdn.discordapp.com/avatars/<%= loa.discord_id %>/<%= loa.discord_avatar %>.png?size=128" 
+                                    <img src="https://cdn.discordapp.com/avatars/<%= loa.discord_id %>/<%= loa.discord_avatar %>.png?size=128"
                                          style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid <%= borderColor %>;">
                                 <% } else { %>
                                     <div style="width: 40px; height: 40px; border-radius: 50%; background: <%= borderColor %>; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 0.9em;">
@@ -92,7 +87,6 @@
                                     </div>
                                 <% } %>
 
-                                <!-- Content -->
                                 <div style="flex: 1;">
                                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
                                         <h4 style="color: var(--sand); margin: 0;">

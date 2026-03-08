@@ -6,7 +6,6 @@
         <div class="subtitle">Complete Operation History</div>
     </header>
 
-    <!-- Search Bar -->
     <section class="section">
         <form method="GET" action="/operations/all" style="margin-bottom: 20px;">
             <div style="display: flex; gap: 10px;">
@@ -38,7 +37,6 @@
             </div>
         </section>
     <% } else { %>
-        <!-- Operations Grid -->
         <section class="section">
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 25px;">
                 <% operations.forEach(op => { 
@@ -46,10 +44,9 @@
                 %>
                     <a href="/operations/<%= op.id %>" style="text-decoration: none; color: inherit;">
                         <div class="card" style="padding: 0; overflow: hidden; transition: all 0.3s ease; cursor: pointer; <%= isPast ? 'opacity: 0.8;' : '' %>">
-                            <!-- Banner -->
                             <div style="width: 100%; height: 200px; overflow: hidden; background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%); position: relative;">
-                                <img src="<%= op.banner_url %>" 
-                                     alt="<%= op.title %>" 
+                                <img src="<%= op.banner_url %>"
+                                     alt="<%= op.title %>"
                                      style="width: 100%; height: 100%; object-fit: cover;"
                                      onerror="this.src='/images/operations/default-banner.jpg';">
                                 <% if (isPast) { %>
@@ -59,7 +56,6 @@
                                 <% } %>
                             </div>
                             
-                            <!-- Content -->
                             <div style="padding: 20px;">
                                 <h3 style="color: <%= isPast ? 'var(--khaki)' : 'var(--accent)' %>; margin-bottom: 12px; font-size: 1.3em;">
                                     <%= op.title %>
@@ -71,7 +67,6 @@
                                     </p>
                                 <% } %>
                                 
-                                <!-- Date & Time -->
                                 <div style="margin-bottom: 15px; padding: 12px; background: rgba(107,142,35,0.1); border-left: 3px solid var(--olive); border-radius: 4px;">
                                     <div style="color: var(--olive-light); font-size: 0.9em; margin-bottom: 4px;">
                                         📅 <span class="local-date" data-utc="<%= new Date(op.start_time * 1000).toISOString() %>"></span>
@@ -82,7 +77,6 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Attendance -->
                                 <div style="display: flex; align-items: center; gap: 15px; padding-top: 15px; border-top: 1px solid rgba(178, 178, 125, 0.2);">
                                     <div style="flex: 1;">
                                         <div style="font-size: 0.85em; color: var(--khaki); margin-bottom: 4px;">Attendance</div>
@@ -119,9 +113,7 @@
 </style>
 
 <script>
-// Convert UTC times to local timezone
 document.addEventListener('DOMContentLoaded', () => {
-    // Format dates
     document.querySelectorAll('.local-date').forEach(el => {
         const utc = el.getAttribute('data-utc');
         const date = new Date(utc);
@@ -132,8 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
             day: 'numeric' 
         });
     });
-    
-    // Format times
+
     document.querySelectorAll('.local-time').forEach(el => {
         const utc = el.getAttribute('data-utc');
         const date = new Date(utc);

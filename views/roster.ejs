@@ -39,10 +39,8 @@
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
                     <% members.forEach(member => { %>
                         <% if (member.user_id) { %>
-                            <!-- Registered user - link to profile -->
                             <a href="/profile/<%= member.user_id %>" style="text-decoration: none; color: inherit;">
                         <% } else { %>
-                            <!-- Not registered - no link -->
                             <div style="text-decoration: none; color: inherit;">
                         <% } %>
                             <div class="card" style="border-left: 4px solid <%= role.color %>; padding: 20px; transition: all 0.2s ease; <%= member.user_id ? 'cursor: pointer;' : 'opacity: 0.8;' %>">
@@ -112,9 +110,6 @@
                     <button id="syncBtn" onclick="syncRoster()" class="btn btn-primary">
                         Sync Roster from Discord
                     </button>
-                    <!-- <a href="/admin/roster-roles" class="btn">
-                        Manage Role Hierarchy
-                    </a> -->
                 </div>
                 <div id="syncResult" style="margin-top: 15px; display: none;"></div>
             </div>
@@ -154,8 +149,6 @@ async function syncRoster() {
         if (data.success) {
             result.className = 'alert alert-success';
             result.textContent = `✅ ${data.message} (Total: ${data.total}, Synced: ${data.synced}, Skipped: ${data.skipped} bots)`;
-            
-            // Reload page after 2 seconds
             setTimeout(() => location.reload(), 2000);
         } else {
             result.className = 'alert alert-error';

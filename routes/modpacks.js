@@ -13,14 +13,8 @@ const fs = require('fs');
 const db = require('../config/database');
 const ModpackIndexer = require('../services/modpack-indexer');
 
-// Initialize indexer
 const indexer = new ModpackIndexer(db);
 
-// ==========================================
-//  MIDDLEWARE
-// ==========================================
-
-// Require login
 function isAuthenticated(req, res, next) {
     if (req.session && req.session.userId) {
         return next();
@@ -28,7 +22,6 @@ function isAuthenticated(req, res, next) {
     res.redirect('/auth/login');
 }
 
-// Require Zeus or Admin
 function isZeus(req, res, next) {
     if (req.session && req.session.userId) {
         if (res.locals.user && (res.locals.user.isAdmin || res.locals.user.isZeus)) {
@@ -41,10 +34,6 @@ function isZeus(req, res, next) {
     });
 }
 
-// ==========================================
-//  HELPER: Parse Arma 3 HTML Preset
-// ==========================================
-
 /**
  * Parse an Arma 3 Launcher HTML preset file and extract mod information.
  * @param {string} htmlContent - The raw HTML content of the preset file
@@ -54,13 +43,11 @@ function parseArmaPreset(htmlContent) {
     const mods = [];
     let presetName = 'Unnamed Modpack';
 
-    // Extract preset name from meta tag
     const nameMatch = htmlContent.match(/<meta\s+name="arma:PresetName"\s+content="([^"]+)"/i);
     if (nameMatch) {
         presetName = nameMatch[1];
     }
 
-    // Extract mods: find each ModContainer row
     // Pattern: <tr data-type="ModContainer"> ... <td data-type="DisplayName">NAME</td> ... <a href="URL" data-type="Link">
     const modRegex = /<tr[^>]*data-type="ModContainer"[^>]*>[\s\S]*?<td[^>]*data-type="DisplayName"[^>]*>([\s\S]*?)<\/td>[\s\S]*?<a\s+href="([^"]+)"[^>]*data-type="Link"/gi;
 
@@ -69,7 +56,6 @@ function parseArmaPreset(htmlContent) {
         const displayName = match[1].trim().replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
         const steamUrl = match[2].trim();
 
-        // Extract workshop ID from URL
         const idMatch = steamUrl.match(/[?&]id=(\d+)/);
         if (idMatch) {
             mods.push({
@@ -83,10 +69,6 @@ function parseArmaPreset(htmlContent) {
     return { name: presetName, mods };
 }
 
-// ==========================================
-//  FORMAT HELPERS
-// ==========================================
-
 function formatSize(bytes) {
     if (!bytes || bytes === 0) return '—';
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -94,11 +76,6 @@ function formatSize(bytes) {
     return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + units[i];
 }
 
-// ==========================================
-//  PUBLIC ROUTES
-// ==========================================
-
-// List all modpacks
 router.get('/', async (req, res) => {
     try {
         const [modpacks] = await db.query(`
@@ -121,7 +98,6 @@ router.get('/', async (req, res) => {
     }
 });
 
-// View single modpack with all mods
 router.get('/:id', async (req, res) => {
     try {
         const [modpacks] = await db.query(`
@@ -143,7 +119,6 @@ router.get('/:id', async (req, res) => {
             ORDER BY COALESCE(steam_name, display_name) ASC
         `, [req.params.id]);
 
-        // Calculate stats
         const indexedCount = mods.filter(m => m.is_indexed).length;
         const totalSize = mods.reduce((sum, m) => sum + (parseInt(m.file_size) || 0), 0);
 
@@ -161,7 +136,6 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// Download modpack HTML file
 router.get('/:id/download', async (req, res) => {
     try {
         const [modpacks] = await db.query('SELECT name, file_path FROM modpacks WHERE id = ?', [req.params.id]);
@@ -177,7 +151,6 @@ router.get('/:id/download', async (req, res) => {
             return res.status(404).send('Modpack file not found on server');
         }
 
-        // Sanitize filename for download
         const safeName = modpack.name.replace(/[^a-zA-Z0-9_-]/g, '_');
         res.download(filePath, `Arma_3_Preset_${safeName}.html`);
     } catch (error) {
@@ -186,7 +159,6 @@ router.get('/:id/download', async (req, res) => {
     }
 });
 
-// Get indexing status (AJAX endpoint)
 router.get('/:id/status', async (req, res) => {
     try {
         const [modpacks] = await db.query(
@@ -211,18 +183,12 @@ router.get('/:id/status', async (req, res) => {
     }
 });
 
-// ==========================================
-//  ZEUS/ADMIN ROUTES
-// ==========================================
-
-// Upload form
 router.get('/upload/new', isZeus, async (req, res) => {
     res.render('modpacks/upload', {
         title: 'Upload Modpack - Profiteers PMC'
     });
 });
 
-// Handle modpack upload
 router.post('/upload', isZeus, async (req, res) => {
     try {
         if (!req.files || !req.files.modpack_file) {
@@ -231,12 +197,10 @@ router.post('/upload', isZeus, async (req, res) => {
 
         const file = req.files.modpack_file;
 
-        // Validate file type
         if (!file.name.endsWith('.html') && !file.name.endsWith('.htm')) {
             return res.redirect('/modpacks/upload/new?error=Only .html Arma 3 preset files are supported');
         }
 
-        // Read and parse the HTML content
         const htmlContent = file.data.toString('utf8');
         const parsed = parseArmaPreset(htmlContent);
 
@@ -244,17 +208,14 @@ router.post('/upload', isZeus, async (req, res) => {
             return res.redirect('/modpacks/upload/new?error=No mods found in the preset file. Make sure it is a valid Arma 3 Launcher preset.');
         }
 
-        // Use custom name if provided, otherwise use preset name
         const modpackName = req.body.name && req.body.name.trim() ? req.body.name.trim() : parsed.name;
         const description = req.body.description ? req.body.description.trim() : null;
 
-        // Save the file
         const timestamp = Date.now();
         const safeName = modpackName.replace(/[^a-zA-Z0-9_-]/g, '_');
         const fileName = `${safeName}_${timestamp}.html`;
         const uploadDir = path.join(__dirname, '../public/uploads/modpacks');
 
-        // Ensure upload directory exists
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true });
         }
@@ -264,7 +225,6 @@ router.post('/upload', isZeus, async (req, res) => {
 
         const relativeFilePath = `/public/uploads/modpacks/${fileName}`;
 
-        // Insert modpack into database
         const [result] = await db.query(
             `INSERT INTO modpacks (name, description, file_path, created_by, mod_count, index_status) VALUES (?, ?, ?, ?, ?, 'pending')`,
             [modpackName, description, relativeFilePath, req.session.userId, parsed.mods.length]
@@ -272,7 +232,6 @@ router.post('/upload', isZeus, async (req, res) => {
 
         const modpackId = result.insertId;
 
-        // Insert all mods
         for (const mod of parsed.mods) {
             await db.query(
                 `INSERT INTO modpack_mods (modpack_id, workshop_id, display_name, steam_url) VALUES (?, ?, ?, ?)`,
@@ -295,7 +254,6 @@ router.post('/upload', isZeus, async (req, res) => {
     }
 });
 
-// Re-index a modpack
 router.post('/:id/reindex', isZeus, async (req, res) => {
     try {
         const [modpacks] = await db.query('SELECT id, name FROM modpacks WHERE id = ?', [req.params.id]);
@@ -306,7 +264,6 @@ router.post('/:id/reindex', isZeus, async (req, res) => {
 
         console.log(`[Modpacks] Re-indexing "${modpacks[0].name}"...`);
 
-        // Start re-indexing in background
         indexer.reindex(req.params.id).catch(err => {
             console.error('[Modpacks] Re-index error:', err);
         });
@@ -319,7 +276,6 @@ router.post('/:id/reindex', isZeus, async (req, res) => {
     }
 });
 
-// Delete a modpack
 router.post('/:id/delete', isZeus, async (req, res) => {
     try {
         const [modpacks] = await db.query('SELECT file_path FROM modpacks WHERE id = ?', [req.params.id]);
@@ -328,7 +284,6 @@ router.post('/:id/delete', isZeus, async (req, res) => {
             return res.redirect('/modpacks?error=Modpack not found');
         }
 
-        // Delete the file from disk
         const filePath = path.join(__dirname, '..', modpacks[0].file_path);
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);

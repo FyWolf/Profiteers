@@ -10,7 +10,6 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
             <h2 style="margin: 0;">All Users (<%= totalUsers %>)</h2>
             
-            <!-- Search Bar -->
             <form method="GET" action="/admin/users" style="flex: 1; max-width: 400px;">
                 <div style="display: flex; gap: 10px;">
                     <input type="text" 
@@ -136,7 +135,6 @@
                 </tbody>
             </table>
 
-            <!-- Pagination -->
             <% if (totalPages > 1) { %>
                 <div style="margin-top: 25px; padding: 20px; background: rgba(107,142,35,0.1); border-radius: 8px;">
                     <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">

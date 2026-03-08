@@ -14,7 +14,6 @@
         <div class="alert alert-error"><%= error %></div>
     <% } %>
 
-    <!-- Template Info -->
     <section class="section">
         <h2>Template Information</h2>
         <form method="POST" action="/orbat/templates/edit/<%= template.id %>">
@@ -34,7 +33,6 @@
         </form>
     </section>
 
-    <!-- Add Squad -->
     <section class="section">
         <h2>Add New Squad</h2>
         <form method="POST" action="/orbat/templates/<%= template.id %>/squads/add">
@@ -59,7 +57,6 @@
         </form>
     </section>
 
-    <!-- Squads and Roles -->
     <section class="section">
         <h2>Squads & Roles</h2>
         
@@ -94,7 +91,6 @@
                         </div>
                     </div>
                     
-                    <!-- Squad Edit Form (Hidden by default) -->
                     <div id="squad_edit_<%= squad.id %>" style="display: none; padding: 15px; background: rgba(107,142,35,0.1); border-radius: 4px; margin-bottom: 15px;">
                         <h4 style="margin-bottom: 10px;">Edit Squad</h4>
                         <form method="POST" action="/orbat/squads/edit/<%= squad.id %>">
@@ -122,7 +118,6 @@
                         </form>
                     </div>
                     
-                    <!-- Add Role to Squad -->
                     <form method="POST" action="/orbat/squads/<%= squad.id %>/roles/add" style="margin-bottom: 15px;">
                         <div style="display: grid; grid-template-columns: 3fr 1fr auto auto; gap: 10px; align-items: end;">
                             <div class="form-group" style="margin: 0;">
@@ -143,7 +138,6 @@
                         </div>
                     </form>
                     
-                    <!-- Roles List -->
                     <% const squadRoles = rolesBySquad[squad.id] || []; %>
                     <% if (squadRoles.length === 0) { %>
                         <p style="color: var(--khaki); opacity: 0.7; font-size: 0.9em; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 4px;">
@@ -154,14 +148,12 @@
                             <% squadRoles.forEach(role => { %>
                                 <% const assignment = assignmentsByRole[role.id]; %>
                                 <div style="padding: 10px; background: rgba(0,0,0,0.2); border-radius: 4px;">
-                                    <!-- Role header with editor badge -->
                                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                                         <span style="font-weight: 600; color: var(--sand); font-size: 0.9em;"><%= role.role_name %></span>
                                         <% if (role.is_editor) { %>
                                             <span style="background: rgba(52,152,219,0.25); color: #3498DB; border: 1px solid #3498DB; padding: 1px 7px; border-radius: 3px; font-size: 0.72em; font-weight: 700; letter-spacing: 0.05em;">EDITOR</span>
                                         <% } %>
                                     </div>
-                                    <!-- Role Edit Form -->
                                     <form method="POST" action="/orbat/roles/edit/<%= role.id %>" style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
                                         <input type="text" name="role_name" value="<%= role.role_name %>" required style="flex: 2; padding: 6px 10px; background: rgba(40,40,40,0.9); color: var(--sand); border: 1px solid var(--olive); border-radius: 4px;">
                                         <input type="number" name="display_order" value="<%= role.display_order %>" min="0" style="width: 70px; padding: 6px 10px; background: rgba(40,40,40,0.9); color: var(--sand); border: 1px solid var(--olive); border-radius: 4px;">
@@ -179,7 +171,6 @@
                                         </form>
                                     </form>
                                     
-                                    <!-- Player Assignment -->
                                     <div style="padding: 10px; background: rgba(107,142,35,0.1); border-radius: 4px; margin-top: 8px;">
                                         <% if (assignment) { %>
                                             <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
@@ -232,7 +223,6 @@
     </section>
 </div>
 
-<!-- Assignment Modal -->
 <div id="assignModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
     <div class="card" style="max-width: 500px; width: 90%;">
         <h3 style="margin-bottom: 15px;">Assign Player to <span id="modalRoleName"></span></h3>
@@ -255,7 +245,6 @@
 <script>
 let currentRoleId = null;
 
-// Show assign modal
 function showAssignModal(roleId, roleName) {
     currentRoleId = roleId;
     document.getElementById('modalRoleName').textContent = roleName;
@@ -264,13 +253,11 @@ function showAssignModal(roleId, roleName) {
     document.getElementById('playerResults').innerHTML = '<p style="color: var(--khaki); text-align: center;">Start typing to search...</p>';
 }
 
-// Close assign modal
 function closeAssignModal() {
     document.getElementById('assignModal').style.display = 'none';
     currentRoleId = null;
 }
 
-// Search players from roster
 async function searchPlayers(query) {
     if (query.length < 2) {
         document.getElementById('playerResults').innerHTML = '<p style="color: var(--khaki); text-align: center;">Type at least 2 characters...</p>';
@@ -306,7 +293,6 @@ async function searchPlayers(query) {
     }
 }
 
-// Assign player to slot
 async function assignPlayer(player) {
     const confirmMsg = player.needs_registration 
         ? `Assign ${player.name}? (They haven't logged in yet - we'll create an account for them)`
@@ -336,7 +322,6 @@ async function assignPlayer(player) {
     }
 }
 
-// Unassign player from slot
 async function unassignPlayer(roleId) {
     if (!confirm('Remove player from this slot?')) return;
     
@@ -362,7 +347,6 @@ document.getElementById('assignModal')?.addEventListener('click', (e) => {
     }
 });
 
-// Toggle squad edit form
 function toggleSquadEdit(squadId) {
     const editForm = document.getElementById('squad_edit_' + squadId);
     if (editForm.style.display === 'none') {

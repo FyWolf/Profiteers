@@ -38,7 +38,6 @@
             const pastLoas = loas.filter(loa => new Date(loa.end_date) < now || loa.status !== 'approved');
             %>
 
-            <!-- Active LOAs -->
             <% if (activeLoas.filter(loa => new Date(loa.start_date) <= now).length > 0) { %>
                 <h3 style="color: #e74c3c; margin-bottom: 15px;">🔴 Currently On Leave</h3>
                 <% activeLoas.filter(loa => new Date(loa.start_date) <= now).forEach(loa => { %>
@@ -46,7 +45,6 @@
                 <% }); %>
             <% } %>
 
-            <!-- Upcoming LOAs -->
             <% if (upcomingLoas.length > 0) { %>
                 <h3 style="color: #f39c12; margin: 25px 0 15px;">🟡 Upcoming Leave</h3>
                 <% upcomingLoas.forEach(loa => { %>
@@ -54,7 +52,6 @@
                 <% }); %>
             <% } %>
 
-            <!-- Past LOAs -->
             <% if (pastLoas.length > 0) { %>
                 <h3 style="color: var(--khaki); margin: 25px 0 15px;">📋 Past Leave</h3>
                 <% pastLoas.forEach(loa => { %>

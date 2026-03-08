@@ -9,10 +9,9 @@ function timestampToUTC(timestamp) {
 <%- include('../partials/header') %>
 
 <div class="container">
-    <!-- Banner -->
     <div style="width: 100%; height: 300px; margin: -20px -20px 30px -20px; overflow: hidden; background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%); position: relative;">
-        <img src="<%= operation.banner_url %>" 
-             alt="<%= operation.title %>" 
+        <img src="<%= operation.banner_url %>"
+             alt="<%= operation.title %>"
              style="width: 100%; height: 100%; object-fit: cover;"
              onerror="this.src='/images/operations/default-banner.jpg';">
         <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.9)); padding: 40px 20px 20px;">
@@ -20,8 +19,7 @@ function timestampToUTC(timestamp) {
                 <%= operation.title %>
             </h1>
         </div>
-        
-        <!-- ORBAT Button -->
+
         <% if (operation.orbat_type && operation.orbat_type !== 'none') { %>
             <a href="/orbat/operation/<%= operation.id %>" 
                style="position: absolute; bottom: 20px; right: 20px; background: var(--accent); color: var(--camo-dark); padding: 12px 24px; border-radius: 4px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 12px rgba(0,0,0,0.4); transition: all 0.3s ease;"
@@ -33,9 +31,7 @@ function timestampToUTC(timestamp) {
     </div>
 
     <div class="grid grid-2" style="align-items: start;">
-        <!-- Main Content -->
         <div>
-            <!-- Description -->
             <section class="section">
                 <h2>Mission Briefing</h2>
                 <div class="card">
@@ -43,7 +39,6 @@ function timestampToUTC(timestamp) {
                 </div>
             </section>
 
-            <!-- Schedule -->
             <section class="section">
                 <h2>Schedule</h2>
                 <div class="card">
@@ -69,7 +64,6 @@ function timestampToUTC(timestamp) {
                 </div>
             </section>
 
-            <!-- Operation Host -->
             <% if (operation.host_id) { %>
                 <section class="section">
                     <h2>Operation Host</h2>
@@ -94,7 +88,6 @@ function timestampToUTC(timestamp) {
                 </section>
             <% } %>
 
-            <!-- Required Modpack -->
             <% if (operation.modpack_id) { %>
                 <section class="section">
                     <h2>📦 Required Modpack</h2>
@@ -126,12 +119,10 @@ function timestampToUTC(timestamp) {
                 </section>
             <% } %>
 
-            <!-- News Feed -->
             <section class="section">
                 <h2>Operation News</h2>
-                
+
                 <% if (canManage) { %>
-                    <!-- Post News Form (Zeus only) -->
                     <div class="card" style="margin-bottom: 25px; background: rgba(155, 89, 182, 0.1); border: 2px solid #9B59B6;">
                         <h3 style="color: #9B59B6; margin-bottom: 15px;">📢 Post News Update</h3>
                         <form id="newsForm">
@@ -141,7 +132,6 @@ function timestampToUTC(timestamp) {
                     </div>
                 <% } %>
 
-                <!-- News Items -->
                 <% if (news.length === 0) { %>
                     <div class="card text-center">
                         <p style="color: var(--khaki); opacity: 0.7;">No news updates yet.</p>
@@ -187,9 +177,7 @@ function timestampToUTC(timestamp) {
             </section>
         </div>
 
-        <!-- Sidebar -->
         <div>
-            <!-- Attendance (Logged in users) -->
             <% if (user) { %>
                 <section class="section">
                     <h2>Your Attendance</h2>
@@ -215,7 +203,6 @@ function timestampToUTC(timestamp) {
                 </section>
             <% } %>
 
-            <!-- Attendance Counts -->
             <section class="section">
                 <h2>Attendance</h2>
                 <div class="card">
@@ -236,7 +223,6 @@ function timestampToUTC(timestamp) {
                 </div>
             </section>
 
-            <!-- Attendee Lists (Logged in users) -->
             <% if (user) { %>
                 <% if (attendees.present.length > 0) { %>
                     <section class="section">
@@ -265,7 +251,6 @@ function timestampToUTC(timestamp) {
                 <% } %>
             <% } %>
 
-            <!-- Quick Actions -->
             <section class="section">
                 <a href="/operations/upcoming" class="btn" style="width: 100%; text-align: center;">← Back to Operations</a>
                 <% if (canManage) { %>
@@ -278,14 +263,12 @@ function timestampToUTC(timestamp) {
     </div>
 </div>
 
-<!-- Load Quill Rich Text Editor (for Zeus) -->
 <% if (canManage) { %>
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 <% } %>
 
 <script>
-// Convert UTC times to local timezone
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.local-date').forEach(el => {
         const utc = el.getAttribute('data-utc');
@@ -314,7 +297,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 <% if (user) { %>
-// Attendance system
 async function setAttendance(status) {
     try {
         const response = await fetch('/operations/<%= operation.id %>/attendance', {
@@ -325,12 +307,9 @@ async function setAttendance(status) {
         const data = await response.json();
         
         if (data.success) {
-            // Update counts
             document.getElementById('present-count').textContent = data.counts.present;
             document.getElementById('tentative-count').textContent = data.counts.tentative;
             document.getElementById('absent-count').textContent = data.counts.absent;
-            
-            // Reload to update attendee lists
             setTimeout(() => location.reload(), 500);
         }
     } catch (error) {
@@ -340,7 +319,6 @@ async function setAttendance(status) {
 <% } %>
 
 <% if (canManage) { %>
-// Initialize Quill editor
 const quill = new Quill('#editor', {
     theme: 'snow',
     modules: {
@@ -356,7 +334,6 @@ const quill = new Quill('#editor', {
     }
 });
 
-// Post news
 document.getElementById('newsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -382,7 +359,6 @@ document.getElementById('newsForm').addEventListener('submit', async (e) => {
     }
 });
 
-// Delete news
 async function deleteNews(newsId) {
     if (!confirm('Delete this news update?')) return;
     

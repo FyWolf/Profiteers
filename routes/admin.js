@@ -5,10 +5,8 @@ const fs = require('fs').promises;
 const db = require('../config/database');
 const { isAdmin } = require('../middleware/auth');
 
-// All admin routes require admin authentication
 router.use(isAdmin);
 
-// Admin dashboard
 router.get('/', async (req, res) => {
     try {
         const [toolsCount] = await db.query('SELECT COUNT(*) as count FROM tools');
@@ -40,9 +38,6 @@ router.get('/', async (req, res) => {
     }
 });
 
-// ====== TOOLS MANAGEMENT ======
-
-// Tools management page
 router.get('/tools', async (req, res) => {
     try {
         const [tools] = await db.query('SELECT * FROM tools ORDER BY order_index ASC, created_at DESC');
@@ -64,7 +59,6 @@ router.get('/tools', async (req, res) => {
     }
 });
 
-// Add tool form
 router.get('/tools/add', (req, res) => {
     res.render('admin/tool-form', {
         title: 'Add Tool - Admin',
@@ -73,14 +67,12 @@ router.get('/tools/add', (req, res) => {
     });
 });
 
-// Add tool POST
 router.post('/tools/add', async (req, res) => {
     const { title, description, link, order_index } = req.body;
 
     try {
         let imageUrl = null;
 
-        // Handle image upload
         if (req.files && req.files.image) {
             const image = req.files.image;
             const fileName = Date.now() + '-' + image.name.replace(/\s/g, '-');
@@ -102,7 +94,6 @@ router.post('/tools/add', async (req, res) => {
     }
 });
 
-// Edit tool form
 router.get('/tools/edit/:id', async (req, res) => {
     try {
         const [tools] = await db.query('SELECT * FROM tools WHERE id = ?', [req.params.id]);
@@ -122,20 +113,16 @@ router.get('/tools/edit/:id', async (req, res) => {
     }
 });
 
-// Edit tool POST
 router.post('/tools/edit/:id', async (req, res) => {
     const { title, description, link, order_index } = req.body;
     const toolId = req.params.id;
 
     try {
-        // Get current tool to check for existing image
         const [currentTool] = await db.query('SELECT image_url FROM tools WHERE id = ?', [toolId]);
-        
+
         let imageUrl = currentTool[0].image_url;
 
-        // Handle new image upload
         if (req.files && req.files.image) {
-            // Delete old image if exists
             if (imageUrl) {
                 const oldImagePath = path.join(__dirname, '..', 'public', imageUrl);
                 try {
@@ -165,7 +152,6 @@ router.post('/tools/edit/:id', async (req, res) => {
     }
 });
 
-// Toggle tool visibility
 router.post('/tools/toggle/:id', async (req, res) => {
     try {
         await db.query('UPDATE tools SET is_visible = NOT is_visible WHERE id = ?', [req.params.id]);
@@ -176,10 +162,8 @@ router.post('/tools/toggle/:id', async (req, res) => {
     }
 });
 
-// Delete tool
 router.post('/tools/delete/:id', async (req, res) => {
     try {
-        // Get tool to delete image
         const [tools] = await db.query('SELECT image_url FROM tools WHERE id = ?', [req.params.id]);
         
         if (tools.length > 0 && tools[0].image_url) {
@@ -199,9 +183,6 @@ router.post('/tools/delete/:id', async (req, res) => {
     }
 });
 
-// ====== GALLERY MANAGEMENT ======
-
-// Gallery management page
 router.get('/gallery', async (req, res) => {
     try {
         const [folders] = await db.query('SELECT * FROM gallery_folders ORDER BY path ASC');
@@ -232,7 +213,6 @@ router.get('/gallery', async (req, res) => {
     }
 });
 
-// Add folder form
 router.get('/gallery/add-folder', async (req, res) => {
     try {
         const [folders] = await db.query('SELECT * FROM gallery_folders ORDER BY path ASC');
@@ -249,14 +229,12 @@ router.get('/gallery/add-folder', async (req, res) => {
     }
 });
 
-// Add folder POST
 router.post('/gallery/add-folder', async (req, res) => {
     const { name, parent_id } = req.body;
 
     try {
         let path = name;
 
-        // If has parent, build path
         if (parent_id && parent_id !== '') {
             const [parent] = await db.query('SELECT path FROM gallery_folders WHERE id = ?', [parent_id]);
             if (parent.length > 0) {
@@ -276,7 +254,6 @@ router.post('/gallery/add-folder', async (req, res) => {
     }
 });
 
-// Upload images form
 router.get('/gallery/upload', async (req, res) => {
     try {
         const [folders] = await db.query('SELECT * FROM gallery_folders ORDER BY path ASC');
@@ -291,7 +268,6 @@ router.get('/gallery/upload', async (req, res) => {
     }
 });
 
-// Upload images POST
 router.post('/gallery/upload', async (req, res) => {
     const { folder_id, captions } = req.body;
 
@@ -323,7 +299,6 @@ router.post('/gallery/upload', async (req, res) => {
     }
 });
 
-// Delete image
 router.post('/gallery/delete-image/:id', async (req, res) => {
     try {
         const [images] = await db.query('SELECT filename FROM gallery_images WHERE id = ?', [req.params.id]);
@@ -345,10 +320,8 @@ router.post('/gallery/delete-image/:id', async (req, res) => {
     }
 });
 
-// Delete folder
 router.post('/gallery/delete-folder/:id', async (req, res) => {
     try {
-        // Get all images in this folder and subfolders
         const [images] = await db.query(`
             SELECT gi.filename 
             FROM gallery_images gi
@@ -356,7 +329,6 @@ router.post('/gallery/delete-folder/:id', async (req, res) => {
             WHERE gf.id = ? OR gf.path LIKE CONCAT((SELECT path FROM gallery_folders WHERE id = ?), '/%')
         `, [req.params.id, req.params.id]);
 
-        // Delete image files
         for (const image of images) {
             const imagePath = path.join(__dirname, '..', 'public', 'uploads', 'gallery', image.filename);
             try {
@@ -376,9 +348,6 @@ router.post('/gallery/delete-folder/:id', async (req, res) => {
     }
 });
 
-// ====== USER MANAGEMENT ======
-
-// Users management page
 router.get('/users', async (req, res) => {
     try {
         const search = req.query.search || '';
@@ -386,7 +355,6 @@ router.get('/users', async (req, res) => {
         const limit = 50; // Users per page
         const offset = (page - 1) * limit;
         
-        // Build search query
         let whereClause = '';
         let params = [];
         
@@ -398,7 +366,6 @@ router.get('/users', async (req, res) => {
             params = [`%${search}%`, `%${search}%`, `%${search}%`];
         }
         
-        // Get total count
         const [countResult] = await db.query(
             `SELECT COUNT(*) as total FROM users ${whereClause}`,
             params
@@ -406,7 +373,6 @@ router.get('/users', async (req, res) => {
         const totalUsers = countResult[0].total;
         const totalPages = Math.ceil(totalUsers / limit);
         
-        // Get users for current page
         const [users] = await db.query(`
             SELECT 
                 id, 
@@ -446,7 +412,6 @@ router.get('/users', async (req, res) => {
     }
 });
 
-// Toggle admin status
 router.post('/users/toggle-admin/:id', async (req, res) => {
     try {
         // Don't allow demoting yourself
@@ -462,7 +427,6 @@ router.post('/users/toggle-admin/:id', async (req, res) => {
     }
 });
 
-// Delete user
 router.post('/users/delete/:id', async (req, res) => {
     try {
         // Don't allow deleting yourself
@@ -478,9 +442,6 @@ router.post('/users/delete/:id', async (req, res) => {
     }
 });
 
-// ====== MEDAL MANAGEMENT ======
-
-// Medals management page
 router.get('/medals', async (req, res) => {
     try {
         const [medals] = await db.query(`
@@ -512,7 +473,6 @@ router.get('/medals', async (req, res) => {
     }
 });
 
-// Add medal form
 router.get('/medals/add', (req, res) => {
     res.render('admin/medal-form', {
         title: 'Add Medal - Admin',
@@ -521,7 +481,6 @@ router.get('/medals/add', (req, res) => {
     });
 });
 
-// Create medal
 router.post('/medals/add', async (req, res) => {
     try {
         const { name, description, color, icon } = req.body;
@@ -538,7 +497,6 @@ router.post('/medals/add', async (req, res) => {
     }
 });
 
-// Edit medal form
 router.get('/medals/edit/:id', async (req, res) => {
     try {
         const [medals] = await db.query('SELECT * FROM medals WHERE id = ?', [req.params.id]);
@@ -558,7 +516,6 @@ router.get('/medals/edit/:id', async (req, res) => {
     }
 });
 
-// Update medal
 router.post('/medals/edit/:id', async (req, res) => {
     try {
         const { name, description, color, icon } = req.body;
@@ -575,7 +532,6 @@ router.post('/medals/edit/:id', async (req, res) => {
     }
 });
 
-// Delete medal
 router.post('/medals/delete/:id', async (req, res) => {
     try {
         await db.query('DELETE FROM medals WHERE id = ?', [req.params.id]);
@@ -586,22 +542,18 @@ router.post('/medals/delete/:id', async (req, res) => {
     }
 });
 
-// Manage user medals page
 router.get('/users/:userId/medals', async (req, res) => {
     try {
-        // Get user info
         const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.params.userId]);
-        
+
         if (users.length === 0) {
             return res.redirect('/admin/users?error=User not found');
         }
-        
+
         const user = users[0];
-        
-        // Get all medals
+
         const [allMedals] = await db.query('SELECT * FROM medals ORDER BY name ASC');
-        
-        // Get user's current medals
+
         const [userMedals] = await db.query(`
             SELECT 
                 m.*,
@@ -616,7 +568,6 @@ router.get('/users/:userId/medals', async (req, res) => {
             ORDER BY um.awarded_at DESC
         `, [req.params.userId]);
         
-        // Get medals user doesn't have yet
         const userMedalIds = userMedals.map(m => m.id);
         const availableMedals = allMedals.filter(m => !userMedalIds.includes(m.id));
         
@@ -634,7 +585,6 @@ router.get('/users/:userId/medals', async (req, res) => {
     }
 });
 
-// Award medal to user
 router.post('/users/:userId/medals/award', async (req, res) => {
     try {
         const { medalId, notes } = req.body;
@@ -651,7 +601,6 @@ router.post('/users/:userId/medals/award', async (req, res) => {
     }
 });
 
-// Revoke medal from user
 router.post('/users/:userId/medals/revoke/:awardId', async (req, res) => {
     try {
         await db.query('DELETE FROM user_medals WHERE id = ?', [req.params.awardId]);
@@ -662,9 +611,6 @@ router.post('/users/:userId/medals/revoke/:awardId', async (req, res) => {
     }
 });
 
-// ====== TRAINING MANAGEMENT ======
-
-// Trainings management page
 router.get('/trainings', async (req, res) => {
     try {
         const [trainings] = await db.query(`
@@ -696,7 +642,6 @@ router.get('/trainings', async (req, res) => {
     }
 });
 
-// Add training form
 router.get('/trainings/add', (req, res) => {
     res.render('admin/training-form', {
         title: 'Add Training - Admin',
@@ -705,30 +650,24 @@ router.get('/trainings/add', (req, res) => {
     });
 });
 
-// Create training
 router.post('/trainings/add', async (req, res) => {
     try {
         const { name, discord_role_id, description, color, image_url, display_order } = req.body;
         let finalImageUrl = image_url || '/images/badges/default-training.png';
 
-        // Handle file upload if present
         if (req.files && req.files.badge_upload) {
             const badgeFile = req.files.badge_upload;
-            
-            // Sanitize filename
+
             const fileExt = path.extname(badgeFile.name);
             const baseName = path.basename(badgeFile.name, fileExt)
                 .toLowerCase()
                 .replace(/[^a-z0-9.-]/g, '-');
             const fileName = baseName + fileExt;
-            
-            // Upload path
+
             const uploadPath = path.join(__dirname, '../public/images/badges/', fileName);
-            
-            // Move file
+
             await badgeFile.mv(uploadPath);
-            
-            // Set image URL
+
             finalImageUrl = '/images/badges/' + fileName;
         }
 
@@ -748,7 +687,6 @@ router.post('/trainings/add', async (req, res) => {
     }
 });
 
-// Edit training form
 router.get('/trainings/edit/:id', async (req, res) => {
     try {
         const [trainings] = await db.query('SELECT * FROM trainings WHERE id = ?', [req.params.id]);
@@ -768,30 +706,24 @@ router.get('/trainings/edit/:id', async (req, res) => {
     }
 });
 
-// Update training
 router.post('/trainings/edit/:id', async (req, res) => {
     try {
         const { name, discord_role_id, description, color, image_url, display_order } = req.body;
         let finalImageUrl = image_url;
 
-        // Handle file upload if present
         if (req.files && req.files.badge_upload) {
             const badgeFile = req.files.badge_upload;
-            
-            // Sanitize filename
+
             const fileExt = path.extname(badgeFile.name);
             const baseName = path.basename(badgeFile.name, fileExt)
                 .toLowerCase()
                 .replace(/[^a-z0-9.-]/g, '-');
             const fileName = baseName + fileExt;
-            
-            // Upload path
+
             const uploadPath = path.join(__dirname, '../public/images/badges/', fileName);
-            
-            // Move file
+
             await badgeFile.mv(uploadPath);
-            
-            // Set image URL
+
             finalImageUrl = '/images/badges/' + fileName;
         }
 
@@ -811,7 +743,6 @@ router.post('/trainings/edit/:id', async (req, res) => {
     }
 });
 
-// Delete training
 router.post('/trainings/delete/:id', async (req, res) => {
     try {
         await db.query('DELETE FROM trainings WHERE id = ?', [req.params.id]);
@@ -822,12 +753,10 @@ router.post('/trainings/delete/:id', async (req, res) => {
     }
 });
 
-// Sync user trainings from Discord
 router.post('/users/:userId/sync-trainings', async (req, res) => {
     try {
         const userId = req.params.userId;
-        
-        // Get user's Discord info
+
         const [users] = await db.query('SELECT discord_id FROM users WHERE id = ?', [userId]);
         
         if (users.length === 0 || !users[0].discord_id) {
@@ -842,7 +771,6 @@ router.post('/users/:userId/sync-trainings', async (req, res) => {
             return res.json({ success: false, error: 'Bot token not configured' });
         }
         
-        // Fetch user's roles from Discord
         const axios = require('axios');
         const response = await axios.get(
             `https://discord.com/api/v10/guilds/${guildId}/members/${discordId}`,
@@ -855,13 +783,10 @@ router.post('/users/:userId/sync-trainings', async (req, res) => {
         
         const userRoles = response.data.roles || [];
         
-        // Get all training definitions
         const [trainings] = await db.query('SELECT id, discord_role_id FROM trainings');
-        
-        // Clear existing training assignments for this user
+
         await db.query('DELETE FROM user_trainings WHERE user_id = ?', [userId]);
-        
-        // Assign trainings based on Discord roles
+
         let assignedCount = 0;
         for (const training of trainings) {
             if (userRoles.includes(training.discord_role_id)) {
@@ -884,19 +809,16 @@ router.post('/users/:userId/sync-trainings', async (req, res) => {
     }
 });
 
-// View user's trainings
 router.get('/users/:userId/trainings', async (req, res) => {
     try {
-        // Get user info
         const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.params.userId]);
-        
+
         if (users.length === 0) {
             return res.redirect('/admin/users?error=User not found');
         }
-        
+
         const user = users[0];
-        
-        // Get user's current trainings
+
         const [userTrainings] = await db.query(`
             SELECT 
                 t.*,
@@ -907,8 +829,7 @@ router.get('/users/:userId/trainings', async (req, res) => {
             WHERE ut.user_id = ?
             ORDER BY t.display_order ASC, t.name ASC
         `, [req.params.userId]);
-        
-        // Get all trainings for reference
+
         const [allTrainings] = await db.query('SELECT * FROM trainings ORDER BY display_order ASC, name ASC');
         
         res.render('admin/user-trainings', {

@@ -1,6 +1,3 @@
-// Discord Operation Reminders
-// Scheduled task to send operation reminders
-
 const cron = require('node-cron');
 const db = require('../config/database');
 const { sendOperationReminder } = require('./operations');
@@ -8,11 +5,7 @@ const { sendOperationReminder } = require('./operations');
 let reminderTask = null;
 let sentReminders = new Set(); // Track sent reminders to avoid duplicates
 
-/**
- * Start the reminder scheduler
- */
 function startReminderScheduler(client) {
-    // Run every 5 minutes
     reminderTask = cron.schedule('*/5 * * * *', async () => {
         try {
             await checkUpcomingOperations(client);
@@ -24,9 +17,6 @@ function startReminderScheduler(client) {
     console.log('✅ Operation reminder scheduler started (runs every 5 minutes)');
 }
 
-/**
- * Stop the reminder scheduler
- */
 function stopReminderScheduler() {
     if (reminderTask) {
         reminderTask.stop();
@@ -34,16 +24,12 @@ function stopReminderScheduler() {
     }
 }
 
-/**
- * Check for upcoming operations and send reminders
- */
 async function checkUpcomingOperations(client) {
     const now = Math.floor(Date.now() / 1000); // Current unix timestamp
     const oneHourLater = now + (65 * 60); // 65 minutes from now
     const fifteenMinLater = now + (20 * 60); // 20 minutes from now
 
     try {
-        // Get published operations with forum threads in the next 1 hour and 5 minutes
         const [operations] = await db.query(`
             SELECT * FROM operations
             WHERE is_published = TRUE
@@ -63,7 +49,6 @@ async function checkUpcomingOperations(client) {
                     await sendOperationReminder(client, operation, 'in 1 hour');
                     sentReminders.add(reminderKey);
                     
-                    // Clean up old reminders from set
                     if (sentReminders.size > 1000) {
                         sentReminders.clear();
                     }
@@ -85,9 +70,6 @@ async function checkUpcomingOperations(client) {
     }
 }
 
-/**
- * Clear reminder cache (useful for testing)
- */
 function clearReminderCache() {
     sentReminders.clear();
     console.log('🗑️  Reminder cache cleared');

@@ -3,14 +3,11 @@ const router = express.Router();
 const db = require('../config/database');
 const axios = require('axios');
 
-// Public roster page
 router.get('/', async (req, res) => {
     try {
-        // Check if roster tables exist
         const [tables] = await db.query("SHOW TABLES LIKE 'roster_roles'");
-        
+
         if (tables.length === 0) {
-            // Tables don't exist yet - show setup message
             return res.render('error', {
                 title: 'Roster Setup Required',
                 message: 'Roster System Not Set Up',
@@ -19,14 +16,12 @@ router.get('/', async (req, res) => {
             });
         }
 
-        // Get all roster roles ordered by hierarchy
         const [roles] = await db.query(`
             SELECT * FROM roster_roles 
             WHERE display_on_roster = TRUE
             ORDER BY hierarchy_level ASC
         `);
 
-        // Get all visible members grouped by their highest role
         const membersByRole = {};
         
         for (const role of roles) {
@@ -46,7 +41,6 @@ router.get('/', async (req, res) => {
             membersByRole[role.id] = members;
         }
 
-        // Get last sync time
         const [syncInfo] = await db.query(
             'SELECT MAX(last_synced) as last_sync FROM roster_members'
         );
@@ -70,9 +64,7 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Sync roster from Discord (admin only)
 router.post('/sync', async (req, res) => {
-    // Check if user is admin
     if (!req.session.isAdmin) {
         return res.status(403).json({ success: false, error: 'Unauthorized' });
     }
@@ -87,7 +79,6 @@ router.post('/sync', async (req, res) => {
 
         console.log('🔄 Starting roster sync...');
 
-        // Fetch all guild members
         let allMembers = [];
         let after = '0';
         let hasMore = true;
@@ -114,7 +105,6 @@ router.post('/sync', async (req, res) => {
 
         console.log(`📥 Fetched ${allMembers.length} members from Discord`);
 
-        // Get all roster roles
         const [rosterRoles] = await db.query(
             'SELECT * FROM roster_roles ORDER BY hierarchy_level ASC'
         );
@@ -124,23 +114,19 @@ router.post('/sync', async (req, res) => {
             roleMap[role.discord_role_id] = role;
         });
 
-        // Clear existing roster
         await db.query('DELETE FROM roster_members');
 
         let syncedCount = 0;
         let skippedBots = 0;
 
-        // Process each member
         for (const member of allMembers) {
-            // Skip bots
             if (member.user.bot) {
                 skippedBots++;
                 continue;
             }
 
             const userRoles = member.roles || [];
-            
-            // Find highest role this member has
+
             let highestRole = null;
             let highestLevel = 999;
 
@@ -151,7 +137,6 @@ router.post('/sync', async (req, res) => {
                 }
             }
 
-            // Only add if they have at least one roster role
             if (highestRole) {
                 // Convert Discord ISO datetime to MySQL datetime
                 let joinedAtMySQL = null;
@@ -196,7 +181,6 @@ router.post('/sync', async (req, res) => {
     }
 });
 
-// Search roster for player assignment (API endpoint)
 router.get('/search', async (req, res) => {
     try {
         const query = req.query.q || '';
@@ -226,7 +210,6 @@ router.get('/search', async (req, res) => {
             LIMIT 20
         `, [`%${query}%`, `%${query}%`, `%${query}%`]);
         
-        // Format for frontend - include ALL members
         const results = members.map(m => ({
             discord_id: m.discord_id,
             user_id: m.user_id,

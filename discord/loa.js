@@ -1,12 +1,6 @@
-// Discord LOA Notifications
-// Handles leave of absence notifications with superior pings
-
 const { EmbedBuilder } = require('discord.js');
 const db = require('../config/database');
 
-/**
- * Send LOA notification to Discord
- */
 async function sendLOANotification(client, loa, user, superior, action = 'submitted') {
     try {
         const channelId = process.env.DISCORD_LOA_CHANNEL_ID;
@@ -21,7 +15,6 @@ async function sendLOANotification(client, loa, user, superior, action = 'submit
             return null;
         }
 
-        // Calculate duration
         const startDate = new Date(loa.start_date);
         const endDate = new Date(loa.end_date);
         const durationMs = endDate - startDate;
@@ -36,7 +29,6 @@ async function sendLOANotification(client, loa, user, superior, action = 'submit
         }
         if (!durationText) durationText = 'Less than 1 hour';
 
-        // Determine action title and color
         let title = '🛑 Leave of Absence Submitted';
         let color = 0xE74C3C; // Red
         
@@ -48,7 +40,6 @@ async function sendLOANotification(client, loa, user, superior, action = 'submit
             color = 0x95A5A6; // Gray
         }
 
-        // Create embed
         const embed = new EmbedBuilder()
             .setTitle(title)
             .setColor(color)
@@ -82,7 +73,6 @@ async function sendLOANotification(client, loa, user, superior, action = 'submit
             .setTimestamp()
             .setFooter({ text: 'Profiteers PMC' });
 
-        // Add superior if selected
         if (superior) {
             embed.addFields({
                 name: '👥 Superior Notified',
@@ -91,7 +81,6 @@ async function sendLOANotification(client, loa, user, superior, action = 'submit
             });
         }
 
-        // Build message content with ping
         let content = null;
         if (superior && superior.discord_id && action === 'submitted') {
             content = `<@${superior.discord_id}>`;
@@ -111,9 +100,6 @@ async function sendLOANotification(client, loa, user, superior, action = 'submit
     }
 }
 
-/**
- * Send LOA expiring reminder
- */
 async function sendLOAExpiringReminder(client, loa, user) {
     try {
         const channelId = process.env.DISCORD_LOA_CHANNEL_ID;
@@ -137,7 +123,6 @@ async function sendLOAExpiringReminder(client, loa, user) {
             )
             .setTimestamp();
 
-        // Ping the user if we have their Discord ID
         let content = null;
         if (user.discord_id) {
             content = `<@${user.discord_id}>`;

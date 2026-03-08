@@ -16,7 +16,6 @@
         
         <form action="/modpacks/upload" method="POST" enctype="multipart/form-data" id="uploadForm">
             
-            <!-- File upload -->
             <div class="form-group" style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); text-transform: uppercase; font-size: 0.85em; letter-spacing: 1px;">
                     Arma 3 Preset File <span style="color: #E74C3C;">*</span>
@@ -38,7 +37,6 @@
                 </p>
             </div>
 
-            <!-- Preview of parsed mods -->
             <div id="parsePreview" style="display: none; margin-bottom: 20px; background: var(--camo-dark); border: 1px solid var(--olive); border-radius: 6px; padding: 15px;">
                 <h4 style="margin: 0 0 10px 0; color: var(--accent);">Detected from file:</h4>
                 <p style="margin: 0; font-size: 0.9em;">
@@ -48,7 +46,6 @@
                 <div id="previewList" style="margin-top: 10px; max-height: 200px; overflow-y: auto; font-size: 0.85em; color: var(--text-secondary);"></div>
             </div>
 
-            <!-- Custom name (optional) -->
             <div class="form-group" style="margin-bottom: 20px;">
                 <label for="name" style="display: block; margin-bottom: 8px; color: var(--text-secondary); text-transform: uppercase; font-size: 0.85em; letter-spacing: 1px;">
                     Custom Name <span style="color: var(--text-secondary); font-size: 0.9em;">(optional - defaults to preset name)</span>
@@ -57,7 +54,6 @@
                        style="width: 100%; padding: 10px 12px; background: var(--camo-dark); border: 1px solid var(--olive); border-radius: 4px; color: var(--text-primary); font-size: 1em; box-sizing: border-box;">
             </div>
 
-            <!-- Description (optional) -->
             <div class="form-group" style="margin-bottom: 25px;">
                 <label for="description" style="display: block; margin-bottom: 8px; color: var(--text-secondary); text-transform: uppercase; font-size: 0.85em; letter-spacing: 1px;">
                     Description <span style="color: var(--text-secondary); font-size: 0.9em;">(optional)</span>
@@ -66,7 +62,6 @@
                           style="width: 100%; padding: 10px 12px; background: var(--camo-dark); border: 1px solid var(--olive); border-radius: 4px; color: var(--text-primary); font-size: 1em; resize: vertical; box-sizing: border-box;"></textarea>
             </div>
 
-            <!-- Submit -->
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <a href="/modpacks" class="btn">Cancel</a>
                 <button type="submit" class="btn btn-primary" id="submitBtn">Upload & Index</button>
@@ -99,10 +94,8 @@ const previewName = document.getElementById('previewName');
 const previewCount = document.getElementById('previewCount');
 const previewList = document.getElementById('previewList');
 
-// Click to browse
 dropZone.addEventListener('click', () => fileInput.click());
 
-// Drag & drop
 dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
     dropZone.style.borderColor = 'var(--accent)';
@@ -132,13 +125,11 @@ fileInput.addEventListener('change', () => {
 });
 
 function handleFileSelect(file) {
-    // Show file info
     dropText.style.display = 'none';
     fileInfo.style.display = 'block';
     fileName.textContent = file.name;
     fileSize.textContent = formatBytes(file.size);
 
-    // Parse and preview
     const reader = new FileReader();
     reader.onload = function(e) {
         const content = e.target.result;
@@ -148,11 +139,9 @@ function handleFileSelect(file) {
 }
 
 function parseAndPreview(html) {
-    // Extract preset name
     const nameMatch = html.match(/<meta\s+name="arma:PresetName"\s+content="([^"]+)"/i);
     const name = nameMatch ? nameMatch[1] : 'Unknown';
 
-    // Extract mods
     const mods = [];
     const regex = /<tr[^>]*data-type="ModContainer"[^>]*>[\s\S]*?<td[^>]*data-type="DisplayName"[^>]*>([\s\S]*?)<\/td>/gi;
     let match;
@@ -162,8 +151,6 @@ function parseAndPreview(html) {
 
     previewName.textContent = name;
     previewCount.textContent = mods.length;
-
-    // Show mod names
     previewList.innerHTML = mods.map(m => `<div style="padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.03);">🧩 ${m}</div>`).join('');
 
     parsePreview.style.display = 'block';

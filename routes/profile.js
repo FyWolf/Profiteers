@@ -3,10 +3,8 @@ const router = express.Router();
 const db = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
 
-// User profile page (requires authentication)
 router.get('/', isAuthenticated, async (req, res) => {
     try {
-        // Get user information
         const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
         
         if (users.length === 0) {
@@ -15,9 +13,8 @@ router.get('/', isAuthenticated, async (req, res) => {
         
         const user = users[0];
         
-        // Get user's medals with award details
         const [medals] = await db.query(`
-            SELECT 
+            SELECT
                 m.*,
                 um.awarded_at,
                 um.notes,
@@ -28,8 +25,7 @@ router.get('/', isAuthenticated, async (req, res) => {
             WHERE um.user_id = ?
             ORDER BY um.awarded_at DESC
         `, [req.session.userId]);
-        
-        // Get user's trainings
+
         const [trainings] = await db.query(`
             SELECT 
                 t.*,
@@ -40,8 +36,7 @@ router.get('/', isAuthenticated, async (req, res) => {
             WHERE ut.user_id = ?
             ORDER BY t.display_order ASC, t.name ASC
         `, [req.session.userId]);
-        
-        // Get user statistics
+
         const stats = {
             memberSince: user.created_at,
             lastLogin: user.last_login,
@@ -70,7 +65,6 @@ router.get('/', isAuthenticated, async (req, res) => {
     }
 });
 
-// Public profile page (view another user's profile)
 router.get('/:userId', async (req, res) => {
     try {
         // Get user information by user ID (not Discord ID for privacy)
@@ -87,9 +81,8 @@ router.get('/:userId', async (req, res) => {
         
         const profileUser = users[0];
         
-        // Get user's medals with award details
         const [medals] = await db.query(`
-            SELECT 
+            SELECT
                 m.*,
                 um.awarded_at,
                 um.notes,
@@ -100,8 +93,7 @@ router.get('/:userId', async (req, res) => {
             WHERE um.user_id = ?
             ORDER BY um.awarded_at DESC
         `, [profileUser.id]);
-        
-        // Get user's trainings
+
         const [trainings] = await db.query(`
             SELECT 
                 t.*,
@@ -112,8 +104,7 @@ router.get('/:userId', async (req, res) => {
             WHERE ut.user_id = ?
             ORDER BY t.display_order ASC, t.name ASC
         `, [profileUser.id]);
-        
-        // Get user statistics
+
         const stats = {
             memberSince: profileUser.created_at,
             lastLogin: profileUser.last_login,
@@ -122,10 +113,7 @@ router.get('/:userId', async (req, res) => {
             authType: profileUser.auth_type
         };
         
-        // Check if viewing own profile
         const isOwnProfile = req.session.userId && req.session.userId === profileUser.id;
-        
-        // Check if user is logged in (for showing private info)
         const isLoggedIn = !!req.session.userId;
         
         res.render('profile', {
