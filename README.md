@@ -129,7 +129,3 @@ The server starts on the port defined in `PORT` (default `3000`). Visit `http://
 ├── server.js        # Application entry point
 └── package.json
 ```
-
-## License
-
-MIT
