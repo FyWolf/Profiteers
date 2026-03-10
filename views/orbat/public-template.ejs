@@ -13,11 +13,11 @@ function renderPubRoleCard(role, squad, canEdit) {
         if (assignment.discord_avatar) {
             avatarHtml = `<img src="https://cdn.discordapp.com/avatars/${esc(assignment.discord_id)}/${esc(assignment.discord_avatar)}.png?size=64" style="width: 28px; height: 28px; border-radius: 50%; border: 2px solid ${squad.color};">`;
         } else {
-            const initial = esc((assignment.discord_global_name || assignment.username).charAt(0).toUpperCase());
+            const initial = esc((assignment.roster_nickname || assignment.discord_global_name || assignment.username).charAt(0).toUpperCase());
             avatarHtml = `<div style="width: 28px; height: 28px; border-radius: 50%; background: ${squad.color}; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 0.75em;">${initial}</div>`;
         }
     }
-    const assignedName = assignment ? esc(assignment.discord_global_name || assignment.username) : '';
+    const assignedName = assignment ? esc(assignment.roster_nickname || assignment.discord_global_name || assignment.username) : '';
 
     const editBtns = canEdit
         ? `<div style="display: flex; gap: 4px;">

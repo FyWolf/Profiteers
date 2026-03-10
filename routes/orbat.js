@@ -137,17 +137,19 @@ router.get('/view/:templateId', async (req, res) => {
             const roleIds = roles.map(r => r.id);
             if (roleIds.length > 0) {
                 const [assignmentData] = await db.query(`
-                    SELECT 
+                    SELECT
                         oa.*,
                         u.username,
                         u.discord_global_name,
                         u.discord_avatar,
-                        u.discord_id
+                        u.discord_id,
+                        rm.nickname as roster_nickname
                     FROM orbat_assignments oa
                     JOIN users u ON oa.user_id = u.id
+                    LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
                     WHERE oa.role_id IN (?)
                 `, [roleIds]);
-                
+
                 assignmentData.forEach(assignment => {
                     assignments[assignment.role_id] = assignment;
                 });
@@ -296,14 +298,16 @@ router.get('/templates/edit/:id', isAdmin, async (req, res) => {
         
         if (roleIds.length > 0) {
             const [assignments] = await db.query(`
-                SELECT 
+                SELECT
                     oa.*,
                     u.username,
                     u.discord_global_name,
                     u.discord_avatar,
-                    u.discord_id
+                    u.discord_id,
+                    rm.nickname as roster_nickname
                 FROM orbat_assignments oa
                 JOIN users u ON oa.user_id = u.id
+                LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
                 WHERE oa.role_id IN (?)
             `, [roleIds]);
 
@@ -519,12 +523,13 @@ router.get('/operation/:operationId', async (req, res) => {
             const roleIds = roles.map(r => r.id);
             if (roleIds.length > 0) {
                 const [assignmentData] = await db.query(`
-                    SELECT 
+                    SELECT
                         oa.*,
                         u.username,
                         u.discord_global_name,
                         u.discord_avatar,
                         u.discord_id,
+                        rm.nickname as roster_nickname,
                         oat.status as attendance_status,
                         loa.id as loa_id,
                         loa.start_date as loa_start,
@@ -532,8 +537,9 @@ router.get('/operation/:operationId', async (req, res) => {
                         loa.reason as loa_reason
                     FROM orbat_assignments oa
                     JOIN users u ON oa.user_id = u.id
+                    LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
                     LEFT JOIN operation_attendance oat ON oat.operation_id = ? AND oat.user_id = u.id
-                    LEFT JOIN leave_of_absence loa ON loa.user_id = u.id 
+                    LEFT JOIN leave_of_absence loa ON loa.user_id = u.id
                         AND loa.status = 'approved'
                         AND loa.start_date <= NOW()
                         AND loa.end_date >= NOW()

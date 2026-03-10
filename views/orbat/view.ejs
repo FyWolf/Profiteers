@@ -29,7 +29,7 @@ function renderRoleCard(role, squad) {
         if (assignment.discord_avatar) {
             avatarHtml = `<img src="https://cdn.discordapp.com/avatars/${esc(assignment.discord_id)}/${esc(assignment.discord_avatar)}.png?size=64" style="width: 28px; height: 28px; border-radius: 50%; border: 2px solid ${squad.color};">`;
         } else {
-            const initial = esc((assignment.discord_global_name || assignment.username).charAt(0).toUpperCase());
+            const initial = esc((assignment.roster_nickname || assignment.discord_global_name || assignment.username).charAt(0).toUpperCase());
             avatarHtml = `<div style="width: 28px; height: 28px; border-radius: 50%; background: ${squad.color}; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 0.75em;">${initial}</div>`;
         }
     }
@@ -60,7 +60,7 @@ function renderRoleCard(role, squad) {
     }
 
     const grabStyle = (canManage && operation.orbat_type === 'dynamic') ? ' cursor: grab;' : '';
-    const nameDisplay = esc(assignment ? (assignment.discord_global_name || assignment.username) : '');
+    const nameDisplay = esc(assignment ? (assignment.roster_nickname || assignment.discord_global_name || assignment.username) : '');
     const assignedHtml = assignment
         ? `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">${avatarHtml}<div style="flex: 1; min-width: 0;"><div style="font-weight: 600; color: var(--sand); font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nameDisplay}</div>${statusBadge ? `<div style="font-size: 0.7em; color: var(--khaki);">${statusBadge}</div>` : ''}${loaBadge}</div></div>`
         : `<div style="color: var(--khaki); opacity: 0.7; font-style: italic; font-size: 0.85em; margin-bottom: 8px;">Empty Slot</div>`;
