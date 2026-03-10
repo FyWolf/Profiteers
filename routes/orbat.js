@@ -972,7 +972,17 @@ router.post('/api/squads/:id/delete', isAuthenticated, async (req, res) => {
             if (!canEdit) return res.status(403).json({ success: false, error: 'Permission denied' });
         }
 
-        await db.query('DELETE FROM orbat_squads WHERE id = ?', [req.params.id]);
+        // Recursively collect all descendant IDs so they are also deleted
+        async function collectDescendantIds(id) {
+            const [children] = await db.query('SELECT id FROM orbat_squads WHERE parent_squad_id = ?', [id]);
+            let ids = [id];
+            for (const child of children) {
+                ids = ids.concat(await collectDescendantIds(child.id));
+            }
+            return ids;
+        }
+        const allIds = await collectDescendantIds(req.params.id);
+        await db.query('DELETE FROM orbat_squads WHERE id IN (?)', [allIds]);
         res.json({ success: true });
     } catch (error) {
         console.error('Error deleting squad:', error);
