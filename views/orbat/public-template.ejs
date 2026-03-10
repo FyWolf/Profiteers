@@ -91,12 +91,25 @@ function renderPubSquadCard(squad) {
            </div>`
         : '';
 
+    const addSubgroupSection = canEdit
+        ? `<div id="addSubForm_${squad.id}" style="display: none; margin-top: 10px; padding: 10px; border: 1px dashed var(--khaki); border-radius: 4px; background: rgba(0,0,0,0.2); overflow: hidden;">
+            <div style="display: flex; gap: 6px; align-items: center; min-width: 0;">
+                <input type="text" id="addSubName_${squad.id}" placeholder="Sub-group name..." style="flex: 1; min-width: 0; padding: 6px 8px; background: rgba(40,40,40,0.9); color: var(--sand); border: 1px solid var(--olive); border-radius: 4px; font-size: 0.88em; margin: 0;" onkeydown="if(event.key==='Enter'){event.preventDefault();submitAddChildSquad(${squad.id})}">
+                <input type="color" id="addSubColor_${squad.id}" value="#6b8e23" style="width: 34px; height: 34px; flex-shrink: 0; border: none; background: none; cursor: pointer; padding: 0;">
+                <button onclick="submitAddChildSquad(${squad.id})" class="btn btn-primary" style="flex-shrink: 0; height: 34px; padding: 0 10px; font-size: 0.85em;">➕</button>
+                <button onclick="document.getElementById('addSubForm_${squad.id}').style.display='none'" class="btn" style="flex-shrink: 0; height: 34px; padding: 0 8px; font-size: 0.85em;">✕</button>
+            </div>
+           </div>
+           <button onclick="toggleAddSub(${squad.id})" class="btn" style="margin-top: 8px; width: 100%; background: rgba(0,0,0,0.2); border: 1px dashed var(--khaki); font-size: 0.8em; padding: 6px;">➕ Add Sub-group</button>`
+        : '';
+
     return `<div class="card orbat-squad-card" style="border-left: 4px solid ${squad.color}; padding: 20px;">
         <div style="margin-bottom: 15px; padding-bottom: 12px; border-bottom: 2px solid ${squad.color};">
             <h3 style="color: ${squad.color}; margin: 0;">${esc(squad.name)} ${yourSquadBadge}</h3>
         </div>
         ${rolesHtml}
         ${addRoleSection}
+        ${addSubgroupSection}
     </div>`;
 }
 
@@ -161,7 +174,34 @@ function renderPubNode(node, isRoot) {
 <style>.sortable-ghost { opacity: 0.4; }</style>
 
 <script>
+const templateId = '<%= template.id %>';
 let currentRoleId = null;
+
+function toggleAddSub(squadId) {
+    const form = document.getElementById('addSubForm_' + squadId);
+    if (form.style.display === 'none') {
+        form.style.display = 'block';
+        document.getElementById('addSubName_' + squadId).focus();
+    } else {
+        form.style.display = 'none';
+    }
+}
+
+async function submitAddChildSquad(parentSquadId) {
+    const nameInput = document.getElementById('addSubName_' + parentSquadId);
+    const colorInput = document.getElementById('addSubColor_' + parentSquadId);
+    const name = nameInput.value.trim();
+    if (!name) { nameInput.focus(); return; }
+    try {
+        const r = await fetch(`/orbat/api/templates/${templateId}/squads/add`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, color: colorInput.value, displayOrder: 0, parentSquadId })
+        });
+        const d = await r.json();
+        if (d.success) location.reload(); else alert(d.error || 'Failed to add sub-group');
+    } catch { alert('Failed to add sub-group'); }
+}
 
 function showAssignModal(roleId, roleName) {
     currentRoleId = roleId;

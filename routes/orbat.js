@@ -21,18 +21,31 @@ function buildTree(squads) {
     return roots;
 }
 
+// Check if userId is an editor of squadId OR any of its ancestors
+async function isEditorOfSquadOrAncestor(userId, squadId) {
+    if (!userId || !squadId) return false;
+    const visited = new Set();
+    let currentId = squadId;
+    while (currentId && !visited.has(currentId)) {
+        visited.add(currentId);
+        const [check] = await db.query(`
+            SELECT 1 FROM orbat_roles er
+            JOIN orbat_assignments oa ON er.id = oa.role_id
+            WHERE er.squad_id = ? AND er.is_editor = TRUE AND oa.user_id = ?
+            LIMIT 1
+        `, [currentId, userId]);
+        if (check.length > 0) return true;
+        const [sq] = await db.query('SELECT parent_squad_id FROM orbat_squads WHERE id = ?', [currentId]);
+        currentId = sq[0]?.parent_squad_id || null;
+    }
+    return false;
+}
+
 async function isSquadEditor(userId, roleId) {
     if (!userId) return false;
-    const [result] = await db.query(`
-        SELECT 1
-        FROM orbat_roles editor_role
-        JOIN orbat_assignments oa ON editor_role.id = oa.role_id
-        WHERE editor_role.squad_id = (SELECT squad_id FROM orbat_roles WHERE id = ?)
-          AND editor_role.is_editor = TRUE
-          AND oa.user_id = ?
-        LIMIT 1
-    `, [roleId, userId]);
-    return result.length > 0;
+    const [roleRows] = await db.query('SELECT squad_id FROM orbat_roles WHERE id = ?', [roleId]);
+    if (!roleRows.length) return false;
+    return isEditorOfSquadOrAncestor(userId, roleRows[0].squad_id);
 }
 
 router.get('/api/templates', async (req, res) => {
@@ -150,6 +163,20 @@ router.get('/view/:templateId', async (req, res) => {
                     }
                 });
             });
+            // Expand: editor of a squad = editor of all its descendants
+            const editorSet = new Set(editorSquadIds);
+            let changed = true;
+            while (changed) {
+                changed = false;
+                for (const squad of squads) {
+                    if (squad.parent_squad_id && editorSet.has(squad.parent_squad_id) && !editorSet.has(squad.id)) {
+                        editorSet.add(squad.id);
+                        changed = true;
+                    }
+                }
+            }
+            editorSquadIds.length = 0;
+            editorSet.forEach(id => editorSquadIds.push(id));
         }
 
         res.render('orbat/public-template', {
@@ -744,26 +771,23 @@ router.post('/squads/:squadId/add-role-dynamic', isAuthenticated, async (req, re
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
         if (!userIsZeus) {
-            // Squad editors can only add roles to their own squad
-            const [editorCheck] = await db.query(`
-                SELECT 1
-                FROM orbat_roles er
-                JOIN orbat_assignments oa ON er.id = oa.role_id
-                WHERE er.squad_id = ?
-                  AND er.is_editor = TRUE
-                  AND oa.user_id = ?
-                LIMIT 1
-            `, [req.params.squadId, req.session.userId]);
-            if (editorCheck.length === 0) {
+            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, req.params.squadId);
+            if (!canEdit) {
                 return res.status(403).json({ success: false, error: 'Permission denied' });
             }
         }
 
-        const { roleName, displayOrder } = req.body;
+        const { roleName } = req.body;
+
+        const [maxOrder] = await db.query(
+            'SELECT MAX(display_order) as max FROM orbat_roles WHERE squad_id = ?',
+            [req.params.squadId]
+        );
+        const nextOrder = (maxOrder[0]?.max ?? -1) + 1;
 
         await db.query(
             'INSERT INTO orbat_roles (squad_id, role_name, display_order) VALUES (?, ?, ?)',
-            [req.params.squadId, roleName, displayOrder || 0]
+            [req.params.squadId, roleName, nextOrder]
         );
 
         res.json({ success: true });
@@ -777,30 +801,28 @@ router.post('/api/squads/:squadId/add-role', isAuthenticated, async (req, res) =
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
         if (!userIsZeus) {
-            const [editorCheck] = await db.query(`
-                SELECT 1
-                FROM orbat_roles er
-                JOIN orbat_assignments oa ON er.id = oa.role_id
-                WHERE er.squad_id = ?
-                  AND er.is_editor = TRUE
-                  AND oa.user_id = ?
-                LIMIT 1
-            `, [req.params.squadId, req.session.userId]);
-            if (editorCheck.length === 0) {
+            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, req.params.squadId);
+            if (!canEdit) {
                 return res.status(403).json({ success: false, error: 'Permission denied' });
             }
         }
 
-        const { roleName, displayOrder, isEditor } = req.body;
+        const { roleName, isEditor } = req.body;
         if (!roleName || !roleName.trim()) {
             return res.json({ success: false, error: 'Role name is required' });
         }
 
         const isEditorValue = userIsZeus && isEditor ? 1 : 0;
 
+        const [maxOrder] = await db.query(
+            'SELECT MAX(display_order) as max FROM orbat_roles WHERE squad_id = ?',
+            [req.params.squadId]
+        );
+        const nextOrder = (maxOrder[0]?.max ?? -1) + 1;
+
         const [result] = await db.query(
             'INSERT INTO orbat_roles (squad_id, role_name, display_order, is_editor) VALUES (?, ?, ?, ?)',
-            [req.params.squadId, roleName.trim(), displayOrder || 0, isEditorValue]
+            [req.params.squadId, roleName.trim(), nextOrder, isEditorValue]
         );
 
         res.json({ success: true, roleId: result.insertId });
@@ -848,16 +870,8 @@ router.post('/api/squads/:squadId/reorder-roles', isAuthenticated, async (req, r
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
         if (!userIsZeus) {
-            const [editorCheck] = await db.query(`
-                SELECT 1
-                FROM orbat_roles er
-                JOIN orbat_assignments oa ON er.id = oa.role_id
-                WHERE er.squad_id = ?
-                  AND er.is_editor = TRUE
-                  AND oa.user_id = ?
-                LIMIT 1
-            `, [req.params.squadId, req.session.userId]);
-            if (editorCheck.length === 0) {
+            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, req.params.squadId);
+            if (!canEdit) {
                 return res.status(403).json({ success: false, error: 'Permission denied' });
             }
         }
@@ -902,7 +916,13 @@ router.post('/api/roles/:id/delete', isAuthenticated, async (req, res) => {
 router.post('/api/templates/:templateId/squads/add', isAuthenticated, async (req, res) => {
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
-        if (!userIsZeus) return res.status(403).json({ success: false, error: 'Permission denied' });
+        if (!userIsZeus) {
+            // Squad editors may only add sub-groups under a squad they can edit
+            const { parentSquadId } = req.body;
+            if (!parentSquadId) return res.status(403).json({ success: false, error: 'Permission denied' });
+            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, parentSquadId);
+            if (!canEdit) return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
 
         const { name, color, displayOrder, parentSquadId } = req.body;
         if (!name || !name.trim()) return res.json({ success: false, error: 'Squad name is required' });
