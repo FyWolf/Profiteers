@@ -25,7 +25,7 @@ function timestampToUTC(timestamp) {
                style="position: absolute; bottom: 20px; right: 20px; background: var(--accent); color: var(--camo-dark); padding: 12px 24px; border-radius: 4px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 12px rgba(0,0,0,0.4); transition: all 0.3s ease;"
                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(0,0,0,0.5)'"
                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.4)'">
-                📋 VIEW ORBAT
+                VIEW ORBAT
             </a>
         <% } %>
     </div>
@@ -33,39 +33,7 @@ function timestampToUTC(timestamp) {
     <div class="grid grid-2" style="align-items: start;">
         <div>
             <section class="section">
-                <h2>Mission Briefing</h2>
-                <div class="card">
-                    <p style="line-height: 1.8; color: var(--khaki); white-space: pre-wrap;"><%= operation.description || 'No description provided.' %></p>
-                </div>
-            </section>
-
-            <section class="section">
-                <h2>Schedule</h2>
-                <div class="card">
-                    <div style="display: grid; gap: 15px;">
-                        <div>
-                            <div style="font-weight: 700; color: var(--accent); margin-bottom: 5px;">📅 Date</div>
-                            <div style="font-size: 1.1em; color: var(--sand);" class="local-date" data-utc="<%= timestampToUTC(operation.start_time) %>"></div>
-                        </div>
-                        <div>
-                            <div style="font-weight: 700; color: var(--accent); margin-bottom: 5px;">🕐 Start Time</div>
-                            <div style="font-size: 1.1em; color: var(--sand);" class="local-datetime" data-utc="<%= timestampToUTC(operation.start_time) %>"></div>
-                        </div>
-                        <div>
-                            <div style="font-weight: 700; color: var(--accent); margin-bottom: 5px;">🕐 End Time</div>
-                            <div style="font-size: 1.1em; color: var(--sand);" class="local-datetime" data-utc="<%= timestampToUTC(operation.end_time) %>"></div>
-                        </div>
-                        <div style="padding: 10px; background: rgba(52, 152, 219, 0.1); border-left: 3px solid #3498DB; border-radius: 4px;">
-                            <small style="color: #3498DB;">
-                                ℹ️ Times shown in your local timezone
-                            </small>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
             <% if (operation.host_id) { %>
-                <section class="section">
                     <h2>Operation Host</h2>
                     <div class="card">
                         <div style="display: flex; align-items: center; gap: 15px;">
@@ -85,12 +53,38 @@ function timestampToUTC(timestamp) {
                             </div>
                         </div>
                     </div>
-                </section>
             <% } %>
+                <h2>Mission Briefing</h2>
+                <div class="card">
+                    <p style="line-height: 1.8; color: var(--khaki); white-space: pre-wrap;"><%= operation.description || 'No description provided.' %></p>
+                </div>
+            </section>
 
+            <section class="section">
+                <h2>Schedule</h2>
+                <div class="card">
+                    <div style="display: grid; gap: 15px;">
+                        <div>
+                            <div style="font-weight: 700; color: var(--accent); margin-bottom: 5px;">Date</div>
+                            <div style="font-size: 1.1em; color: var(--sand);" class="local-date" data-utc="<%= timestampToUTC(operation.start_time) %>"></div>
+                        </div>
+                        <div>
+                            <div style="font-weight: 700; color: var(--accent); margin-bottom: 5px;">Start Time</div>
+                            <div style="font-size: 1.1em; color: var(--sand);" class="local-datetime" data-utc="<%= timestampToUTC(operation.start_time) %>"></div>
+                        </div>
+                        <div>
+                            <div style="font-weight: 700; color: var(--accent); margin-bottom: 5px;">End Time</div>
+                            <div style="font-size: 1.1em; color: var(--sand);" class="local-datetime" data-utc="<%= timestampToUTC(operation.end_time) %>"></div>
+                        </div>
+                        <div style="padding: 10px; background: rgba(52, 152, 219, 0.1); border-left: 3px solid #3498DB; border-radius: 4px;">
+                            <small style="color: #3498DB;">
+                                Times shown in your local timezone
+                            </small>
+                        </div>
+                    </div>
+                </div>
             <% if (operation.modpack_id) { %>
-                <section class="section">
-                    <h2>📦 Required Modpack</h2>
+                    <h2>Required Modpack</h2>
                     <div class="card">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                             <div>
@@ -108,7 +102,7 @@ function timestampToUTC(timestamp) {
                             </div>
                             <div style="display: flex; gap: 8px;">
                                 <a href="/modpacks/<%= operation.modpack_id %>/download" class="btn btn-primary" style="white-space: nowrap; padding: 8px 16px;">
-                                    ⬇️ Download Preset
+                                    Download Preset
                                 </a>
                                 <a href="/modpacks/<%= operation.modpack_id %>" class="btn" style="white-space: nowrap; padding: 8px 16px;">
                                     View Mod List
@@ -116,8 +110,8 @@ function timestampToUTC(timestamp) {
                             </div>
                         </div>
                     </div>
-                </section>
             <% } %>
+            </section>
 
             <section class="section">
                 <h2>Operation News</h2>
