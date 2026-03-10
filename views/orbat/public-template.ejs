@@ -234,6 +234,8 @@ function closeAssignModal() {
     currentRoleId = null;
 }
 
+let _playerSearchResults = [];
+
 async function searchPlayers(query) {
     if (query.length < 2) {
         document.getElementById('playerResults').innerHTML = '<p style="color: var(--khaki); text-align: center;">Type at least 2 characters...</p>';
@@ -246,17 +248,20 @@ async function searchPlayers(query) {
             document.getElementById('playerResults').innerHTML = '<p style="color: var(--khaki); text-align: center;">No players found</p>';
             return;
         }
+        _playerSearchResults = players;
         let html = '<div style="display: grid; gap: 8px;">';
-        players.forEach(p => {
+        players.forEach((p, i) => {
             const badge = p.needs_registration ? '<span style="background: rgba(241,196,15,0.3); color: #f1c40f; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; margin-left: 8px;">Not logged in</span>' : '';
-            html += `<div onclick='assignPlayer(${JSON.stringify(p).replace(/'/g, "&#39;")})' style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(107,142,35,0.3)'" onmouseout="this.style.background='rgba(0,0,0,0.3)'"><strong>${p.name}</strong>${badge}</div>`;
+            const safeName = p.name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            html += `<div onclick="assignPlayer(${i})" style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(107,142,35,0.3)'" onmouseout="this.style.background='rgba(0,0,0,0.3)'"><strong>${safeName}</strong>${badge}</div>`;
         });
         html += '</div>';
         document.getElementById('playerResults').innerHTML = html;
     } catch (e) { console.error('Error searching players:', e); }
 }
 
-async function assignPlayer(player) {
+async function assignPlayer(playerOrIndex) {
+    const player = typeof playerOrIndex === 'number' ? _playerSearchResults[playerOrIndex] : playerOrIndex;
     const msg = player.needs_registration
         ? `Assign ${player.name}? (They haven't logged in yet - we'll create an account for them)`
         : `Assign ${player.name} to this slot?`;
