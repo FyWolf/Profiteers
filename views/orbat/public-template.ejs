@@ -249,7 +249,7 @@ async function searchPlayers(query) {
         let html = '<div style="display: grid; gap: 8px;">';
         players.forEach(p => {
             const badge = p.needs_registration ? '<span style="background: rgba(241,196,15,0.3); color: #f1c40f; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; margin-left: 8px;">Not logged in</span>' : '';
-            html += `<div onclick='assignPlayer(${JSON.stringify(p)})' style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(107,142,35,0.3)'" onmouseout="this.style.background='rgba(0,0,0,0.3)'"><strong>${p.name}</strong>${badge}</div>`;
+            html += `<div onclick='assignPlayer(${JSON.stringify(p).replace(/'/g, "&#39;")})' style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(107,142,35,0.3)'" onmouseout="this.style.background='rgba(0,0,0,0.3)'"><strong>${p.name}</strong>${badge}</div>`;
         });
         html += '</div>';
         document.getElementById('playerResults').innerHTML = html;
