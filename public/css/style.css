@@ -36,6 +36,10 @@ body {
     padding: 20px;
 }
 
+.container.orbat-wide {
+    max-width: none;
+}
+
 /* Navigation */
 nav {
     background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(30,40,30,0.9) 100%);
@@ -495,9 +499,85 @@ footer {
         border-left: 3px solid var(--olive);
         margin-left: 15px;
     }
-    
+
     .nav-links.active .dropdown-content {
         display: block;
     }
+}
+
+/* ORBAT Hierarchy Tree */
+.org-tree-root {
+    display: flex;
+    gap: 40px;
+    flex-wrap: nowrap;
+    justify-content: center;
+    width: max-content;
+    min-width: 100%;
+    box-sizing: border-box;
+    padding-bottom: 20px;
+}
+
+.org-tree-scroll {
+    overflow-x: auto;
+    width: 100%;
+    padding-bottom: 4px;
+}
+
+.org-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.org-v-bar {
+    width: 2px;
+    height: 24px;
+    background: var(--olive);
+}
+
+.org-row {
+    display: flex;
+    justify-content: center;
+}
+
+.org-col {
+    padding: 24px 8px 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Horizontal connector spanning from first-child center to last-child center */
+.org-col::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--olive);
+}
+.org-col:first-child::before { left: 50%; }
+.org-col:last-child::before { right: 50%; }
+.org-col:only-child { padding-top: 0; }
+.org-col:only-child::before { display: none; }
+
+/* Vertical connector from horizontal bar down to card */
+.org-col::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 24px;
+    background: var(--olive);
+}
+.org-col:only-child::after { display: none; }
+
+.orbat-squad-card {
+    min-width: 300px;
+    max-width: 420px;
 }
 

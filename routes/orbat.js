@@ -4,6 +4,23 @@ const db = require('../config/database');
 const { isAuthenticated, isAdmin } = require('../middleware/auth');
 const { isZeus, checkZeusStatus } = require('../middleware/zeus');
 
+function buildTree(squads) {
+    const byId = {};
+    squads.forEach(s => { byId[s.id] = { ...s, children: [] }; });
+    const roots = [];
+    squads.forEach(s => {
+        if (s.parent_squad_id && byId[s.parent_squad_id]) {
+            byId[s.parent_squad_id].children.push(byId[s.id]);
+        } else {
+            roots.push(byId[s.id]);
+        }
+    });
+    const sortNode = n => { n.children.sort((a, b) => a.display_order - b.display_order); n.children.forEach(sortNode); };
+    roots.sort((a, b) => a.display_order - b.display_order);
+    roots.forEach(sortNode);
+    return roots;
+}
+
 async function isSquadEditor(userId, roleId) {
     if (!userId) return false;
     const [result] = await db.query(`
@@ -139,6 +156,7 @@ router.get('/view/:templateId', async (req, res) => {
             title: `${template.name} - Profiteers PMC`,
             template: template,
             squads: squads,
+            squadTree: buildTree(squads),
             rolesBySquad: rolesBySquad,
             assignments: assignments,
             editorSquadIds: editorSquadIds
@@ -271,6 +289,7 @@ router.get('/templates/edit/:id', isAdmin, async (req, res) => {
             title: `Edit ORBAT Template - ${templates[0].name}`,
             template: templates[0],
             squads: squads,
+            squadTree: buildTree(squads),
             rolesBySquad: rolesBySquad,
             assignmentsByRole: assignmentsByRole,
             success: req.query.success || null,
@@ -506,6 +525,7 @@ router.get('/operation/:operationId', async (req, res) => {
             title: `ORBAT - ${operation.title}`,
             operation: operation,
             squads: squads,
+            squadTree: buildTree(squads),
             rolesBySquad: rolesBySquad,
             assignments: assignments,
             canManage: canManage,
@@ -699,18 +719,18 @@ router.post('/operation/:operationId/create-dynamic', isZeus, async (req, res) =
 
 router.post('/operation/:operationId/add-squad', isZeus, async (req, res) => {
     try {
-        const { squadName, squadColor } = req.body;
+        const { squadName, squadColor, parentSquadId } = req.body;
 
         const [maxOrder] = await db.query(
             'SELECT MAX(display_order) as max_order FROM orbat_squads WHERE operation_id = ?',
             [req.params.operationId]
         );
-        
+
         const nextOrder = (maxOrder[0]?.max_order || 0) + 1;
 
         await db.query(
-            'INSERT INTO orbat_squads (operation_id, name, color, display_order) VALUES (?, ?, ?, ?)',
-            [req.params.operationId, squadName, squadColor || '#3498DB', nextOrder]
+            'INSERT INTO orbat_squads (operation_id, name, color, display_order, parent_squad_id) VALUES (?, ?, ?, ?, ?)',
+            [req.params.operationId, squadName, squadColor || '#3498DB', nextOrder, parentSquadId || null]
         );
 
         res.json({ success: true });
@@ -884,12 +904,12 @@ router.post('/api/templates/:templateId/squads/add', isAuthenticated, async (req
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
         if (!userIsZeus) return res.status(403).json({ success: false, error: 'Permission denied' });
 
-        const { name, color, displayOrder } = req.body;
+        const { name, color, displayOrder, parentSquadId } = req.body;
         if (!name || !name.trim()) return res.json({ success: false, error: 'Squad name is required' });
 
         const [result] = await db.query(
-            'INSERT INTO orbat_squads (orbat_id, name, color, display_order) VALUES (?, ?, ?, ?)',
-            [req.params.templateId, name.trim(), color || '#3498DB', displayOrder || 0]
+            'INSERT INTO orbat_squads (orbat_id, name, color, display_order, parent_squad_id) VALUES (?, ?, ?, ?, ?)',
+            [req.params.templateId, name.trim(), color || '#3498DB', displayOrder || 0, parentSquadId || null]
         );
 
         res.json({ success: true, squadId: result.insertId });
@@ -929,6 +949,55 @@ router.post('/api/squads/:id/delete', isAuthenticated, async (req, res) => {
     } catch (error) {
         console.error('Error deleting squad:', error);
         res.json({ success: false, error: 'Failed to delete squad' });
+    }
+});
+
+router.post('/api/migrate-hierarchy', isAdmin, async (req, res) => {
+    try {
+        // For each template with root-level squads, create a default platoon and nest existing squads under it
+        const [templateGroups] = await db.query(
+            'SELECT DISTINCT orbat_id FROM orbat_squads WHERE orbat_id IS NOT NULL AND parent_squad_id IS NULL'
+        );
+        for (const { orbat_id } of templateGroups) {
+            const [existing] = await db.query(
+                'SELECT id FROM orbat_squads WHERE orbat_id = ? AND parent_squad_id IS NULL',
+                [orbat_id]
+            );
+            if (existing.length === 0) continue;
+            const [result] = await db.query(
+                'INSERT INTO orbat_squads (orbat_id, name, color, display_order) VALUES (?, ?, ?, ?)',
+                [orbat_id, '1st Platoon', '#3498DB', 0]
+            );
+            await db.query(
+                'UPDATE orbat_squads SET parent_squad_id = ? WHERE orbat_id = ? AND id != ? AND parent_squad_id IS NULL',
+                [result.insertId, orbat_id, result.insertId]
+            );
+        }
+
+        // Same for dynamic operation squads
+        const [opGroups] = await db.query(
+            'SELECT DISTINCT operation_id FROM orbat_squads WHERE operation_id IS NOT NULL AND parent_squad_id IS NULL'
+        );
+        for (const { operation_id } of opGroups) {
+            const [existing] = await db.query(
+                'SELECT id FROM orbat_squads WHERE operation_id = ? AND parent_squad_id IS NULL',
+                [operation_id]
+            );
+            if (existing.length === 0) continue;
+            const [result] = await db.query(
+                'INSERT INTO orbat_squads (operation_id, name, color, display_order) VALUES (?, ?, ?, ?)',
+                [operation_id, '1st Platoon', '#3498DB', 0]
+            );
+            await db.query(
+                'UPDATE orbat_squads SET parent_squad_id = ? WHERE operation_id = ? AND id != ? AND parent_squad_id IS NULL',
+                [result.insertId, operation_id, result.insertId]
+            );
+        }
+
+        res.json({ success: true, message: 'Hierarchy migration complete' });
+    } catch (error) {
+        console.error('Migration error:', error);
+        res.json({ success: false, error: error.message });
     }
 });
 
