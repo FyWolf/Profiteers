@@ -962,7 +962,15 @@ router.post('/api/squads/:id/edit', isAuthenticated, async (req, res) => {
 router.post('/api/squads/:id/delete', isAuthenticated, async (req, res) => {
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
-        if (!userIsZeus) return res.status(403).json({ success: false, error: 'Permission denied' });
+        if (!userIsZeus) {
+            // Editors can delete a squad only if they are an editor of its parent
+            // (they created it as a sub-group of a squad they manage)
+            const [squadRows] = await db.query('SELECT parent_squad_id FROM orbat_squads WHERE id = ?', [req.params.id]);
+            const parentId = squadRows[0]?.parent_squad_id;
+            if (!parentId) return res.status(403).json({ success: false, error: 'Permission denied' });
+            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, parentId);
+            if (!canEdit) return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
 
         await db.query('DELETE FROM orbat_squads WHERE id = ?', [req.params.id]);
         res.json({ success: true });

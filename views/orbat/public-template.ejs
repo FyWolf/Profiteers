@@ -73,6 +73,12 @@ function renderPubSquadCard(squad) {
         ? `<span style="font-size: 0.55em; font-weight: 700; background: rgba(52,152,219,0.2); color: #3498DB; border: 1px solid #3498DB; padding: 2px 8px; border-radius: 3px; vertical-align: middle; letter-spacing: 0.05em;">YOUR SQUAD</span>`
         : '';
 
+    // Editors can delete sub-groups they manage (only if squad has a parent — can't delete root)
+    const canDeleteThisSquad = canEdit && squad.parent_squad_id;
+    const deleteBtn = canDeleteThisSquad
+        ? `<button onclick="deleteSquad(${squad.id})" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.8em; margin-left: 8px;" title="Delete sub-group">🗑️</button>`
+        : '';
+
     let rolesHtml = '';
     if (roles.length === 0) {
         rolesHtml = `<p style="color: var(--khaki); opacity: 0.7; font-size: 0.9em; font-style: italic;">No roles defined</p>`;
@@ -105,7 +111,10 @@ function renderPubSquadCard(squad) {
 
     return `<div class="card orbat-squad-card" style="border-left: 4px solid ${squad.color}; padding: 20px;">
         <div style="margin-bottom: 15px; padding-bottom: 12px; border-bottom: 2px solid ${squad.color};">
-            <h3 style="color: ${squad.color}; margin: 0;">${esc(squad.name)} ${yourSquadBadge}</h3>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <h3 style="color: ${squad.color}; margin: 0;">${esc(squad.name)} ${yourSquadBadge}</h3>
+                ${deleteBtn}
+            </div>
         </div>
         ${rolesHtml}
         ${addRoleSection}
@@ -185,6 +194,15 @@ function toggleAddSub(squadId) {
     } else {
         form.style.display = 'none';
     }
+}
+
+async function deleteSquad(squadId) {
+    if (!confirm('Delete this sub-group and all its roles?')) return;
+    try {
+        const r = await fetch(`/orbat/api/squads/${squadId}/delete`, { method: 'POST' });
+        const d = await r.json();
+        if (d.success) location.reload(); else alert(d.error || 'Failed to delete sub-group');
+    } catch { alert('Failed to delete sub-group'); }
 }
 
 async function submitAddChildSquad(parentSquadId) {
