@@ -3,35 +3,7 @@ const router = express.Router();
 const db = require('../config/database');
 const { isAuthenticated, isAdmin } = require('../middleware/auth');
 
-router.get('/my-loas', isAuthenticated, async (req, res) => {
-    try {
-        const [loas] = await db.query(`
-            SELECT 
-                loa.*,
-                sup.username as superior_username,
-                sup.discord_global_name as superior_display_name,
-                rev.username as reviewer_username
-            FROM leave_of_absence loa
-            LEFT JOIN users sup ON loa.superior_id = sup.id
-            LEFT JOIN users rev ON loa.reviewed_by = rev.id
-            WHERE loa.user_id = ?
-            ORDER BY loa.start_date DESC
-        `, [req.session.userId]);
-
-        res.render('loa/my-loas', {
-            title: 'My Leave of Absence - Profiteers PMC',
-            loas: loas
-        });
-    } catch (error) {
-        console.error('Error loading LOAs:', error);
-        res.render('error', {
-            title: 'Error',
-            message: 'Error Loading LOAs',
-            description: 'Could not load your leave requests.',
-            user: res.locals.user
-        });
-    }
-});
+router.get('/my-loas', (req, res) => res.redirect('/loa/all'));
 
 router.get('/submit', isAuthenticated, async (req, res) => {
     try {
@@ -240,21 +212,27 @@ router.post('/delete/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-router.get('/all', isAdmin, async (req, res) => {
+router.get('/all', async (req, res) => {
     try {
         const [loas] = await db.query(`
-            SELECT 
+            SELECT
                 loa.*,
                 u.username,
                 u.discord_global_name,
                 u.discord_avatar,
+                u.discord_id,
+                rm.nickname as roster_nickname,
                 sup.username as superior_username,
                 sup.discord_global_name as superior_display_name,
-                rev.username as reviewer_username
+                rev.username as reviewer_username,
+                rev.discord_global_name as reviewer_display_name,
+                rev_rm.nickname as reviewer_roster_nickname
             FROM leave_of_absence loa
             JOIN users u ON loa.user_id = u.id
+            LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
             LEFT JOIN users sup ON loa.superior_id = sup.id
             LEFT JOIN users rev ON loa.reviewed_by = rev.id
+            LEFT JOIN roster_members rev_rm ON rev_rm.discord_id = rev.discord_id
             ORDER BY loa.start_date DESC
         `);
 
@@ -262,10 +240,35 @@ router.get('/all', isAdmin, async (req, res) => {
         const activeLoas = loas.filter(loa => new Date(loa.end_date) >= now && loa.status === 'approved');
         const pastLoas = loas.filter(loa => new Date(loa.end_date) < now || loa.status !== 'approved');
 
+        const isAdmin = req.session.isAdmin || false;
+        const { checkZeusStatus } = require('../middleware/zeus');
+        const isZeus = req.session.userId ? await checkZeusStatus(req.session.userId) : false;
+
+        let myLoas = [];
+        if (req.session.userId) {
+            const [myRows] = await db.query(`
+                SELECT
+                    loa.*,
+                    sup.username as superior_username,
+                    sup.discord_global_name as superior_display_name,
+                    rev.username as reviewer_username
+                FROM leave_of_absence loa
+                LEFT JOIN users sup ON loa.superior_id = sup.id
+                LEFT JOIN users rev ON loa.reviewed_by = rev.id
+                WHERE loa.user_id = ?
+                ORDER BY loa.start_date DESC
+            `, [req.session.userId]);
+            myLoas = myRows;
+        }
+
         res.render('loa/all', {
-            title: 'All Leave of Absence - Admin',
-            activeLoas: activeLoas,
-            pastLoas: pastLoas
+            title: 'Leave of Absence - Profiteers PMC',
+            activeLoas,
+            pastLoas,
+            myLoas,
+            canManage: isAdmin || isZeus,
+            success: req.query.success || null,
+            error: req.query.error || null
         });
     } catch (error) {
         console.error('Error loading all LOAs:', error);
@@ -275,6 +278,32 @@ router.get('/all', isAdmin, async (req, res) => {
             description: 'Could not load leave requests.',
             user: res.locals.user
         });
+    }
+});
+
+router.post('/review/:id', isAdmin, async (req, res) => {
+    try {
+        const [loas] = await db.query('SELECT reviewed_by FROM leave_of_absence WHERE id = ?', [req.params.id]);
+        if (loas.length === 0) return res.redirect('/loa/all?error=LOA not found');
+
+        if (loas[0].reviewed_by) {
+            // Already reviewed — un-acknowledge
+            await db.query(
+                'UPDATE leave_of_absence SET reviewed_by = NULL, reviewed_at = NULL, review_notes = NULL WHERE id = ?',
+                [req.params.id]
+            );
+        } else {
+            const notes = req.body.review_notes || null;
+            await db.query(
+                'UPDATE leave_of_absence SET reviewed_by = ?, reviewed_at = NOW(), review_notes = ? WHERE id = ?',
+                [req.session.userId, notes, req.params.id]
+            );
+        }
+
+        res.redirect('/loa/all');
+    } catch (error) {
+        console.error('Error reviewing LOA:', error);
+        res.redirect('/loa/all?error=Failed to update review');
     }
 });
 

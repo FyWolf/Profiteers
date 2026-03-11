@@ -15,7 +15,13 @@
             <ul class="nav-links" id="navLinks">
                 <li><a href="/">Home</a></li>
                 <li><a href="/about">About & Lore</a></li>
-                <li><a href="/roster">Roster</a></li>
+                <li class="dropdown">
+                    <a href="#" class="dropbtn">Roster ▼</a>
+                    <div class="dropdown-content">
+                        <a href="/roster">Member Roster</a>
+                        <a href="/loa/all">Leave of Absence</a>
+                    </div>
+                </li>
                 <li class="dropdown">
                     <a href="#" class="dropbtn">Operations ▼</a>
                     <div class="dropdown-content">
@@ -37,7 +43,7 @@
                         <a href="#" class="dropbtn"><%= user.username %> ▼</a>
                         <div class="dropdown-content">
                             <a href="/profile">My Profile</a>
-                            <a href="/loa/my-loas">My Leave of Absence</a>
+                            <a href="/loa/all">Leave of Absence</a>
                             <% if (user.isAdmin) { %>
                                 <a href="/admin">Admin Panel</a>
                             <% } %>

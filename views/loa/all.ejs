@@ -2,35 +2,101 @@
 
 <div class="container">
     <header>
-        <h1>ALL LEAVE OF ABSENCE</h1>
-        <div class="subtitle">Staff View - All Member Leave Requests</div>
+        <h1>LEAVE OF ABSENCE</h1>
+        <div class="subtitle">Member Leave Requests</div>
     </header>
 
+    <% if (locals.success) { %>
+        <div class="alert alert-success" style="margin-bottom: 20px;"><%= locals.success %></div>
+    <% } %>
+    <% if (locals.error) { %>
+        <div class="alert alert-danger" style="margin-bottom: 20px;"><%= locals.error %></div>
+    <% } %>
+
+    <%/* ── MY LOAs (logged-in users only) ── */%>
+    <% if (user) { %>
+        <section class="section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>My Leave Requests</h2>
+                <a href="/loa/submit" class="btn btn-primary">➕ Submit New LOA</a>
+            </div>
+
+            <% if (!locals.myLoas || locals.myLoas.length === 0) { %>
+                <div class="card text-center" style="margin-bottom: 10px;">
+                    <p style="margin: 0;">You haven't submitted any leave requests yet. <a href="/loa/submit" style="color: var(--accent);">Submit one</a>.</p>
+                </div>
+            <% } else { %>
+                <%
+                const now_my = new Date();
+                const myActive   = locals.myLoas.filter(l => new Date(l.start_date) <= now_my && new Date(l.end_date) >= now_my && l.status === 'approved');
+                const myUpcoming = locals.myLoas.filter(l => new Date(l.start_date) > now_my && l.status === 'approved');
+                const myPast     = locals.myLoas.filter(l => new Date(l.end_date) < now_my || l.status !== 'approved');
+                %>
+
+                <% if (myActive.length > 0) { %>
+                    <h3 style="color: #e74c3c; margin-bottom: 15px;">🔴 Currently On Leave</h3>
+                    <% myActive.forEach(loa => { %>
+                        <%- include('../partials/loa-card', { loa, showActions: true, isOwn: true }) %>
+                    <% }); %>
+                <% } %>
+
+                <% if (myUpcoming.length > 0) { %>
+                    <h3 style="color: #f39c12; margin: 25px 0 15px;">🟡 Upcoming Leave</h3>
+                    <% myUpcoming.forEach(loa => { %>
+                        <%- include('../partials/loa-card', { loa, showActions: true, isOwn: true }) %>
+                    <% }); %>
+                <% } %>
+
+                <% if (myPast.length > 0) { %>
+                    <details style="margin-top: 25px;">
+                        <summary style="cursor: pointer; padding: 12px 15px; background: rgba(0,0,0,0.2); border-radius: 4px; color: var(--sand); font-weight: 700;">
+                            📋 My Past Leave (<%= myPast.length %>)
+                        </summary>
+                        <div style="margin-top: 15px;">
+                            <% myPast.forEach(loa => { %>
+                                <%- include('../partials/loa-card', { loa, showActions: false, isOwn: true }) %>
+                            <% }); %>
+                        </div>
+                    </details>
+                <% } %>
+            <% } %>
+        </section>
+
+        <hr style="border: none; border-top: 1px solid var(--olive); margin: 10px 0 30px; opacity: 0.4;">
+    <% } %>
+
+    <%/* ── COMMUNITY LOA LIST ── */%>
     <section class="section">
         <% if (activeLoas.length > 0) { %>
             <h2 style="color: #e74c3c; margin-bottom: 20px;">🔴 Currently On Leave (<%= activeLoas.length %>)</h2>
             <% activeLoas.forEach(loa => { %>
+                <%
+                const displayName = loa.roster_nickname || loa.discord_global_name || loa.username;
+                const isReviewed = !!loa.reviewed_by;
+                const reviewerName = loa.reviewer_roster_nickname || loa.reviewer_display_name || loa.reviewer_username;
+                %>
                 <div class="card" style="margin-bottom: 15px; border-left: 4px solid #e74c3c;">
                     <div style="display: flex; align-items: start; gap: 15px;">
-                        <% if (loa.discord_avatar) { %>
+                        <% if (loa.discord_avatar && loa.discord_id) { %>
                             <img src="https://cdn.discordapp.com/avatars/<%= loa.discord_id %>/<%= loa.discord_avatar %>.png?size=128"
-                                 style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid #e74c3c;">
+                                 style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid #e74c3c; flex-shrink: 0;">
                         <% } else { %>
-                            <div style="width: 50px; height: 50px; border-radius: 50%; background: #e74c3c; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white;">
-                                <%= (loa.discord_global_name || loa.username).charAt(0).toUpperCase() %>
+                            <div style="width: 50px; height: 50px; border-radius: 50%; background: #e74c3c; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 1.2em; flex-shrink: 0;">
+                                <%= displayName.charAt(0).toUpperCase() %>
                             </div>
                         <% } %>
 
-                        <div style="flex: 1;">
-                            <h3 style="color: var(--sand); margin-bottom: 8px;">
-                                <%= loa.discord_global_name || loa.username %>
-                            </h3>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">
+                                <h3 style="color: var(--sand); margin: 0;"><%= displayName %></h3>
+                                <% if (isReviewed) { %>
+                                    <span style="padding: 2px 8px; background: rgba(39,174,96,0.2); color: #27ae60; border: 1px solid #27ae60; border-radius: 3px; font-size: 0.75em; font-weight: 700;">✓ ACKNOWLEDGED</span>
+                                <% } %>
+                            </div>
 
-                            <div style="margin-bottom: 8px;">
-                                <div style="color: var(--khaki); font-size: 0.95em;">
-                                    📅 <%= new Date(loa.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %>
-                                    → <%= new Date(loa.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %>
-                                </div>
+                            <div style="color: var(--khaki); font-size: 0.95em; margin-bottom: 8px;">
+                                📅 <%= new Date(loa.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %>
+                                → <%= new Date(loa.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %>
                             </div>
 
                             <% if (loa.superior_display_name || loa.superior_username) { %>
@@ -39,14 +105,27 @@
                                 </div>
                             <% } %>
 
-                            <div style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; margin-top: 10px;">
-                                <div style="color: var(--olive-light); font-weight: 700; font-size: 0.85em; margin-bottom: 4px;">
-                                    Reason:
+                            <% if (canManage) { %>
+                                <div style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; margin-top: 10px; margin-bottom: 10px;">
+                                    <div style="color: var(--olive-light); font-weight: 700; font-size: 0.85em; margin-bottom: 4px;">Reason:</div>
+                                    <div style="color: var(--khaki); font-size: 0.9em;"><%= loa.reason %></div>
+                                    <% if (isReviewed && reviewerName) { %>
+                                        <div style="color: var(--khaki); font-size: 0.8em; margin-top: 8px; opacity: 0.7;">
+                                            Acknowledged by <%= reviewerName %> on <%= new Date(loa.reviewed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                                            <% if (loa.review_notes) { %> — <%= loa.review_notes %><% } %>
+                                        </div>
+                                    <% } %>
                                 </div>
-                                <div style="color: var(--khaki); font-size: 0.9em;">
-                                    <%= loa.reason %>
-                                </div>
-                            </div>
+
+                                <form method="POST" action="/loa/review/<%= loa.id %>" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                    <% if (!isReviewed) { %>
+                                        <input type="text" name="review_notes" placeholder="Optional note..." style="flex: 1; min-width: 160px; padding: 4px 8px; font-size: 0.85em; background: rgba(0,0,0,0.3); border: 1px solid var(--olive); color: var(--sand); border-radius: 3px;">
+                                        <button type="submit" class="btn" style="padding: 4px 12px; font-size: 0.85em; background: rgba(39,174,96,0.2); border-color: #27ae60; color: #27ae60;">✓ Acknowledge</button>
+                                    <% } else { %>
+                                        <button type="submit" class="btn" style="padding: 4px 12px; font-size: 0.85em; opacity: 0.6;">↩ Un-acknowledge</button>
+                                    <% } %>
+                                </form>
+                            <% } %>
                         </div>
                     </div>
                 </div>
@@ -60,52 +139,74 @@
 
         <% if (pastLoas.length > 0) { %>
             <h2 style="color: var(--khaki); margin: 40px 0 20px;">📋 Past & Upcoming Leave (<%= pastLoas.length %>)</h2>
-            
+
             <details style="margin-bottom: 20px;">
                 <summary style="cursor: pointer; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 4px; color: var(--sand); font-weight: 700;">
                     Show All Past & Upcoming Leave (<%= pastLoas.length %>)
                 </summary>
-                
+
                 <div style="margin-top: 15px;">
                     <% pastLoas.forEach(loa => { %>
                         <%
-                        const now = new Date();
-                        const startDate = new Date(loa.start_date);
-                        const endDate = new Date(loa.end_date);
-                        const isUpcoming = startDate > now;
-                        const borderColor = isUpcoming ? '#f39c12' : '#95a5a6';
+                        const now2 = new Date();
+                        const startDate2 = new Date(loa.start_date);
+                        const endDate2 = new Date(loa.end_date);
+                        const isUpcoming2 = startDate2 > now2;
+                        const borderColor2 = isUpcoming2 ? '#f39c12' : '#95a5a6';
+                        const displayName2 = loa.roster_nickname || loa.discord_global_name || loa.username;
+                        const isReviewed2 = !!loa.reviewed_by;
+                        const reviewerName2 = loa.reviewer_roster_nickname || loa.reviewer_display_name || loa.reviewer_username;
                         %>
-                        
-                        <div class="card" style="margin-bottom: 15px; border-left: 4px solid <%= borderColor %>; opacity: 0.8;">
+
+                        <div class="card" style="margin-bottom: 15px; border-left: 4px solid <%= borderColor2 %>; opacity: 0.8;">
                             <div style="display: flex; align-items: start; gap: 15px;">
-                                <% if (loa.discord_avatar) { %>
+                                <% if (loa.discord_avatar && loa.discord_id) { %>
                                     <img src="https://cdn.discordapp.com/avatars/<%= loa.discord_id %>/<%= loa.discord_avatar %>.png?size=128"
-                                         style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid <%= borderColor %>;">
+                                         style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid <%= borderColor2 %>; flex-shrink: 0;">
                                 <% } else { %>
-                                    <div style="width: 40px; height: 40px; border-radius: 50%; background: <%= borderColor %>; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 0.9em;">
-                                        <%= (loa.discord_global_name || loa.username).charAt(0).toUpperCase() %>
+                                    <div style="width: 40px; height: 40px; border-radius: 50%; background: <%= borderColor2 %>; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 0.9em; flex-shrink: 0;">
+                                        <%= displayName2.charAt(0).toUpperCase() %>
                                     </div>
                                 <% } %>
 
-                                <div style="flex: 1;">
-                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-                                        <h4 style="color: var(--sand); margin: 0;">
-                                            <%= loa.discord_global_name || loa.username %>
-                                        </h4>
-                                        <span style="padding: 2px 8px; background: <%= borderColor %>; color: white; border-radius: 3px; font-size: 0.75em; font-weight: 700;">
-                                            <%= isUpcoming ? 'UPCOMING' : 'ENDED' %>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px;">
+                                        <h4 style="color: var(--sand); margin: 0;"><%= displayName2 %></h4>
+                                        <span style="padding: 2px 8px; background: <%= borderColor2 %>; color: white; border-radius: 3px; font-size: 0.75em; font-weight: 700;">
+                                            <%= isUpcoming2 ? 'UPCOMING' : 'ENDED' %>
                                         </span>
+                                        <% if (isReviewed2) { %>
+                                            <span style="padding: 2px 8px; background: rgba(39,174,96,0.15); color: #27ae60; border: 1px solid #27ae60; border-radius: 3px; font-size: 0.75em; font-weight: 700;">✓ ACK</span>
+                                        <% } %>
                                     </div>
 
                                     <div style="color: var(--khaki); font-size: 0.85em;">
-                                        <%= startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
-                                        → <%= endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                                        <%= startDate2.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                                        → <%= endDate2.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
                                     </div>
 
                                     <% if (loa.superior_display_name || loa.superior_username) { %>
                                         <div style="color: var(--khaki); font-size: 0.8em; margin-top: 4px;">
                                             👤 <%= loa.superior_display_name || loa.superior_username %>
                                         </div>
+                                    <% } %>
+
+                                    <% if (canManage) { %>
+                                        <div style="padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; margin-top: 8px;">
+                                            <div style="color: var(--olive-light); font-weight: 700; font-size: 0.8em; margin-bottom: 3px;">Reason:</div>
+                                            <div style="color: var(--khaki); font-size: 0.85em;"><%= loa.reason %></div>
+                                            <% if (isReviewed2 && reviewerName2) { %>
+                                                <div style="color: var(--khaki); font-size: 0.75em; margin-top: 6px; opacity: 0.7;">
+                                                    ✓ Acknowledged by <%= reviewerName2 %>
+                                                    <% if (loa.review_notes) { %> — <%= loa.review_notes %><% } %>
+                                                </div>
+                                            <% } %>
+                                        </div>
+                                        <% if (!isReviewed2) { %>
+                                            <form method="POST" action="/loa/review/<%= loa.id %>" style="margin-top: 8px;">
+                                                <button type="submit" class="btn" style="padding: 3px 10px; font-size: 0.8em; background: rgba(39,174,96,0.2); border-color: #27ae60; color: #27ae60;">✓ Acknowledge</button>
+                                            </form>
+                                        <% } %>
                                     <% } %>
                                 </div>
                             </div>
@@ -117,7 +218,9 @@
     </section>
 
     <section class="section">
-        <a href="/admin" class="btn">← Back to Admin Dashboard</a>
+        <% if (canManage) { %>
+            <a href="/admin" class="btn">← Back to Admin Dashboard</a>
+        <% } %>
     </section>
 </div>
 
