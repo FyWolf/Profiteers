@@ -20,12 +20,22 @@ function renderPubRoleCard(role, squad, canEdit) {
         avatarHtml = `<div style="width:20px;height:20px;border-radius:50%;border:1px dashed rgba(178,178,125,0.25);flex-shrink:0;"></div>`;
     }
 
+    const nameText = assignment ? esc(assignment.roster_nickname || assignment.discord_global_name || assignment.username) : null;
+
     const playerSlot = assignment
-        ? `<a href="/profile/${assignment.user_id}" style="display:flex;align-items:center;gap:5px;flex:1;min-width:0;text-decoration:none;overflow:hidden;">
-            ${avatarHtml}<span style="font-size:0.8em;color:var(--sand);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(assignment.roster_nickname || assignment.discord_global_name || assignment.username)}</span>
+        ? `<a href="/profile/${assignment.user_id}" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;text-decoration:none;overflow:hidden;">
+            ${avatarHtml}
+            <div style="min-width:0;overflow:hidden;">
+                <div style="font-size:0.77em;font-weight:700;color:${squad.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(role.role_name)}">${esc(role.role_name)}</div>
+                <div style="font-size:0.72em;color:var(--sand);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nameText}</div>
+            </div>
            </a>`
-        : `<div style="display:flex;align-items:center;gap:5px;flex:1;min-width:0;">
-            ${avatarHtml}<span style="font-size:0.8em;color:var(--khaki);opacity:0.4;font-style:italic;">empty</span>
+        : `<div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
+            ${avatarHtml}
+            <div style="min-width:0;overflow:hidden;">
+                <div style="font-size:0.77em;font-weight:700;color:${squad.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(role.role_name)}">${esc(role.role_name)}</div>
+                <div style="font-size:0.72em;color:var(--khaki);opacity:0.4;font-style:italic;white-space:nowrap;">empty</div>
+            </div>
            </div>`;
 
     let actionBtns = '';
@@ -53,7 +63,6 @@ function renderPubRoleCard(role, squad, canEdit) {
 
     return `<div data-role-id="${role.id}" style="border-bottom:1px solid rgba(255,255,255,0.04);${canEdit ? ' cursor:grab;' : ''}">
         <div id="roleView_${role.id}" style="display:flex;align-items:center;gap:6px;padding:5px 8px;">
-            <div style="font-size:0.77em;font-weight:700;color:${squad.color};width:95px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(role.role_name)}">${esc(role.role_name)}</div>
             ${playerSlot}
             ${actionBtns}
         </div>
@@ -64,26 +73,72 @@ function renderPubRoleCard(role, squad, canEdit) {
 function renderPubSquadCard(squad) {
     const canEdit = user && editorSquadIds && editorSquadIds.includes(squad.id);
     const roles = rolesBySquad[squad.id] || [];
+    const teams = teamsBySquad[squad.id] || [];
 
     const yourSquadBadge = canEdit
         ? `<span style="font-size: 0.55em; font-weight: 700; background: rgba(52,152,219,0.2); color: #3498DB; border: 1px solid #3498DB; padding: 2px 8px; border-radius: 3px; vertical-align: middle; letter-spacing: 0.05em;">YOUR SQUAD</span>`
         : '';
 
-    // Editors can delete sub-groups they manage (only if squad has a parent — can't delete root)
     const canDeleteThisSquad = canEdit && squad.parent_squad_id;
     const deleteBtn = canDeleteThisSquad
         ? `<button onclick="deleteSquad(${squad.id})" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.8em; margin-left: 8px;" title="Delete sub-group">🗑️</button>`
         : '';
 
-    let rolesHtml = '';
-    if (roles.length === 0) {
-        rolesHtml = `<p style="color: var(--khaki); opacity: 0.7; font-size: 0.9em; font-style: italic;">No roles defined</p>`;
+    const unassigned = roles.filter(r => !r.team_id);
+    let unassignedHtml;
+    if (roles.length === 0 && teams.length === 0) {
+        unassignedHtml = `<div id="unassigned-${squad.id}" data-team-roles="${squad.id}" data-team-id="" style="min-height:6px;"><p style="color: var(--khaki); opacity: 0.7; font-size: 0.9em; font-style: italic;">No roles defined</p></div>`;
     } else {
-        rolesHtml = `<div id="roleList_${squad.id}" style="display:flex;flex-direction:column;">${roles.map(r => renderPubRoleCard(r, squad, canEdit)).join('')}</div>`;
+        unassignedHtml = `<div id="unassigned-${squad.id}" data-team-roles="${squad.id}" data-team-id="" style="min-height:6px;">
+            ${teams.length > 0 && unassigned.length > 0 ? `<div style="padding:2px 8px 0;font-size:0.63em;color:var(--khaki);opacity:0.5;text-transform:uppercase;letter-spacing:0.06em;">Ungrouped</div>` : ''}
+            ${unassigned.map(r => renderPubRoleCard(r, squad, canEdit)).join('')}
+        </div>`;
     }
 
+    const teamsHtml = teams.map(team => {
+        const teamRoles = roles.filter(r => r.team_id === team.id);
+        const teamMgmtBtns = canEdit
+            ? `<div style="display:flex;gap:2px;flex-shrink:0;">
+                <button onclick="startEditTeam(${team.id})" class="btn" style="padding:1px 5px;font-size:0.65em;" title="Rename">✏️</button>
+                <button onclick="deleteTeam(${team.id})" class="btn btn-danger" style="padding:1px 5px;font-size:0.65em;" title="Delete team">🗑️</button>
+               </div>`
+            : '';
+        const teamEditForm = canEdit
+            ? `<div id="editTeamForm_${team.id}" style="display:none;padding:4px 8px;background:rgba(0,0,0,0.25);">
+                <div style="display:flex;gap:4px;align-items:center;">
+                    <input type="text" id="editTeamName_${team.id}" value="${esc(team.name)}" style="flex:1;margin:0;font-size:0.82em;padding:3px 6px;">
+                    <input type="color" id="editTeamColor_${team.id}" value="${esc(team.color)}" style="width:28px;height:28px;flex-shrink:0;border:none;background:none;cursor:pointer;padding:0;">
+                    <button onclick="submitEditTeam(${team.id})" class="btn btn-primary" style="flex-shrink:0;padding:2px 8px;font-size:0.78em;">Save</button>
+                    <button onclick="document.getElementById('editTeamForm_${team.id}').style.display='none'" class="btn" style="flex-shrink:0;padding:2px 6px;font-size:0.78em;">✕</button>
+                </div>
+               </div>`
+            : '';
+        return `<div data-team-block="${team.id}">
+            <div class="team-hdr" style="${canEdit ? 'cursor:grab;' : ''}display:flex;align-items:center;gap:4px;padding:3px 8px;margin-top:4px;background:rgba(0,0,0,0.25);border-left:3px solid ${team.color};">
+                <span style="font-size:0.7em;font-weight:700;color:${team.color};flex:1;letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(team.name)}</span>
+                ${teamMgmtBtns}
+            </div>
+            ${teamEditForm}
+            <div id="team-roles-${team.id}" data-team-roles="${squad.id}" data-team-id="${team.id}" style="min-height:10px;">
+                ${teamRoles.map(r => renderPubRoleCard(r, squad, canEdit)).join('')}
+            </div>
+        </div>`;
+    }).join('');
+
+    const addTeamHtml = canEdit
+        ? `<div id="addTeamForm_${squad.id}" style="display:none;margin-top:6px;padding:6px 8px;background:rgba(0,0,0,0.2);border-radius:4px;border:1px dashed ${squad.color};">
+            <div style="display:flex;gap:4px;align-items:center;">
+                <input type="text" id="addTeamName_${squad.id}" placeholder="Team name..." style="flex:1;min-width:0;margin:0;font-size:0.82em;padding:4px 6px;">
+                <input type="color" id="addTeamColor_${squad.id}" value="${squad.color}" style="width:28px;height:28px;flex-shrink:0;border:none;background:none;cursor:pointer;padding:0;">
+                <button onclick="submitAddTeam(${squad.id})" class="btn btn-primary" style="flex-shrink:0;height:28px;padding:0 8px;font-size:0.8em;">➕</button>
+                <button onclick="document.getElementById('addTeamForm_${squad.id}').style.display='none'" class="btn" style="flex-shrink:0;height:28px;padding:0 6px;font-size:0.8em;">✕</button>
+            </div>
+           </div>
+           <button onclick="toggleAddTeam(${squad.id})" class="btn" style="margin-top:5px;width:100%;background:rgba(0,0,0,0.15);border:1px dashed rgba(178,178,125,0.3);font-size:0.75em;padding:3px;">➕ Add Team</button>`
+        : '';
+
     const addRoleSection = canEdit
-        ? `<div style="margin-top: 12px; padding: 10px; border: 2px dashed ${squad.color}; border-radius: 4px; background: rgba(0,0,0,0.2); overflow: hidden;">
+        ? `<div style="margin-top: 8px; padding: 8px; border: 2px dashed ${squad.color}; border-radius: 4px; background: rgba(0,0,0,0.2); overflow: hidden;">
             <div style="display: flex; gap: 6px; align-items: center; min-width: 0;">
                 <input type="text" id="newRoleName_${squad.id}" placeholder="New slot name..."
                        style="flex: 1; min-width: 0; padding: 6px 8px; background: rgba(40,40,40,0.9); color: var(--sand); border: 1px solid var(--olive); border-radius: 4px; font-size: 0.88em; margin: 0;"
@@ -112,7 +167,9 @@ function renderPubSquadCard(squad) {
                 ${deleteBtn}
             </div>
         </div>
-        ${rolesHtml}
+        ${unassignedHtml}
+        <div id="teams-order-${squad.id}">${teamsHtml}</div>
+        ${addTeamHtml}
         ${addRoleSection}
         ${addSubgroupSection}
     </div>`;
@@ -335,28 +392,118 @@ async function addRole(squadId) {
     } catch { alert('Failed to add slot'); }
 }
 
+function toggleAddTeam(squadId) {
+    const form = document.getElementById('addTeamForm_' + squadId);
+    if (form.style.display === 'none') {
+        form.style.display = 'block';
+        document.getElementById('addTeamName_' + squadId).focus();
+    } else {
+        form.style.display = 'none';
+    }
+}
+
+async function submitAddTeam(squadId) {
+    const nameInput = document.getElementById('addTeamName_' + squadId);
+    const colorInput = document.getElementById('addTeamColor_' + squadId);
+    const name = nameInput.value.trim();
+    if (!name) { nameInput.focus(); return; }
+    try {
+        const r = await fetch(`/orbat/api/squads/${squadId}/add-team`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, color: colorInput.value })
+        });
+        const d = await r.json();
+        if (d.success) location.reload(); else alert(d.error || 'Failed to add team');
+    } catch { alert('Failed to add team'); }
+}
+
+function startEditTeam(teamId) {
+    const form = document.getElementById('editTeamForm_' + teamId);
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function submitEditTeam(teamId) {
+    const name = document.getElementById('editTeamName_' + teamId).value.trim();
+    const color = document.getElementById('editTeamColor_' + teamId).value;
+    if (!name) return;
+    try {
+        const r = await fetch(`/orbat/api/teams/${teamId}/edit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, color })
+        });
+        const d = await r.json();
+        if (d.success) location.reload(); else alert(d.error || 'Failed to update team');
+    } catch { alert('Failed to update team'); }
+}
+
+async function deleteTeam(teamId) {
+    if (!confirm('Delete this team? Roles will become ungrouped.')) return;
+    try {
+        const r = await fetch(`/orbat/api/teams/${teamId}/delete`, { method: 'POST' });
+        const d = await r.json();
+        if (d.success) location.reload(); else alert(d.error || 'Failed to delete team');
+    } catch { alert('Failed to delete team'); }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     <% squads.forEach(squad => { %>
     <% const canEditThis = user && editorSquadIds && editorSquadIds.includes(squad.id); %>
     <% if (canEditThis) { %>
-    if (document.getElementById('roleList_<%= squad.id %>')) {
-        new Sortable(document.getElementById('roleList_<%= squad.id %>'), {
+    {
+    document.querySelectorAll('[data-team-roles="<%= squad.id %>"]').forEach(container => {
+        new Sortable(container, {
+            group: 'roles-<%= squad.id %>',
             animation: 150,
             ghostClass: 'sortable-ghost',
             handle: '[data-role-id]',
-            onEnd: async function() {
-                const container = document.getElementById('roleList_<%= squad.id %>');
-                const roleIds = Array.from(container.querySelectorAll('[data-role-id]')).map(el => el.getAttribute('data-role-id'));
+            onEnd: async function(evt) {
+                const roleId = evt.item.getAttribute('data-role-id');
+                const newTeamId = evt.to.getAttribute('data-team-id') || null;
+                const oldTeamId = evt.from.getAttribute('data-team-id') || null;
+                if (String(newTeamId) !== String(oldTeamId)) {
+                    try {
+                        await fetch(`/orbat/api/roles/${roleId}/set-team`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ teamId: newTeamId ? parseInt(newTeamId) : null })
+                        });
+                    } catch(e) { console.error('Failed to set team:', e); }
+                }
+                const allRoleIds = [];
+                document.querySelectorAll('[data-team-roles="<%= squad.id %>"] [data-role-id]').forEach(el => {
+                    allRoleIds.push(el.getAttribute('data-role-id'));
+                });
                 try {
                     await fetch('/orbat/api/squads/<%= squad.id %>/reorder-roles', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ roleIds })
+                        body: JSON.stringify({ roleIds: allRoleIds })
                     });
-                } catch (e) { console.error('Failed to save role order:', e); }
+                } catch(e) { console.error('Failed to reorder roles:', e); }
+            }
+        });
+    });
+    const teamsOrderEl = document.getElementById('teams-order-<%= squad.id %>');
+    if (teamsOrderEl) {
+        new Sortable(teamsOrderEl, {
+            animation: 150,
+            handle: '.team-hdr',
+            ghostClass: 'sortable-ghost',
+            onEnd: async function() {
+                const teamIds = Array.from(teamsOrderEl.querySelectorAll('[data-team-block]')).map(el => el.getAttribute('data-team-block'));
+                try {
+                    await fetch('/orbat/api/squads/<%= squad.id %>/reorder-teams', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ teamIds })
+                    });
+                } catch(e) { console.error('Failed to reorder teams:', e); }
             }
         });
     }
+    } // end block scope for squad
     <% } %>
     <% }); %>
 });

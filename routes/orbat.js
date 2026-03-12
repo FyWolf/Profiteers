@@ -145,20 +145,30 @@ router.get('/view/:templateId', async (req, res) => {
         
         const rolesBySquad = {};
         const assignments = {};
-        
+        const teamsBySquad = {};
+
         if (squads.length > 0) {
             const squadIds = squads.map(s => s.id);
             const [roles] = await db.query(`
-                SELECT * FROM orbat_roles 
+                SELECT * FROM orbat_roles
                 WHERE squad_id IN (?)
                 ORDER BY display_order ASC
             `, [squadIds]);
-            
+
             roles.forEach(role => {
                 if (!rolesBySquad[role.squad_id]) {
                     rolesBySquad[role.squad_id] = [];
                 }
                 rolesBySquad[role.squad_id].push(role);
+            });
+
+            const [teams] = await db.query(
+                'SELECT * FROM orbat_teams WHERE squad_id IN (?) ORDER BY display_order ASC',
+                [squadIds]
+            );
+            teams.forEach(t => {
+                if (!teamsBySquad[t.squad_id]) teamsBySquad[t.squad_id] = [];
+                teamsBySquad[t.squad_id].push(t);
             });
 
             const roleIds = roles.map(r => r.id);
@@ -215,6 +225,7 @@ router.get('/view/:templateId', async (req, res) => {
             squadTree: buildTree(squads),
             rolesBySquad: rolesBySquad,
             assignments: assignments,
+            teamsBySquad: teamsBySquad,
             editorSquadIds: editorSquadIds
         });
     } catch (error) {
@@ -320,9 +331,22 @@ router.get('/templates/edit/:id', isAdmin, async (req, res) => {
             rolesBySquad[role.squad_id].push(role);
         });
 
+        const squadIds = squads.map(s => s.id);
+        const teamsBySquad = {};
+        if (squadIds.length > 0) {
+            const [teams] = await db.query(
+                'SELECT * FROM orbat_teams WHERE squad_id IN (?) ORDER BY display_order ASC',
+                [squadIds]
+            );
+            teams.forEach(t => {
+                if (!teamsBySquad[t.squad_id]) teamsBySquad[t.squad_id] = [];
+                teamsBySquad[t.squad_id].push(t);
+            });
+        }
+
         const roleIds = roles.map(r => r.id);
         const assignmentsByRole = {};
-        
+
         if (roleIds.length > 0) {
             const [assignments] = await db.query(`
                 SELECT
@@ -349,6 +373,7 @@ router.get('/templates/edit/:id', isAdmin, async (req, res) => {
             squads: squads,
             squadTree: buildTree(squads),
             rolesBySquad: rolesBySquad,
+            teamsBySquad: teamsBySquad,
             assignmentsByRole: assignmentsByRole,
             success: req.query.success || null,
             error: req.query.error || null
@@ -519,6 +544,7 @@ router.get('/operation/:operationId', async (req, res) => {
         let squads = [];
         let rolesBySquad = {};
         let assignments = {};
+        let teamsBySquad = {};
 
         if (operation.orbat_type === 'fixed' && operation.orbat_template_id) {
             [squads] = await db.query(`
@@ -549,6 +575,15 @@ router.get('/operation/:operationId', async (req, res) => {
                     rolesBySquad[role.squad_id] = [];
                 }
                 rolesBySquad[role.squad_id].push(role);
+            });
+
+            const [teams] = await db.query(
+                'SELECT * FROM orbat_teams WHERE squad_id IN (?) ORDER BY display_order ASC',
+                [squadIds]
+            );
+            teams.forEach(t => {
+                if (!teamsBySquad[t.squad_id]) teamsBySquad[t.squad_id] = [];
+                teamsBySquad[t.squad_id].push(t);
             });
 
             const roleIds = roles.map(r => r.id);
@@ -591,6 +626,7 @@ router.get('/operation/:operationId', async (req, res) => {
             squads: squads,
             squadTree: buildTree(squads),
             rolesBySquad: rolesBySquad,
+            teamsBySquad: teamsBySquad,
             assignments: assignments,
             canManage: canManage,
             canClaim: canClaim
@@ -918,7 +954,8 @@ router.post('/api/squads/:squadId/reorder-roles', isAuthenticated, async (req, r
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
         if (!userIsZeus) {
-            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, req.params.squadId);
+            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, req.params.squadId)
+                || await isHostOfSquadOperation(req.session.userId, req.params.squadId);
             if (!canEdit) {
                 return res.status(403).json({ success: false, error: 'Permission denied' });
             }
@@ -1040,6 +1077,116 @@ router.post('/api/squads/:id/delete', isAuthenticated, async (req, res) => {
     } catch (error) {
         console.error('Error deleting squad:', error);
         res.json({ success: false, error: 'Failed to delete squad' });
+    }
+});
+
+// ── Team management ────────────────────────────────────────────────────────
+
+router.post('/api/squads/:squadId/add-team', isAuthenticated, async (req, res) => {
+    try {
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus) {
+            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, req.params.squadId)
+                || await isHostOfSquadOperation(req.session.userId, req.params.squadId);
+            if (!canEdit) return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
+        const { name, color } = req.body;
+        if (!name?.trim()) return res.json({ success: false, error: 'Team name is required' });
+        const [maxOrder] = await db.query('SELECT MAX(display_order) as max FROM orbat_teams WHERE squad_id = ?', [req.params.squadId]);
+        const nextOrder = (maxOrder[0]?.max ?? -1) + 1;
+        const [result] = await db.query(
+            'INSERT INTO orbat_teams (squad_id, name, color, display_order) VALUES (?, ?, ?, ?)',
+            [req.params.squadId, name.trim(), color || '#6b8e23', nextOrder]
+        );
+        res.json({ success: true, teamId: result.insertId });
+    } catch (error) {
+        console.error('Error adding team:', error);
+        res.json({ success: false, error: 'Failed to add team' });
+    }
+});
+
+router.post('/api/teams/:teamId/edit', isAuthenticated, async (req, res) => {
+    try {
+        const [teamRows] = await db.query('SELECT squad_id FROM orbat_teams WHERE id = ?', [req.params.teamId]);
+        if (!teamRows.length) return res.json({ success: false, error: 'Team not found' });
+        const squadId = teamRows[0].squad_id;
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus) {
+            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, squadId)
+                || await isHostOfSquadOperation(req.session.userId, squadId);
+            if (!canEdit) return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
+        const { name, color } = req.body;
+        if (!name?.trim()) return res.json({ success: false, error: 'Team name is required' });
+        await db.query('UPDATE orbat_teams SET name = ?, color = ? WHERE id = ?', [name.trim(), color || '#6b8e23', req.params.teamId]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error editing team:', error);
+        res.json({ success: false, error: 'Failed to edit team' });
+    }
+});
+
+router.post('/api/teams/:teamId/delete', isAuthenticated, async (req, res) => {
+    try {
+        const [teamRows] = await db.query('SELECT squad_id FROM orbat_teams WHERE id = ?', [req.params.teamId]);
+        if (!teamRows.length) return res.json({ success: false, error: 'Team not found' });
+        const squadId = teamRows[0].squad_id;
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus) {
+            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, squadId)
+                || await isHostOfSquadOperation(req.session.userId, squadId);
+            if (!canEdit) return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
+        await db.query('DELETE FROM orbat_teams WHERE id = ?', [req.params.teamId]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting team:', error);
+        res.json({ success: false, error: 'Failed to delete team' });
+    }
+});
+
+router.post('/api/squads/:squadId/reorder-teams', isAuthenticated, async (req, res) => {
+    try {
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus) {
+            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, req.params.squadId)
+                || await isHostOfSquadOperation(req.session.userId, req.params.squadId);
+            if (!canEdit) return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
+        const { teamIds } = req.body;
+        if (!Array.isArray(teamIds)) return res.json({ success: false, error: 'Invalid data' });
+        for (let i = 0; i < teamIds.length; i++) {
+            await db.query('UPDATE orbat_teams SET display_order = ? WHERE id = ? AND squad_id = ?', [i, teamIds[i], req.params.squadId]);
+        }
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error reordering teams:', error);
+        res.json({ success: false, error: 'Failed to reorder teams' });
+    }
+});
+
+router.post('/api/roles/:roleId/set-team', isAuthenticated, async (req, res) => {
+    try {
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus) {
+            const canEdit = await isSquadEditor(req.session.userId, req.params.roleId)
+                || await isHostOfRoleOperation(req.session.userId, req.params.roleId);
+            if (!canEdit) return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
+        const { teamId } = req.body;
+        if (teamId) {
+            const [check] = await db.query(`
+                SELECT 1 FROM orbat_teams t
+                JOIN orbat_roles r ON r.squad_id = t.squad_id
+                WHERE t.id = ? AND r.id = ?
+            `, [teamId, req.params.roleId]);
+            if (!check.length) return res.json({ success: false, error: 'Team not in same squad as role' });
+        }
+        await db.query('UPDATE orbat_roles SET team_id = ? WHERE id = ?', [teamId || null, req.params.roleId]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error setting team:', error);
+        res.json({ success: false, error: 'Failed to set team' });
     }
 });
 

@@ -577,7 +577,7 @@ footer {
 .org-col:only-child::after { display: none; }
 
 .orbat-squad-card {
-    min-width: 300px;
-    max-width: 420px;
+    min-width: 180px;
+    max-width: 260px;
 }
 
