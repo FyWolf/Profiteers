@@ -77,7 +77,7 @@ router.get('/', async (req, res) => {
         });
     } catch (error) {
         console.error('Error loading modpacks:', error);
-        res.render('error', { title: 'Error', message: 'Failed to load modpacks.' });
+        res.render('error', { title: 'Error', message: 'Error', description: 'Failed to load modpacks.', user: res.locals.user });
     }
 });
 
@@ -91,7 +91,7 @@ router.get('/:id', async (req, res) => {
         `, [req.params.id]);
 
         if (modpacks.length === 0) {
-            return res.render('error', { title: 'Not Found', message: 'Modpack not found.' });
+            return res.status(404).render('error', { title: 'Not Found', message: 'Not Found', description: 'Modpack not found.', user: res.locals.user });
         }
 
         const modpack = modpacks[0];
@@ -115,7 +115,7 @@ router.get('/:id', async (req, res) => {
         });
     } catch (error) {
         console.error('Error loading modpack:', error);
-        res.render('error', { title: 'Error', message: 'Failed to load modpack.' });
+        res.render('error', { title: 'Error', message: 'Error', description: 'Failed to load modpack.', user: res.locals.user });
     }
 });
 
