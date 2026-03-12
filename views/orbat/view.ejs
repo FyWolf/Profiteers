@@ -22,7 +22,7 @@ function renderRoleCard(role, squad) {
     let avatarHtml = '';
     if (assignment) {
         if (assignment.discord_avatar) {
-            avatarHtml = `<img src="https://cdn.discordapp.com/avatars/${esc(assignment.discord_id)}/${esc(assignment.discord_avatar)}.png?size=32" style="width: 20px; height: 20px; border-radius: 50%; border: 1px solid ${squad.color}; flex-shrink: 0;">`;
+            avatarHtml = `<img src="https://cdn.discordapp.com/avatars/${esc(assignment.discord_id)}/${esc(assignment.discord_avatar)}.png?size=32" style="width:20px;height:20px;border-radius:50%;border:1px solid ${squad.color};flex-shrink:0;display:block;margin:auto 0;">`;
         } else {
             const initial = esc((assignment.roster_nickname || assignment.discord_global_name || assignment.username).charAt(0).toUpperCase());
             avatarHtml = `<div style="width: 20px; height: 20px; border-radius: 50%; background: ${squad.color}; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 0.62em; flex-shrink: 0;">${initial}</div>`;
@@ -43,9 +43,13 @@ function renderRoleCard(role, squad) {
         loaIcon = `<span title="${tip}" style="flex-shrink:0;font-size:0.72em;cursor:help;">🛑</span>`;
     }
 
-    const nameDisplay = assignment
-        ? esc(assignment.roster_nickname || assignment.discord_global_name || assignment.username)
-        : `<span style="color:var(--khaki);opacity:0.4;font-style:italic;">empty</span>`;
+    const playerSlot = assignment
+        ? `<a href="/profile/${assignment.user_id}" style="display:flex;align-items:center;gap:5px;flex:1;min-width:0;text-decoration:none;overflow:hidden;">
+            ${avatarHtml}<span style="font-size:0.8em;color:var(--sand);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(assignment.roster_nickname || assignment.discord_global_name || assignment.username)}</span>
+           </a>`
+        : `<div style="display:flex;align-items:center;gap:5px;flex:1;min-width:0;">
+            ${avatarHtml}<span style="font-size:0.8em;color:var(--khaki);opacity:0.4;font-style:italic;">empty</span>
+           </div>`;
 
     // Buttons — compact icon-size
     let buttonsHtml = '';
@@ -70,8 +74,7 @@ function renderRoleCard(role, squad) {
 
     return `<div data-role-id="${role.id}" style="display:flex;align-items:center;gap:6px;padding:5px 8px;opacity:${opacity};transition:opacity 0.2s;border-bottom:1px solid rgba(255,255,255,0.04);${grabStyle}">
         <div style="font-size:0.77em;font-weight:700;color:${squad.color};width:95px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(role.role_name)}">${esc(role.role_name)}</div>
-        ${avatarHtml}
-        <div style="flex:1;min-width:0;font-size:0.8em;color:var(--sand);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nameDisplay}</div>
+        ${playerSlot}
         ${loaIcon}${statusIcon}
         ${buttonsHtml}
     </div>`;
