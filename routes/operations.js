@@ -353,7 +353,7 @@ router.post('/manage/create', isZeus, async (req, res) => {
             const fileExt = path.extname(bannerFile.name).replace(/[^a-z0-9.]/gi, '');
             const baseName = path.basename(bannerFile.name, path.extname(bannerFile.name))
                 .toLowerCase()
-                .replace(/[^a-z0-9.-]/g, '-');
+                .replace(/[^a-z0-9-]/g, '-');
             const fileName = baseName + fileExt;
             
             const uploadPath = path.join(__dirname, '../public/images/operations/', fileName);
@@ -460,7 +460,7 @@ router.post('/manage/edit/:id', isAuthenticated, async (req, res) => {
             const fileExt = path.extname(bannerFile.name).replace(/[^a-z0-9.]/gi, '');
             const baseName = path.basename(bannerFile.name, path.extname(bannerFile.name))
                 .toLowerCase()
-                .replace(/[^a-z0-9.-]/g, '-');
+                .replace(/[^a-z0-9-]/g, '-');
             const fileName = baseName + fileExt;
             
             const uploadPath = path.join(__dirname, '../public/images/operations/', fileName);

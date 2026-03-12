@@ -75,8 +75,10 @@ router.post('/tools/add', async (req, res) => {
 
         if (req.files && req.files.image) {
             const image = req.files.image;
-            const safeName = path.basename(image.name).replace(/[^a-zA-Z0-9._-]/g, '-');
-            const fileName = Date.now() + '-' + safeName;
+            const rawName = path.basename(image.name);
+            const ext = path.extname(rawName).replace(/[^a-z0-9.]/gi, '');
+            const base = path.basename(rawName, path.extname(rawName)).replace(/[^a-zA-Z0-9_-]/g, '-');
+            const fileName = Date.now() + '-' + base + ext;
             const uploadPath = path.join(__dirname, '..', 'public', 'uploads', 'tools', fileName);
 
             await image.mv(uploadPath);
@@ -134,8 +136,10 @@ router.post('/tools/edit/:id', async (req, res) => {
             }
 
             const image = req.files.image;
-            const safeName = path.basename(image.name).replace(/[^a-zA-Z0-9._-]/g, '-');
-            const fileName = Date.now() + '-' + safeName;
+            const rawName = path.basename(image.name);
+            const ext = path.extname(rawName).replace(/[^a-z0-9.]/gi, '');
+            const base = path.basename(rawName, path.extname(rawName)).replace(/[^a-zA-Z0-9_-]/g, '-');
+            const fileName = Date.now() + '-' + base + ext;
             const uploadPath = path.join(__dirname, '..', 'public', 'uploads', 'tools', fileName);
 
             await image.mv(uploadPath);
@@ -283,8 +287,10 @@ router.post('/gallery/upload', async (req, res) => {
 
         for (let i = 0; i < images.length; i++) {
             const image = images[i];
-            const safeName = path.basename(image.name).replace(/[^a-zA-Z0-9._-]/g, '-');
-            const fileName = Date.now() + '-' + i + '-' + safeName;
+            const rawName = path.basename(image.name);
+            const ext = path.extname(rawName).replace(/[^a-z0-9.]/gi, '');
+            const base = path.basename(rawName, path.extname(rawName)).replace(/[^a-zA-Z0-9_-]/g, '-');
+            const fileName = Date.now() + '-' + i + '-' + base + ext;
             const uploadPath = path.join(__dirname, '..', 'public', 'uploads', 'gallery', fileName);
 
             await image.mv(uploadPath);
@@ -664,7 +670,7 @@ router.post('/trainings/add', async (req, res) => {
             const fileExt = path.extname(badgeFile.name).replace(/[^a-z0-9.]/gi, '');
             const baseName = path.basename(badgeFile.name, path.extname(badgeFile.name))
                 .toLowerCase()
-                .replace(/[^a-z0-9.-]/g, '-');
+                .replace(/[^a-z0-9-]/g, '-');
             const fileName = baseName + fileExt;
 
             const uploadPath = path.join(__dirname, '../public/images/badges/', fileName);
@@ -720,7 +726,7 @@ router.post('/trainings/edit/:id', async (req, res) => {
             const fileExt = path.extname(badgeFile.name).replace(/[^a-z0-9.]/gi, '');
             const baseName = path.basename(badgeFile.name, path.extname(badgeFile.name))
                 .toLowerCase()
-                .replace(/[^a-z0-9.-]/g, '-');
+                .replace(/[^a-z0-9-]/g, '-');
             const fileName = baseName + fileExt;
 
             const uploadPath = path.join(__dirname, '../public/images/badges/', fileName);
