@@ -91,6 +91,17 @@ if (!DISCORD_CONFIG.clientID || !DISCORD_CONFIG.clientSecret || !DISCORD_CONFIG.
     );
 }
 
+if (!DISCORD_CONFIG.requiredGuildId) {
+    throw new Error(
+        'Missing DISCORD_GUILD_ID environment variable.\n' +
+        'This is required for guild membership checks during authentication.'
+    );
+}
+
+if (DISCORD_CONFIG.requiredRoles.length === 0) {
+    console.warn('Warning: DISCORD_REQUIRED_ROLE_IDS is not set. No role checks will be enforced during login.');
+}
+
 passport.use(new DiscordStrategy({
     clientID: DISCORD_CONFIG.clientID,
     clientSecret: DISCORD_CONFIG.clientSecret,
