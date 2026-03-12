@@ -75,7 +75,10 @@ router.post('/tools/add', async (req, res) => {
 
         if (req.files && req.files.image) {
             const image = req.files.image;
-            const fileName = Date.now() + '-' + image.name.replace(/\s/g, '-');
+            const rawName = path.basename(image.name);
+            const ext = path.extname(rawName).replace(/[^a-z0-9.]/gi, '');
+            const base = path.basename(rawName, path.extname(rawName)).replace(/[^a-zA-Z0-9_-]/g, '-');
+            const fileName = Date.now() + '-' + base + ext;
             const uploadPath = path.join(__dirname, '..', 'public', 'uploads', 'tools', fileName);
 
             await image.mv(uploadPath);
@@ -133,7 +136,10 @@ router.post('/tools/edit/:id', async (req, res) => {
             }
 
             const image = req.files.image;
-            const fileName = Date.now() + '-' + image.name.replace(/\s/g, '-');
+            const rawName = path.basename(image.name);
+            const ext = path.extname(rawName).replace(/[^a-z0-9.]/gi, '');
+            const base = path.basename(rawName, path.extname(rawName)).replace(/[^a-zA-Z0-9_-]/g, '-');
+            const fileName = Date.now() + '-' + base + ext;
             const uploadPath = path.join(__dirname, '..', 'public', 'uploads', 'tools', fileName);
 
             await image.mv(uploadPath);
@@ -281,14 +287,17 @@ router.post('/gallery/upload', async (req, res) => {
 
         for (let i = 0; i < images.length; i++) {
             const image = images[i];
-            const fileName = Date.now() + '-' + i + '-' + image.name.replace(/\s/g, '-');
+            const rawName = path.basename(image.name);
+            const ext = path.extname(rawName).replace(/[^a-z0-9.]/gi, '');
+            const base = path.basename(rawName, path.extname(rawName)).replace(/[^a-zA-Z0-9_-]/g, '-');
+            const fileName = Date.now() + '-' + i + '-' + base + ext;
             const uploadPath = path.join(__dirname, '..', 'public', 'uploads', 'gallery', fileName);
 
             await image.mv(uploadPath);
 
             await db.query(
                 'INSERT INTO gallery_images (folder_id, filename, original_name, caption, uploaded_by) VALUES (?, ?, ?, ?, ?)',
-                [folder_id, fileName, image.name, captionArray[i] || null, req.session.userId]
+                [folder_id, fileName, path.basename(image.name), captionArray[i] || null, req.session.userId]
             );
         }
 
@@ -658,10 +667,10 @@ router.post('/trainings/add', async (req, res) => {
         if (req.files && req.files.badge_upload) {
             const badgeFile = req.files.badge_upload;
 
-            const fileExt = path.extname(badgeFile.name);
-            const baseName = path.basename(badgeFile.name, fileExt)
+            const fileExt = path.extname(badgeFile.name).replace(/[^a-z0-9.]/gi, '');
+            const baseName = path.basename(badgeFile.name, path.extname(badgeFile.name))
                 .toLowerCase()
-                .replace(/[^a-z0-9.-]/g, '-');
+                .replace(/[^a-z0-9-]/g, '-');
             const fileName = baseName + fileExt;
 
             const uploadPath = path.join(__dirname, '../public/images/badges/', fileName);
@@ -714,10 +723,10 @@ router.post('/trainings/edit/:id', async (req, res) => {
         if (req.files && req.files.badge_upload) {
             const badgeFile = req.files.badge_upload;
 
-            const fileExt = path.extname(badgeFile.name);
-            const baseName = path.basename(badgeFile.name, fileExt)
+            const fileExt = path.extname(badgeFile.name).replace(/[^a-z0-9.]/gi, '');
+            const baseName = path.basename(badgeFile.name, path.extname(badgeFile.name))
                 .toLowerCase()
-                .replace(/[^a-z0-9.-]/g, '-');
+                .replace(/[^a-z0-9-]/g, '-');
             const fileName = baseName + fileExt;
 
             const uploadPath = path.join(__dirname, '../public/images/badges/', fileName);
