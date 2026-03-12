@@ -87,15 +87,4 @@ router.get('/logout', (req, res) => {
     res.redirect('/');
 });
 
-router.get('/debug-session', (req, res) => {
-    res.json({
-        session: req.session,
-        hasUserId: !!req.session.userId,
-        hasIsAdmin: !!req.session.isAdmin,
-        isAdminValue: req.session.isAdmin,
-        isAdminType: typeof req.session.isAdmin,
-        isAdminBoolean: Boolean(req.session.isAdmin)
-    });
-});
-
 module.exports = router;
