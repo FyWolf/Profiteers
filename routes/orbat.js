@@ -991,7 +991,9 @@ router.post('/api/templates/:templateId/squads/add', isAuthenticated, async (req
 router.post('/api/squads/:id/edit', isAuthenticated, async (req, res) => {
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
-        if (!userIsZeus) return res.status(403).json({ success: false, error: 'Permission denied' });
+        if (!userIsZeus && !await isHostOfSquadOperation(req.session.userId, req.params.id)) {
+            return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
 
         const { name, color, displayOrder } = req.body;
         if (!name || !name.trim()) return res.json({ success: false, error: 'Squad name is required' });
