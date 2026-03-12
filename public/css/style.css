@@ -518,9 +518,15 @@ footer {
 }
 
 .org-tree-scroll {
-    overflow-x: auto;
+    overflow: auto;
     width: 100%;
     padding-bottom: 4px;
+    cursor: grab;
+    user-select: none;
+}
+
+.org-tree-scroll.is-dragging {
+    cursor: grabbing;
 }
 
 .org-node {

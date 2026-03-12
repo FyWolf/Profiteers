@@ -592,6 +592,33 @@ document.addEventListener('DOMContentLoaded', () => {
     } // end block scope for squad
     <% }); %>
 });
+
+// ── Drag-to-pan ORBAT canvas ──────────────────────────────────────────────
+(function() {
+    const el = document.querySelector('.org-tree-scroll');
+    if (!el) return;
+    let dragging = false, startX, startY, scrollLeft, scrollTop;
+    el.addEventListener('mousedown', e => {
+        if (e.button !== 0) return;
+        if (e.target.closest('[data-role-id], .team-hdr, button, input, select, a, .btn, [contenteditable]')) return;
+        dragging = true;
+        el.classList.add('is-dragging');
+        startX = e.clientX;
+        startY = e.clientY;
+        scrollLeft = el.scrollLeft;
+        scrollTop = el.scrollTop;
+    });
+    document.addEventListener('mouseup', () => {
+        dragging = false;
+        el.classList.remove('is-dragging');
+    });
+    document.addEventListener('mousemove', e => {
+        if (!dragging) return;
+        e.preventDefault();
+        el.scrollLeft = scrollLeft - (e.clientX - startX);
+        el.scrollTop  = scrollTop  - (e.clientY - startY);
+    }, { passive: false });
+})();
 </script>
 
 <%- include('../partials/footer') %>
