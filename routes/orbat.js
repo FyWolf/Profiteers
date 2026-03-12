@@ -48,6 +48,33 @@ async function isSquadEditor(userId, roleId) {
     return isEditorOfSquadOrAncestor(userId, roleRows[0].squad_id);
 }
 
+async function isOperationHost(userId, operationId) {
+    if (!userId || !operationId) return false;
+    const [rows] = await db.query('SELECT host_id FROM operations WHERE id = ?', [operationId]);
+    return rows.length > 0 && rows[0].host_id == userId;
+}
+
+async function isHostOfSquadOperation(userId, squadId) {
+    if (!userId || !squadId) return false;
+    const [rows] = await db.query(`
+        SELECT o.host_id FROM orbat_squads os
+        JOIN operations o ON o.id = os.operation_id
+        WHERE os.id = ? AND os.operation_id IS NOT NULL
+    `, [squadId]);
+    return rows.length > 0 && rows[0].host_id == userId;
+}
+
+async function isHostOfRoleOperation(userId, roleId) {
+    if (!userId || !roleId) return false;
+    const [rows] = await db.query(`
+        SELECT o.host_id FROM orbat_roles r
+        JOIN orbat_squads os ON r.squad_id = os.id
+        JOIN operations o ON o.id = os.operation_id
+        WHERE r.id = ? AND os.operation_id IS NOT NULL
+    `, [roleId]);
+    return rows.length > 0 && rows[0].host_id == userId;
+}
+
 router.get('/api/templates', async (req, res) => {
     try {
         const [templates] = await db.query(`
@@ -483,7 +510,11 @@ router.get('/operation/:operationId', async (req, res) => {
         }
 
         const operation = operations[0];
-        const canManage = req.session.userId && (req.session.isAdmin || (res.locals.user && res.locals.user.isZeus));
+        const canManage = req.session.userId && (
+            req.session.isAdmin ||
+            (res.locals.user && res.locals.user.isZeus) ||
+            await isOperationHost(req.session.userId, req.params.operationId)
+        );
 
         let squads = [];
         let rolesBySquad = {};
@@ -639,7 +670,8 @@ router.post('/assign/:roleId', isAuthenticated, async (req, res) => {
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
         if (!userIsZeus) {
-            const canEdit = await isSquadEditor(req.session.userId, req.params.roleId);
+            const canEdit = await isSquadEditor(req.session.userId, req.params.roleId)
+                || await isHostOfRoleOperation(req.session.userId, req.params.roleId);
             if (!canEdit) {
                 return res.status(403).json({ success: false, error: 'Permission denied' });
             }
@@ -707,7 +739,8 @@ router.post('/unassign/:roleId', isAuthenticated, async (req, res) => {
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
         if (!userIsZeus) {
-            const canEdit = await isSquadEditor(req.session.userId, req.params.roleId);
+            const canEdit = await isSquadEditor(req.session.userId, req.params.roleId)
+                || await isHostOfRoleOperation(req.session.userId, req.params.roleId);
             if (!canEdit) {
                 return res.status(403).json({ success: false, error: 'Permission denied' });
             }
@@ -721,7 +754,11 @@ router.post('/unassign/:roleId', isAuthenticated, async (req, res) => {
     }
 });
 
-router.post('/operation/:operationId/create-dynamic', isZeus, async (req, res) => {
+router.post('/operation/:operationId/create-dynamic', isAuthenticated, async (req, res) => {
+    const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+    if (!userIsZeus && !await isOperationHost(req.session.userId, req.params.operationId)) {
+        return res.status(403).json({ success: false, error: 'Permission denied' });
+    }
     try {
         const { squadName, squadColor, roleName } = req.body;
 
@@ -750,7 +787,11 @@ router.post('/operation/:operationId/create-dynamic', isZeus, async (req, res) =
     }
 });
 
-router.post('/operation/:operationId/add-squad', isZeus, async (req, res) => {
+router.post('/operation/:operationId/add-squad', isAuthenticated, async (req, res) => {
+    const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+    if (!userIsZeus && !await isOperationHost(req.session.userId, req.params.operationId)) {
+        return res.status(403).json({ success: false, error: 'Permission denied' });
+    }
     try {
         const { squadName, squadColor, parentSquadId } = req.body;
 

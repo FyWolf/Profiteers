@@ -203,7 +203,8 @@ router.get('/:id', async (req, res) => {
         
         let canManage = false;
         if (req.session.userId) {
-            canManage = await checkZeusStatus(req.session.userId);
+            canManage = await checkZeusStatus(req.session.userId)
+                || (operation && operation.host_id == req.session.userId);
         }
         
         res.render('operations/view', {
@@ -406,12 +407,18 @@ router.post('/manage/create', isZeus, async (req, res) => {
     }
 });
 
-router.get('/manage/edit/:id', isZeus, async (req, res) => {
+router.get('/manage/edit/:id', isAuthenticated, async (req, res) => {
     try {
         const [operations] = await db.query('SELECT * FROM operations WHERE id = ?', [req.params.id]);
 
         if (operations.length === 0) {
             return res.redirect('/operations/manage/list?error=Operation not found');
+        }
+
+        const isZeusUser = await checkZeusStatus(req.session.userId);
+        const isHost = operations[0].host_id == req.session.userId;
+        if (!isZeusUser && !isHost) {
+            return res.redirect('/operations/' + req.params.id + '?error=Access denied');
         }
 
         const [users] = await db.query(`
@@ -435,8 +442,15 @@ router.get('/manage/edit/:id', isZeus, async (req, res) => {
     }
 });
 
-router.post('/manage/edit/:id', isZeus, async (req, res) => {
+router.post('/manage/edit/:id', isAuthenticated, async (req, res) => {
     try {
+        const [opCheck] = await db.query('SELECT host_id FROM operations WHERE id = ?', [req.params.id]);
+        const isZeusUser = await checkZeusStatus(req.session.userId);
+        const isHost = opCheck.length > 0 && opCheck[0].host_id == req.session.userId;
+        if (!isZeusUser && !isHost) {
+            return res.redirect('/operations/' + req.params.id + '?error=Access denied');
+        }
+
         const { title, description, start_time, end_time, banner_url, is_published, orbat_type, orbat_template_id, host_id, operation_type, modpack_id } = req.body;
         let finalBannerUrl = banner_url;
 
@@ -504,8 +518,15 @@ router.post('/manage/delete/:id', isZeus, async (req, res) => {
     }
 });
 
-router.post('/:id/news', isZeus, async (req, res) => {
+router.post('/:id/news', isAuthenticated, async (req, res) => {
     try {
+        const [opCheck] = await db.query('SELECT host_id FROM operations WHERE id = ?', [req.params.id]);
+        const isZeusUser = await checkZeusStatus(req.session.userId);
+        const isHost = opCheck.length > 0 && opCheck[0].host_id == req.session.userId;
+        if (!isZeusUser && !isHost) {
+            return res.json({ success: false, error: 'Access denied' });
+        }
+
         const { content } = req.body;
         
         await db.query(`
@@ -540,8 +561,19 @@ router.post('/:id/news', isZeus, async (req, res) => {
     }
 });
 
-router.post('/news/delete/:newsId', isZeus, async (req, res) => {
+router.post('/news/delete/:newsId', isAuthenticated, async (req, res) => {
     try {
+        const [newsCheck] = await db.query(`
+            SELECT o.host_id FROM operation_news opn
+            JOIN operations o ON o.id = opn.operation_id
+            WHERE opn.id = ?
+        `, [req.params.newsId]);
+        const isZeusUser = await checkZeusStatus(req.session.userId);
+        const isHost = newsCheck.length > 0 && newsCheck[0].host_id == req.session.userId;
+        if (!isZeusUser && !isHost) {
+            return res.json({ success: false, error: 'Access denied' });
+        }
+
         await db.query('DELETE FROM operation_news WHERE id = ?', [req.params.newsId]);
         res.json({ success: true });
     } catch (error) {
