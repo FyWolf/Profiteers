@@ -71,7 +71,7 @@ router.post('/sync', async (req, res) => {
 
     try {
         const botToken = process.env.DISCORD_BOT_TOKEN;
-        const guildId = '1172956513069973596';
+        const guildId = process.env.DISCORD_GUILD_ID;
 
         if (!botToken) {
             return res.json({ success: false, error: 'Bot token not configured' });
