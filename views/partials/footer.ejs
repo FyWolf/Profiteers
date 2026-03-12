@@ -2,5 +2,42 @@
         <p>Profiteers PMC - The Largest LGBTQ+ Arma 3 Unit</p>
         <p style="margin-top: 10px;">© 2026 Profiteers PMC. All rights reserved.</p>
     </footer>
+    <script>
+    (function() {
+        var token = document.querySelector('meta[name="csrf-token"]');
+        if (!token) return;
+        var csrfToken = token.getAttribute('content');
+        if (!csrfToken) return;
+
+        document.addEventListener('submit', function(e) {
+            var form = e.target;
+            if (form.tagName === 'FORM' && form.method.toUpperCase() === 'POST') {
+                if (!form.querySelector('input[name="_csrf"]')) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = '_csrf';
+                    input.value = csrfToken;
+                    form.appendChild(input);
+                }
+            }
+        });
+
+        var originalFetch = window.fetch;
+        window.fetch = function(url, options) {
+            options = options || {};
+            if (options.method && options.method.toUpperCase() !== 'GET') {
+                options.headers = options.headers || {};
+                if (options.headers instanceof Headers) {
+                    if (!options.headers.has('x-csrf-token')) {
+                        options.headers.set('x-csrf-token', csrfToken);
+                    }
+                } else {
+                    options.headers['x-csrf-token'] = options.headers['x-csrf-token'] || csrfToken;
+                }
+            }
+            return originalFetch.call(this, url, options);
+        };
+    })();
+    </script>
 </body>
 </html>

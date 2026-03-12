@@ -1,6 +1,8 @@
 const express = require('express');
 const session = require('express-session');
 const fileUpload = require('express-fileupload');
+const cookieParser = require('cookie-parser');
+const { doubleCsrf } = require('csrf-csrf');
 const path = require('path');
 require('dotenv').config({ quiet: true });
 
@@ -59,10 +61,30 @@ app.use(session({
     }
 }));
 
+app.use(cookieParser(process.env.SESSION_SECRET));
+
+const { doubleCsrfProtection, generateToken } = doubleCsrf({
+    getSecret: () => process.env.SESSION_SECRET,
+    cookieName: '__csrf',
+    cookieOptions: {
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        signed: true
+    },
+    getTokenFromRequest: (req) => req.body._csrf || req.headers['x-csrf-token']
+});
+
 app.use(passport.initialize());
 app.use(passport.session());
 
+app.use((req, res, next) => {
+    res.locals.csrfToken = generateToken(req, res);
+    next();
+});
+
 app.use(attachUser);
+
+app.use(doubleCsrfProtection);
 
 app.use('/', homeRoutes);
 app.use('/', authRoutes);
@@ -87,6 +109,14 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
+    if (err.code === 'EBADCSRFTOKEN' || err.message === 'invalid csrf token') {
+        return res.status(403).render('error', {
+            title: '403 - Forbidden',
+            message: 'Form Expired',
+            description: 'Your form session has expired. Please go back and try again.',
+            user: res.locals.user
+        });
+    }
     console.error('Error:', err);
     res.status(500).render('error', {
         title: '500 - Internal Server Error',
