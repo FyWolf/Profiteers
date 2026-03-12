@@ -1,8 +1,8 @@
 const db = require('../config/database');
 const axios = require('axios');
 
-const ZEUS_ROLE_ID = '1413651879304495255';
-const GUILD_ID = '1172956513069973596';
+const ZEUS_ROLE_ID = process.env.DISCORD_ZEUS_ROLE_ID;
+const GUILD_ID = process.env.DISCORD_GUILD_ID;
 
 async function isZeus(req, res, next) {
     if (!req.session.userId) {

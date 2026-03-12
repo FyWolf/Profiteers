@@ -131,8 +131,8 @@ async function createOperationPost(client, operation) {
         // Now post the embed as the second message (first real message)
         const embedMessage = await thread.send({ embeds: [embed] });
 
-        const mainOpsRoleId = process.env.DISCORD_MAIN_OPS_ROLE_ID || '1176606401850773546';
-        const sideOpsRoleId = process.env.DISCORD_SIDE_OPS_ROLE_ID || '1252355020012257301';
+        const mainOpsRoleId = process.env.DISCORD_MAIN_OPS_ROLE_ID;
+        const sideOpsRoleId = process.env.DISCORD_SIDE_OPS_ROLE_ID;
 
         const roleId = operation.operation_type === 'side' ? sideOpsRoleId : mainOpsRoleId;
         const opType = operation.operation_type === 'side' ? 'Side Operation' : 'Main Operation';
@@ -279,8 +279,8 @@ async function sendOperationReminder(client, operation, timeUntil) {
             console.warn('⚠️  Thread not found');
             return null;
         }
-        const mainOpsRoleId = process.env.DISCORD_MAIN_OPS_ROLE_ID || '1176606401850773546';
-        const sideOpsRoleId = process.env.DISCORD_SIDE_OPS_ROLE_ID || '1252355020012257301';
+        const mainOpsRoleId = process.env.DISCORD_MAIN_OPS_ROLE_ID;
+        const sideOpsRoleId = process.env.DISCORD_SIDE_OPS_ROLE_ID;
 
         const roleId = operation.operation_type === 'side' ? sideOpsRoleId : mainOpsRoleId;
 

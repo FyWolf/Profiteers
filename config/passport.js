@@ -8,8 +8,8 @@ const DISCORD_CONFIG = {
     clientSecret: process.env.DISCORD_CLIENT_SECRET,
     callbackURL: process.env.DISCORD_CALLBACK_URL,
     scope: ['identify'],
-    requiredGuildId: '1172956513069973596',
-    requiredRoles: ['1172956556346798120', '1176615017290936370'],
+    requiredGuildId: process.env.DISCORD_GUILD_ID,
+    requiredRoles: (process.env.DISCORD_REQUIRED_ROLE_IDS || '').split(',').filter(Boolean),
     botToken: process.env.DISCORD_BOT_TOKEN
 };
 
@@ -89,6 +89,17 @@ if (!DISCORD_CONFIG.clientID || !DISCORD_CONFIG.clientSecret || !DISCORD_CONFIG.
         'Missing required Discord OAuth2 environment variables.\n' +
         'Ensure DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, and DISCORD_CALLBACK_URL are set.'
     );
+}
+
+if (!DISCORD_CONFIG.requiredGuildId) {
+    throw new Error(
+        'Missing DISCORD_GUILD_ID environment variable.\n' +
+        'This is required for guild membership checks during authentication.'
+    );
+}
+
+if (DISCORD_CONFIG.requiredRoles.length === 0) {
+    console.warn('Warning: DISCORD_REQUIRED_ROLE_IDS is not set. No role checks will be enforced during login.');
 }
 
 passport.use(new DiscordStrategy({
