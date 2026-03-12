@@ -89,6 +89,10 @@ router.post('/edit/:id', async (req, res) => {
     try {
         const [currentTool] = await db.query('SELECT image_url FROM tools WHERE id = ?', [toolId]);
 
+        if (currentTool.length === 0) {
+            return res.redirect('/admin/tools?error=Tool not found');
+        }
+
         let imageUrl = currentTool[0].image_url;
 
         if (req.files && req.files.image) {

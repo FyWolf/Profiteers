@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const axios = require('axios');
 const db = require('../../config/database');
 
 router.get('/', async (req, res) => {
@@ -183,7 +184,6 @@ router.post('/:userId/sync-trainings', async (req, res) => {
             return res.json({ success: false, error: 'Bot token not configured' });
         }
 
-        const axios = require('axios');
         const response = await axios.get(
             `https://discord.com/api/v10/guilds/${guildId}/members/${discordId}`,
             {
