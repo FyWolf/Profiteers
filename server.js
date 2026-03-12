@@ -53,6 +53,9 @@ app.use(session({
     }
 }));
 
+app.use(passport.initialize());
+app.use(passport.session());
+
 app.use(attachUser);
 
 app.use('/', homeRoutes);
@@ -67,9 +70,6 @@ app.use('/orbat', orbatRoutes);
 app.use('/loa', loaRoutes);
 app.use('/roster', rosterRoutes);
 app.use('/modpacks', modpacksRoutes);
-
-app.use(passport.initialize());
-app.use(passport.session());
 
 app.use((req, res) => {
     res.status(404).render('error', {
