@@ -36,7 +36,7 @@ app.use(express.json());
 app.use(fileUpload({
     limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024 },
     abortOnLimit: true,
-    createParentPath: true
+    createParentPath: false
 }));
 
 app.use(session({
