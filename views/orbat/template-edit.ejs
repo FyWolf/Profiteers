@@ -7,61 +7,54 @@ function esc(s) {
 function renderTemplateRoleCard(role, squad) {
     const assignment = assignmentsByRole[role.id];
     const editorBadge = role.is_editor
-        ? `<span style="font-size: 0.7em; font-weight: 700; background: rgba(52,152,219,0.2); color: #3498DB; border: 1px solid #3498DB; padding: 1px 6px; border-radius: 3px; margin-left: 4px; vertical-align: middle;">EDITOR</span>`
+        ? `<span style="font-size:0.6em;font-weight:700;background:rgba(52,152,219,0.2);color:#3498DB;border:1px solid #3498DB;padding:1px 4px;border-radius:3px;margin-left:3px;vertical-align:middle;">ED</span>`
         : '';
 
     let avatarHtml = '';
     if (assignment) {
         if (assignment.discord_avatar) {
-            avatarHtml = `<img src="https://cdn.discordapp.com/avatars/${esc(assignment.discord_id)}/${esc(assignment.discord_avatar)}.png?size=64" style="width: 28px; height: 28px; border-radius: 50%; border: 2px solid ${squad.color};">`;
+            avatarHtml = `<img src="https://cdn.discordapp.com/avatars/${esc(assignment.discord_id)}/${esc(assignment.discord_avatar)}.png?size=32" style="width:20px;height:20px;border-radius:50%;border:1px solid ${squad.color};flex-shrink:0;">`;
         } else {
             const initial = esc((assignment.roster_nickname || assignment.discord_global_name || assignment.username).charAt(0).toUpperCase());
-            avatarHtml = `<div style="width: 28px; height: 28px; border-radius: 50%; background: ${squad.color}; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 0.75em;">${initial}</div>`;
+            avatarHtml = `<div style="width:20px;height:20px;border-radius:50%;background:${squad.color};display:flex;align-items:center;justify-content:center;font-weight:900;color:white;font-size:0.62em;flex-shrink:0;">${initial}</div>`;
         }
+    } else {
+        avatarHtml = `<div style="width:20px;height:20px;border-radius:50%;border:1px dashed rgba(178,178,125,0.25);flex-shrink:0;"></div>`;
     }
-    const assignedName = assignment ? esc(assignment.roster_nickname || assignment.discord_global_name || assignment.username) : '';
+
+    const assignedName = assignment
+        ? esc(assignment.roster_nickname || assignment.discord_global_name || assignment.username)
+        : `<span style="color:var(--khaki);opacity:0.4;font-style:italic;">empty</span>`;
     const escapedRoleName = esc(JSON.stringify(role.role_name));
 
-    const assignedSection = assignment
-        ? `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-            ${avatarHtml}
-            <div style="flex: 1; min-width: 0;">
-                <div style="font-weight: 600; color: var(--sand); font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${assignedName}</div>
-            </div>
-            <div style="display: flex; gap: 4px;">
-                <button onclick="showAssignModal(${role.id}, ${escapedRoleName})" class="btn" style="padding: 3px 8px; font-size: 0.78em;" title="Change player">🔄</button>
-                <button onclick="unassignPlayer(${role.id})" class="btn btn-danger" style="padding: 3px 8px; font-size: 0.78em;" title="Remove player">✖️</button>
-            </div>
-           </div>`
-        : `<div style="display: flex; align-items: center; justify-content: space-between;">
-            <span style="color: var(--khaki); opacity: 0.7; font-size: 0.85em; font-style: italic;">Empty</span>
-            <button onclick="showAssignModal(${role.id}, ${escapedRoleName})" class="btn" style="padding: 3px 8px; font-size: 0.78em; background: ${squad.color}; color: white;">➕ Assign</button>
-           </div>`;
+    const assignBtns = assignment
+        ? `<button onclick="showAssignModal(${role.id}, ${escapedRoleName})" class="btn" style="padding:2px 5px;font-size:0.72em;" title="Change">🔄</button><button onclick="unassignPlayer(${role.id})" class="btn btn-danger" style="padding:2px 5px;font-size:0.72em;" title="Remove">✕</button>`
+        : `<button onclick="showAssignModal(${role.id}, ${escapedRoleName})" class="btn" style="padding:2px 5px;font-size:0.72em;background:${squad.color};color:white;" title="Assign">➕</button>`;
 
-    return `<div class="card" data-role-id="${role.id}" style="padding: 12px; background: rgba(0,0,0,0.3); cursor: grab;">
-        <div id="roleView_${role.id}">
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px;">
-                <div style="font-weight: 700; color: ${squad.color}; font-size: 0.9em;">${esc(role.role_name)}${editorBadge}</div>
-                <div style="display: flex; gap: 4px;">
-                    <button onclick="showRoleEdit(${role.id})" class="btn" style="padding: 2px 7px; font-size: 0.75em;" title="Edit slot">✏️</button>
-                    <button onclick="deleteRole(${role.id})" class="btn btn-danger" style="padding: 2px 7px; font-size: 0.75em;" title="Delete slot">🗑️</button>
-                </div>
+    return `<div data-role-id="${role.id}" style="border-bottom:1px solid rgba(255,255,255,0.04);cursor:grab;">
+        <div id="roleView_${role.id}" style="display:flex;align-items:center;gap:6px;padding:5px 8px;">
+            <div style="font-size:0.77em;font-weight:700;color:${squad.color};width:95px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(role.role_name)}">${esc(role.role_name)}${editorBadge}</div>
+            ${avatarHtml}
+            <div style="flex:1;min-width:0;font-size:0.8em;color:var(--sand);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${assignedName}</div>
+            <div style="display:flex;gap:3px;flex-shrink:0;">
+                ${assignBtns}
+                <button onclick="showRoleEdit(${role.id})" class="btn" style="padding:2px 5px;font-size:0.72em;" title="Edit">✏️</button>
+                <button onclick="deleteRole(${role.id})" class="btn btn-danger" style="padding:2px 5px;font-size:0.72em;" title="Delete">🗑️</button>
             </div>
-            ${assignedSection}
         </div>
-        <div id="roleEdit_${role.id}" style="display: none;">
-            <div style="display: grid; grid-template-columns: 1fr 65px auto; gap: 6px; align-items: center;">
+        <div id="roleEdit_${role.id}" style="display:none;padding:6px 8px;background:rgba(0,0,0,0.2);border-top:1px solid rgba(255,255,255,0.06);">
+            <div style="display:grid;grid-template-columns:1fr 55px auto;gap:6px;align-items:center;">
                 <input type="text" id="roleEditName_${role.id}" value="${esc(role.role_name)}"
-                       style="padding: 6px 10px; background: rgba(40,40,40,0.9); color: var(--sand); border: 1px solid var(--olive); border-radius: 4px; font-size: 0.9em;">
+                       style="padding:4px 8px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;font-size:0.85em;margin:0;">
                 <input type="number" id="roleEditOrder_${role.id}" value="${role.display_order}" min="0"
-                       style="padding: 6px 8px; background: rgba(40,40,40,0.9); color: var(--sand); border: 1px solid var(--olive); border-radius: 4px; font-size: 0.9em;" title="Display order">
-                <div style="display: flex; gap: 4px;">
-                    <button onclick="saveRoleEdit(${role.id})" class="btn btn-primary" style="padding: 5px 10px; font-size: 0.85em;">💾</button>
-                    <button onclick="hideRoleEdit(${role.id})" class="btn" style="padding: 5px 10px; font-size: 0.85em;">✕</button>
+                       style="padding:4px 6px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;font-size:0.85em;margin:0;" title="Display order">
+                <div style="display:flex;gap:4px;">
+                    <button onclick="saveRoleEdit(${role.id})" class="btn btn-primary" style="padding:3px 8px;font-size:0.8em;">💾</button>
+                    <button onclick="hideRoleEdit(${role.id})" class="btn" style="padding:3px 8px;font-size:0.8em;">✕</button>
                 </div>
             </div>
-            <label style="display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 0.82em; color: var(--khaki); cursor: pointer;" title="Assigned user can manage this squad's assignments">
-                <input type="checkbox" id="roleEditIsEditor_${role.id}" ${role.is_editor ? 'checked' : ''} style="width: 15px; height: 15px;">
+            <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:0.8em;color:var(--khaki);cursor:pointer;" title="Assigned user can manage this squad's assignments">
+                <input type="checkbox" id="roleEditIsEditor_${role.id}" ${role.is_editor ? 'checked' : ''} style="width:14px;height:14px;">
                 Editor (can manage this squad's assignments)
             </label>
         </div>
@@ -97,18 +90,17 @@ function renderTemplateSquadCard(squad) {
         </div>
         <button onclick="toggleAddSub(${squad.id})" class="btn" style="margin-top: 8px; width: 100%; background: rgba(0,0,0,0.2); border: 1px dashed var(--khaki); font-size: 0.8em; padding: 6px;">➕ Add Sub-group</button>`;
 
-    return `<div class="card orbat-squad-card" id="squadCard_${squad.id}" style="border-left: 4px solid ${squad.color}; padding: 20px;">
-        <div style="margin-bottom: 15px; padding-bottom: 12px; border-bottom: 2px solid ${squad.color};">
+    return `<div class="card orbat-squad-card" id="squadCard_${squad.id}" style="border-left: 4px solid ${squad.color}; padding: 10px 12px;">
+        <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 2px solid ${squad.color};">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                <h3 style="color: ${squad.color}; margin: 0;">${esc(squad.name)}</h3>
-                <div style="display: flex; gap: 6px;">
-                    <button onclick="toggleSquadEdit(${squad.id})" class="btn" style="padding: 4px 8px; font-size: 0.8em;" title="Edit group">✏️</button>
-                    <button onclick="deleteSquad(${squad.id})" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.8em;" title="Delete group">🗑️</button>
+                <h3 style="color: ${squad.color}; margin: 0; font-size: 0.92em;">${esc(squad.name)}</h3>
+                <div style="display: flex; gap: 4px;">
+                    <button onclick="toggleSquadEdit(${squad.id})" class="btn" style="padding: 2px 6px; font-size: 0.75em;" title="Edit group">✏️</button>
+                    <button onclick="deleteSquad(${squad.id})" class="btn btn-danger" style="padding: 2px 6px; font-size: 0.75em;" title="Delete group">🗑️</button>
                 </div>
             </div>
-            <p style="font-size: 0.8em; color: var(--khaki); margin: 4px 0 0 0;">${squad.role_count} role${squad.role_count !== 1 ? 's' : ''} | Order: ${squad.display_order}</p>
         </div>
-        <div id="squadEdit_${squad.id}" style="display: none; padding: 12px; background: rgba(107,142,35,0.1); border-radius: 4px; margin-bottom: 12px;">
+        <div id="squadEdit_${squad.id}" style="display: none; padding: 10px; background: rgba(107,142,35,0.1); border-radius: 4px; margin-bottom: 8px;">
             <div style="display: grid; grid-template-columns: 2fr 1fr 70px auto; gap: 8px; align-items: end;">
                 <div class="form-group" style="margin: 0;">
                     <label style="font-size: 0.8em;">Name</label>
@@ -128,7 +120,7 @@ function renderTemplateSquadCard(squad) {
                 </div>
             </div>
         </div>
-        <div id="roles-${squad.id}" style="display: grid; gap: 10px;">${rolesHtml}</div>
+        <div id="roles-${squad.id}" style="display:flex;flex-direction:column;">${rolesHtml}</div>
         ${addRoleSection}
         ${addSubgroupSection}
     </div>`;

@@ -15,59 +15,64 @@ function renderRoleCard(role, squad) {
     }
 
     let opacity = '1';
-    let statusBadge = '';
-    if (operation.orbat_type === 'fixed' && attendanceStatus === 'tentative') {
-        opacity = '0.5'; statusBadge = '⏸️ Tentative';
-    } else if (attendanceStatus === 'present') {
-        statusBadge = '✅ Present';
-    } else if (operation.orbat_type === 'fixed' && attendanceStatus === 'absent') {
-        opacity = '0.3'; statusBadge = '❌ Absent';
-    }
+    if (operation.orbat_type === 'fixed' && attendanceStatus === 'tentative') opacity = '0.5';
+    else if (operation.orbat_type === 'fixed' && attendanceStatus === 'absent') opacity = '0.3';
 
+    // Tiny avatar
     let avatarHtml = '';
     if (assignment) {
         if (assignment.discord_avatar) {
-            avatarHtml = `<img src="https://cdn.discordapp.com/avatars/${esc(assignment.discord_id)}/${esc(assignment.discord_avatar)}.png?size=64" style="width: 28px; height: 28px; border-radius: 50%; border: 2px solid ${squad.color};">`;
+            avatarHtml = `<img src="https://cdn.discordapp.com/avatars/${esc(assignment.discord_id)}/${esc(assignment.discord_avatar)}.png?size=32" style="width: 20px; height: 20px; border-radius: 50%; border: 1px solid ${squad.color}; flex-shrink: 0;">`;
         } else {
             const initial = esc((assignment.roster_nickname || assignment.discord_global_name || assignment.username).charAt(0).toUpperCase());
-            avatarHtml = `<div style="width: 28px; height: 28px; border-radius: 50%; background: ${squad.color}; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 0.75em;">${initial}</div>`;
+            avatarHtml = `<div style="width: 20px; height: 20px; border-radius: 50%; background: ${squad.color}; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 0.62em; flex-shrink: 0;">${initial}</div>`;
         }
+    } else {
+        avatarHtml = `<div style="width: 20px; height: 20px; border-radius: 50%; border: 1px dashed rgba(178,178,125,0.25); flex-shrink: 0;"></div>`;
     }
 
-    let loaBadge = '';
+    // Inline icon badges
+    let statusIcon = '';
+    if (attendanceStatus === 'present') statusIcon = `<span title="Present" style="flex-shrink:0;font-size:0.72em;">✅</span>`;
+    else if (operation.orbat_type === 'fixed' && attendanceStatus === 'tentative') statusIcon = `<span title="Tentative" style="flex-shrink:0;font-size:0.72em;">⏸️</span>`;
+
+    let loaIcon = '';
     if (assignment && assignment.loa_id) {
         const loaEnd = new Date(assignment.loa_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const reasonTitle = (canManage && assignment.loa_reason) ? `<span style="cursor: help;" title="${esc(assignment.loa_reason)}">ℹ️</span>` : '';
-        loaBadge = `<div style="display: inline-block; padding: 2px 6px; background: #e74c3c; color: white; border-radius: 3px; font-size: 0.65em; font-weight: 700; margin-top: 2px;">🛑 ON LOA ${reasonTitle}</div><div style="font-size: 0.65em; color: var(--khaki); margin-top: 2px;">Until ${loaEnd}</div>`;
+        const tip = esc(`On LOA until ${loaEnd}${canManage && assignment.loa_reason ? ': ' + assignment.loa_reason : ''}`);
+        loaIcon = `<span title="${tip}" style="flex-shrink:0;font-size:0.72em;cursor:help;">🛑</span>`;
     }
 
+    const nameDisplay = assignment
+        ? esc(assignment.roster_nickname || assignment.discord_global_name || assignment.username)
+        : `<span style="color:var(--khaki);opacity:0.4;font-style:italic;">empty</span>`;
+
+    // Buttons — compact icon-size
     let buttonsHtml = '';
     const showButtons = (canClaim && isEmpty && user) || (canClaim && isOwnAssignment) || (canManage && operation.orbat_type === 'dynamic');
     if (showButtons) {
         let claimBtn = '';
         if (canClaim && isEmpty && user) {
-            claimBtn = `<button onclick="claimSlot(${role.id})" class="btn btn-primary" style="padding: 4px 8px; font-size: 0.8em; flex: 1;">Claim</button>`;
+            claimBtn = `<button onclick="claimSlot(${role.id})" class="btn btn-primary" style="padding:2px 7px;font-size:0.72em;">Claim</button>`;
         } else if (canClaim && isOwnAssignment) {
-            claimBtn = `<button onclick="unclaimSlot(${role.id})" class="btn" style="background: #e74c3c; padding: 4px 8px; font-size: 0.8em; flex: 1;">Leave</button>`;
+            claimBtn = `<button onclick="unclaimSlot(${role.id})" class="btn" style="background:#e74c3c;padding:2px 7px;font-size:0.72em;">Leave</button>`;
         }
         let manageBtn = '';
         if (canManage && operation.orbat_type === 'dynamic') {
-            const unassignBtn = assignment ? `<button onclick="unassignPlayer(${role.id})" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.8em;">❌</button>` : '';
+            const unassignBtn = assignment ? `<button onclick="unassignPlayer(${role.id})" class="btn btn-danger" style="padding:2px 5px;font-size:0.72em;">✕</button>` : '';
             const assignIcon = assignment ? '🔄' : '➕';
-            manageBtn = `${unassignBtn}<button onclick="showAssignModal(${role.id}, ${esc(JSON.stringify(role.role_name))})" class="btn" style="padding: 4px 8px; font-size: 0.8em; flex: 1;">${assignIcon}</button>`;
+            manageBtn = `${unassignBtn}<button onclick="showAssignModal(${role.id}, ${esc(JSON.stringify(role.role_name))})" class="btn" style="padding:2px 5px;font-size:0.72em;">${assignIcon}</button>`;
         }
-        buttonsHtml = `<div style="display: flex; gap: 5px; flex-wrap: wrap;">${claimBtn}${manageBtn}</div>`;
+        buttonsHtml = `<div style="display:flex;gap:3px;flex-shrink:0;">${claimBtn}${manageBtn}</div>`;
     }
 
     const grabStyle = (canManage && operation.orbat_type === 'dynamic') ? ' cursor: grab;' : '';
-    const nameDisplay = esc(assignment ? (assignment.roster_nickname || assignment.discord_global_name || assignment.username) : '');
-    const assignedHtml = assignment
-        ? `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">${avatarHtml}<div style="flex: 1; min-width: 0;"><div style="font-weight: 600; color: var(--sand); font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nameDisplay}</div>${statusBadge ? `<div style="font-size: 0.7em; color: var(--khaki);">${statusBadge}</div>` : ''}${loaBadge}</div></div>`
-        : `<div style="color: var(--khaki); opacity: 0.7; font-style: italic; font-size: 0.85em; margin-bottom: 8px;">Empty Slot</div>`;
 
-    return `<div class="card" data-role-id="${role.id}" style="padding: 12px; opacity: ${opacity}; transition: opacity 0.3s; background: rgba(0,0,0,0.3);${grabStyle}">
-        <div style="font-weight: 700; color: ${squad.color}; margin-bottom: 8px; font-size: 0.9em;">${esc(role.role_name)}</div>
-        ${assignedHtml}
+    return `<div data-role-id="${role.id}" style="display:flex;align-items:center;gap:6px;padding:5px 8px;opacity:${opacity};transition:opacity 0.2s;border-bottom:1px solid rgba(255,255,255,0.04);${grabStyle}">
+        <div style="font-size:0.77em;font-weight:700;color:${squad.color};width:95px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(role.role_name)}">${esc(role.role_name)}</div>
+        ${avatarHtml}
+        <div style="flex:1;min-width:0;font-size:0.8em;color:var(--sand);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nameDisplay}</div>
+        ${loaIcon}${statusIcon}
         ${buttonsHtml}
     </div>`;
 }
@@ -96,11 +101,11 @@ function renderSquadCard(squad) {
         </div>
         <button onclick="toggleAddSub(${squad.id})" class="btn" style="margin-top: 8px; width: 100%; background: rgba(0,0,0,0.2); border: 1px dashed var(--khaki); font-size: 0.8em; padding: 6px;">➕ Add Sub-group</button>` : '';
 
-    return `<div class="card orbat-squad-card" style="border-left: 4px solid ${squad.color}; padding: 20px;">
-        <div style="margin-bottom: 15px; padding-bottom: 12px; border-bottom: 2px solid ${squad.color};">
-            <h3 style="color: ${squad.color}; margin: 0;">${esc(squad.name)}</h3>
+    return `<div class="card orbat-squad-card" style="border-left: 4px solid ${squad.color}; padding: 10px 12px;">
+        <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 2px solid ${squad.color};">
+            <h3 style="color: ${squad.color}; margin: 0; font-size: 0.92em;">${esc(squad.name)}</h3>
         </div>
-        <div id="roles-${squad.id}" style="display: grid; gap: 10px;">${rolesHtml}</div>
+        <div id="roles-${squad.id}" style="display: flex; flex-direction: column;">${rolesHtml}</div>
         ${addRoleForm}
         ${addSubgroupSection}
     </div>`;
