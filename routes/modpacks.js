@@ -12,27 +12,10 @@ const path = require('path');
 const fs = require('fs');
 const db = require('../config/database');
 const ModpackIndexer = require('../services/modpack-indexer');
+const { isAuthenticated } = require('../middleware/auth');
+const { isZeus } = require('../middleware/zeus');
 
 const indexer = new ModpackIndexer(db);
-
-function isAuthenticated(req, res, next) {
-    if (req.session && req.session.userId) {
-        return next();
-    }
-    res.redirect('/auth/login');
-}
-
-function isZeus(req, res, next) {
-    if (req.session && req.session.userId) {
-        if (res.locals.user && (res.locals.user.isAdmin || res.locals.user.isZeus)) {
-            return next();
-        }
-    }
-    res.status(403).render('error', {
-        title: 'Access Denied',
-        message: 'You need Zeus or Admin permissions to access this page.'
-    });
-}
 
 /**
  * Parse an Arma 3 Launcher HTML preset file and extract mod information.
