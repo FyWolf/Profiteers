@@ -8,7 +8,11 @@ function isAuthenticated(req, res, next) {
 }
 
 function isAdmin(req, res, next) {
-    if (req.isAuthenticated() && req.user.is_admin) {
+    if (!req.isAuthenticated()) {
+        return res.redirect('/login?redirect=' + encodeURIComponent(req.originalUrl));
+    }
+
+    if (req.user.is_admin) {
         return next();
     }
 
