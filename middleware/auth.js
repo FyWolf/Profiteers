@@ -22,6 +22,13 @@ function isAdmin(req, res, next) {
 
 async function attachUser(req, res, next) {
     if (req.isAuthenticated()) {
+        // Sync session props for backward compatibility with route handlers
+        if (!req.session.userId) {
+            req.session.userId = req.user.id;
+            req.session.username = req.user.username;
+            req.session.isAdmin = Boolean(req.user.is_admin);
+        }
+
         const isZeus = await checkZeusStatus(req.user.id);
         res.locals.user = {
             id: req.user.id,
