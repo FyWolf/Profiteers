@@ -5,16 +5,16 @@ const ZEUS_ROLE_ID = process.env.DISCORD_ZEUS_ROLE_ID;
 const GUILD_ID = process.env.DISCORD_GUILD_ID;
 
 async function isZeus(req, res, next) {
-    if (!req.session.userId) {
+    if (!req.isAuthenticated()) {
         return res.redirect('/login');
     }
 
     try {
-        if (req.session.isAdmin) {
+        if (req.user.is_admin) {
             return next();
         }
 
-        const [users] = await db.query('SELECT discord_id FROM users WHERE id = ?', [req.session.userId]);
+        const [users] = await db.query('SELECT discord_id FROM users WHERE id = ?', [req.user.id]);
         
         if (users.length === 0 || !users[0].discord_id) {
             return res.status(403).render('error', {
@@ -29,7 +29,7 @@ async function isZeus(req, res, next) {
 
         const [cachedPerms] = await db.query(
             'SELECT has_zeus_role, last_synced FROM zeus_permissions WHERE user_id = ?',
-            [req.session.userId]
+            [req.user.id]
         );
 
         // If cached and recent (less than 1 hour old), use cache
@@ -67,7 +67,7 @@ async function isZeus(req, res, next) {
             INSERT INTO zeus_permissions (user_id, has_zeus_role)
             VALUES (?, ?)
             ON DUPLICATE KEY UPDATE has_zeus_role = ?, last_synced = NOW()
-        `, [req.session.userId, hasZeusRole, hasZeusRole]);
+        `, [req.user.id, hasZeusRole, hasZeusRole]);
 
         if (hasZeusRole) {
             return next();

@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../config/database');
 
 router.get('/login', (req, res) => {
-    if (req.session.userId) {
+    if (req.isAuthenticated()) {
         return res.redirect('/admin');
     }
     
@@ -22,7 +22,7 @@ router.get('/login', (req, res) => {
 });
 
 router.get('/admin-login', (req, res) => {
-    if (req.session.userId) {
+    if (req.isAuthenticated()) {
         return res.redirect('/admin');
     }
     
@@ -60,18 +60,23 @@ router.post('/login', async (req, res) => {
 
         await db.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
 
-        req.session.userId = user.id;
-        req.session.username = user.username;
-        req.session.isAdmin = Boolean(user.is_admin);
+        req.login(user, (err) => {
+            if (err) {
+                console.error('Passport login error:', err);
+                return res.render('admin-login', {
+                    title: 'Admin Login - Profiteers PMC',
+                    error: 'An error occurred during login',
+                    redirect: redirect || '/admin'
+                });
+            }
 
-        console.log('Admin login successful:', {
-            userId: user.id,
-            username: user.username,
-            isAdmin: req.session.isAdmin,
-            dbValue: user.is_admin
+            // Set session props for backward compatibility with route handlers
+            req.session.userId = user.id;
+            req.session.username = user.username;
+            req.session.isAdmin = Boolean(user.is_admin);
+
+            res.redirect(redirect || '/admin');
         });
-
-        res.redirect(redirect || '/admin');
     } catch (error) {
         console.error('Login error:', error);
         res.render('admin-login', {
@@ -83,8 +88,10 @@ router.post('/login', async (req, res) => {
 });
 
 router.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/');
+    req.logout(() => {
+        req.session.destroy();
+        res.redirect('/');
+    });
 });
 
 module.exports = router;

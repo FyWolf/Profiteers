@@ -1,47 +1,32 @@
+const { checkZeusStatus } = require('./zeus');
+
 function isAuthenticated(req, res, next) {
-    if (req.session && req.session.userId) {
+    if (req.isAuthenticated()) {
         return next();
     }
     res.redirect('/login?redirect=' + encodeURIComponent(req.originalUrl));
 }
 
 function isAdmin(req, res, next) {
-    const isAdmin = Boolean(req.session && req.session.userId && req.session.isAdmin);
-    
-    if (isAdmin) {
+    if (req.isAuthenticated() && req.user.is_admin) {
         return next();
     }
-    
-    if (process.env.NODE_ENV === 'development') {
-        console.log('Admin access denied:', {
-            hasSession: !!req.session,
-            hasUserId: !!req.session?.userId,
-            isAdminRaw: req.session?.isAdmin,
-            isAdminType: typeof req.session?.isAdmin,
-            isAdminBoolean: Boolean(req.session?.isAdmin)
-        });
-    }
-    
+
     res.status(403).render('error', {
         title: 'Access Denied - Profiteers PMC',
         message: 'Access Denied',
         description: 'You do not have permission to access this page.',
-        user: req.session.userId ? { 
-            username: req.session.username, 
-            isAdmin: Boolean(req.session.isAdmin) 
-        } : null
+        user: res.locals.user
     });
 }
 
-const { checkZeusStatus } = require('./zeus');
-
 async function attachUser(req, res, next) {
-    if (req.session.userId) {
-        const isZeus = await checkZeusStatus(req.session.userId);
+    if (req.isAuthenticated()) {
+        const isZeus = await checkZeusStatus(req.user.id);
         res.locals.user = {
-            id: req.session.userId,
-            username: req.session.username,
-            isAdmin: Boolean(req.session.isAdmin),
+            id: req.user.id,
+            username: req.user.username,
+            isAdmin: Boolean(req.user.is_admin),
             isZeus: isZeus
         };
     } else {
