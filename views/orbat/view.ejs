@@ -172,9 +172,10 @@ function renderSquadCard(squad) {
 
     const squadEditForm = isDynamic ? `
         <div id="editSquadForm_${squad.id}" style="display:none;margin-bottom:8px;padding:8px;background:rgba(0,0,0,0.2);border-radius:4px;">
-            <div style="display:flex;gap:6px;align-items:center;">
-                <input type="text" id="editSquadName_${squad.id}" value="${esc(squad.name)}" style="flex:1;margin:0;font-size:0.88em;padding:5px 8px;">
-                <input type="color" id="editSquadColor_${squad.id}" value="${esc(squad.color)}" style="width:34px;height:34px;flex-shrink:0;border:none;background:none;cursor:pointer;padding:0;">
+            <input type="text" id="editSquadName_${squad.id}" value="${esc(squad.name)}"
+                   style="width:100%;box-sizing:border-box;margin:0 0 6px 0;font-size:0.88em;padding:5px 8px;">
+            <div style="display:flex;gap:6px;align-items:center;justify-content:flex-end;">
+                <input type="color" id="editSquadColor_${squad.id}" value="${esc(squad.color)}" style="width:34px;height:30px;flex-shrink:0;border:none;background:none;cursor:pointer;padding:0;">
                 <button onclick="submitEditSquad(${squad.id})" class="btn btn-primary" style="flex-shrink:0;padding:4px 10px;font-size:0.85em;">Save</button>
                 <button onclick="document.getElementById('editSquadForm_${squad.id}').style.display='none'" class="btn" style="flex-shrink:0;padding:4px 8px;font-size:0.85em;">✕</button>
             </div>
