@@ -52,11 +52,11 @@ function renderPubRoleCard(role, squad, canEdit) {
 
     const editZone = canEdit
         ? `<div id="roleEdit_${role.id}" style="display:none;padding:6px 8px;background:rgba(0,0,0,0.2);border-top:1px solid rgba(255,255,255,0.06);">
-            <div style="display:flex;gap:6px;align-items:center;">
-                <input type="text" id="roleEditName_${role.id}" value="${esc(role.role_name)}"
-                       style="flex:1;padding:4px 8px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;font-size:0.85em;margin:0;">
-                <button onclick="saveRoleEdit(${role.id})" class="btn btn-primary" style="padding:3px 8px;font-size:0.8em;">💾</button>
-                <button onclick="hideRoleEdit(${role.id})" class="btn" style="padding:3px 8px;font-size:0.8em;">✕</button>
+            <input type="text" id="roleEditName_${role.id}" value="${esc(role.role_name)}"
+                   style="width:100%;box-sizing:border-box;padding:4px 8px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;font-size:0.85em;margin:0 0 5px 0;">
+            <div style="display:flex;gap:4px;justify-content:flex-end;">
+                <button onclick="saveRoleEdit(${role.id})" class="btn btn-primary" style="flex-shrink:0;padding:3px 8px;font-size:0.8em;">💾</button>
+                <button onclick="hideRoleEdit(${role.id})" class="btn" style="flex-shrink:0;padding:3px 8px;font-size:0.8em;">✕</button>
             </div>
            </div>`
         : '';

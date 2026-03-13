@@ -55,20 +55,18 @@ function renderTemplateRoleCard(role, squad) {
             </div>
         </div>
         <div id="roleEdit_${role.id}" style="display:none;padding:6px 8px;background:rgba(0,0,0,0.2);border-top:1px solid rgba(255,255,255,0.06);">
-            <div style="display:grid;grid-template-columns:1fr 55px auto;gap:6px;align-items:center;">
-                <input type="text" id="roleEditName_${role.id}" value="${esc(role.role_name)}"
-                       style="padding:4px 8px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;font-size:0.85em;margin:0;">
+            <input type="text" id="roleEditName_${role.id}" value="${esc(role.role_name)}"
+                   style="width:100%;box-sizing:border-box;padding:4px 8px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;font-size:0.85em;margin:0 0 5px 0;">
+            <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+                <label style="display:flex;align-items:center;gap:4px;font-size:0.8em;color:var(--khaki);cursor:pointer;flex:1;white-space:nowrap;" title="Assigned user can manage this squad's assignments">
+                    <input type="checkbox" id="roleEditIsEditor_${role.id}" ${role.is_editor ? 'checked' : ''} style="width:14px;height:14px;">
+                    Editor
+                </label>
                 <input type="number" id="roleEditOrder_${role.id}" value="${role.display_order}" min="0"
-                       style="padding:4px 6px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;font-size:0.85em;margin:0;" title="Display order">
-                <div style="display:flex;gap:4px;">
-                    <button onclick="saveRoleEdit(${role.id})" class="btn btn-primary" style="padding:3px 8px;font-size:0.8em;">💾</button>
-                    <button onclick="hideRoleEdit(${role.id})" class="btn" style="padding:3px 8px;font-size:0.8em;">✕</button>
-                </div>
+                       style="width:52px;flex-shrink:0;padding:3px 5px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;font-size:0.8em;margin:0;" title="Display order">
+                <button onclick="saveRoleEdit(${role.id})" class="btn btn-primary" style="flex-shrink:0;padding:3px 8px;font-size:0.8em;">💾</button>
+                <button onclick="hideRoleEdit(${role.id})" class="btn" style="flex-shrink:0;padding:3px 8px;font-size:0.8em;">✕</button>
             </div>
-            <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:0.8em;color:var(--khaki);cursor:pointer;" title="Assigned user can manage this squad's assignments">
-                <input type="checkbox" id="roleEditIsEditor_${role.id}" ${role.is_editor ? 'checked' : ''} style="width:14px;height:14px;">
-                Editor (can manage this squad's assignments)
-            </label>
         </div>
     </div>`;
 }
