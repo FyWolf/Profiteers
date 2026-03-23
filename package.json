@@ -24,7 +24,7 @@
     "express": "^5.2.1",
     "express-fileupload": "^1.4.3",
     "express-session": "^1.17.3",
-    "mysql2": "^3.19.1",
+    "mysql2": "^3.20.0",
     "node-cron": "^4.2.1",
     "passport": "^0.7.0",
     "passport-discord": "^0.1.4"
