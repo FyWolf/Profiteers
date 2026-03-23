@@ -212,21 +212,44 @@ function renderOpNode(node, isRoot) {
         <div class="subtitle"><%= operation.title %></div>
     </header>
 
-    <div style="margin-bottom: 20px; padding: 15px; background: rgba(52, 152, 219, 0.1); border: 1px solid #3498DB; border-radius: 8px;">
-        <strong style="color: #3498DB;">
-            <% if (operation.orbat_type === 'fixed') { %>
-                📋 Fixed ORBAT - Showing only attending players
-                <% if (canManage) { %>
-                    <br>
-                    <small style="opacity: 0.8; font-weight: normal;">
-                        To assign players to this ORBAT, edit the template in <a href="/orbat/templates" style="color: #3498DB; text-decoration: underline;">ORBAT Management</a>
-                    </small>
+    <% if (canManage && operation.orbat_type === 'dynamic' && !orbatPublished) { %>
+        <div style="margin-bottom: 20px; padding: 15px; background: rgba(243, 156, 18, 0.15); border: 2px solid #F39C12; border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <strong style="color: #F39C12; font-size: 1.05em;">DRAFT - ORBAT not visible to players</strong>
+                    <div style="color: var(--khaki); font-size: 0.85em; margin-top: 4px; opacity: 0.8;">Work on your ORBAT here. When ready, publish it to make it available.</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85em; color: var(--khaki); cursor: pointer; white-space: nowrap;">
+                        <input type="checkbox" id="publishNotify" checked style="accent-color: #6b8e23;">
+                        Notify players
+                    </label>
+                    <button onclick="publishOrbat()" class="btn btn-primary" style="white-space: nowrap;">Publish ORBAT</button>
+                </div>
+            </div>
+        </div>
+    <% } else if (canManage && operation.orbat_type === 'dynamic' && orbatPublished) { %>
+        <div style="margin-bottom: 20px; padding: 15px; background: rgba(52, 152, 219, 0.1); border: 1px solid #3498DB; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+            <strong style="color: #3498DB;">🎯 Dynamic ORBAT - First come, first served</strong>
+            <button onclick="unpublishOrbat()" class="btn" style="font-size: 0.8em; padding: 4px 12px; opacity: 0.7;">Unpublish</button>
+        </div>
+    <% } else { %>
+        <div style="margin-bottom: 20px; padding: 15px; background: rgba(52, 152, 219, 0.1); border: 1px solid #3498DB; border-radius: 8px;">
+            <strong style="color: #3498DB;">
+                <% if (operation.orbat_type === 'fixed') { %>
+                    📋 Fixed ORBAT - Showing only attending players
+                    <% if (canManage) { %>
+                        <br>
+                        <small style="opacity: 0.8; font-weight: normal;">
+                            To assign players to this ORBAT, edit the template in <a href="/orbat/templates" style="color: #3498DB; text-decoration: underline;">ORBAT Management</a>
+                        </small>
+                    <% } %>
+                <% } else if (operation.orbat_type === 'dynamic') { %>
+                    🎯 Dynamic ORBAT - First come, first served
                 <% } %>
-            <% } else if (operation.orbat_type === 'dynamic') { %>
-                🎯 Dynamic ORBAT - First come, first served
-            <% } %>
-        </strong>
-    </div>
+            </strong>
+        </div>
+    <% } %>
 
     <% if (squads.length === 0) { %>
         <section class="section">
@@ -254,6 +277,9 @@ function renderOpNode(node, isRoot) {
                             </button>
                         </form>
                     </div>
+                <% } else if (operation.orbat_type === 'dynamic' && !orbatPublished) { %>
+                    <h3>ORBAT Not Ready Yet</h3>
+                    <p style="color: var(--khaki);">The host is still working on the ORBAT. Check back later!</p>
                 <% } else if (operation.orbat_type === 'dynamic') { %>
                     <p>The Zeus has not set up an ORBAT for this operation yet.</p>
                 <% } else { %>
@@ -321,6 +347,34 @@ function renderOpNode(node, isRoot) {
 <script>
 const operationId = <%= operation.id %>;
 let currentRoleId = null;
+
+<% if (canManage && operation.orbat_type === 'dynamic') { %>
+async function publishOrbat() {
+    if (!confirm('Publish this ORBAT? Players will be able to see and claim slots.')) return;
+    const notify = document.getElementById('publishNotify')?.checked;
+    try {
+        const r = await fetch(`/orbat/operation/${operationId}/publish-orbat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notify })
+        });
+        const d = await r.json();
+        if (d.success) location.reload(); else alert(d.error || 'Failed to publish');
+    } catch { alert('Failed to publish ORBAT'); }
+}
+
+async function unpublishOrbat() {
+    if (!confirm('Unpublish this ORBAT? Players will no longer be able to see or claim slots.')) return;
+    try {
+        const r = await fetch(`/orbat/operation/${operationId}/unpublish-orbat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const d = await r.json();
+        if (d.success) location.reload(); else alert(d.error || 'Failed to unpublish');
+    } catch { alert('Failed to unpublish ORBAT'); }
+}
+<% } %>
 
 <% if (canClaim) { %>
 async function claimSlot(roleId) {
