@@ -3,6 +3,8 @@ const router = express.Router();
 const db = require('../config/database');
 const { isAuthenticated, isAdmin } = require('../middleware/auth');
 const { isZeus, checkZeusStatus } = require('../middleware/zeus');
+const { EmbedBuilder } = require('discord.js');
+const { discordClient } = require('../discord');
 
 function buildTree(squads) {
     const byId = {};
@@ -73,6 +75,17 @@ async function isHostOfRoleOperation(userId, roleId) {
         WHERE r.id = ? AND os.operation_id IS NOT NULL
     `, [roleId]);
     return rows.length > 0 && rows[0].host_id == userId;
+}
+
+// Middleware: check if user is Zeus/Admin or the operation host
+function canManageOperation(req, res, next) {
+    (async () => {
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (userIsZeus || await isOperationHost(req.session.userId, req.params.operationId)) {
+            return next();
+        }
+        return res.status(403).json({ success: false, error: 'Permission denied' });
+    })().catch(next);
 }
 
 router.get('/api/templates', async (req, res) => {
@@ -814,11 +827,7 @@ router.post('/unassign/:roleId', isAuthenticated, async (req, res) => {
     }
 });
 
-router.post('/operation/:operationId/create-dynamic', isAuthenticated, async (req, res) => {
-    const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
-    if (!userIsZeus && !await isOperationHost(req.session.userId, req.params.operationId)) {
-        return res.status(403).json({ success: false, error: 'Permission denied' });
-    }
+router.post('/operation/:operationId/create-dynamic', isAuthenticated, canManageOperation, async (req, res) => {
     try {
         const { squadName, squadColor, roleName } = req.body;
 
@@ -847,11 +856,7 @@ router.post('/operation/:operationId/create-dynamic', isAuthenticated, async (re
     }
 });
 
-router.post('/operation/:operationId/add-squad', isAuthenticated, async (req, res) => {
-    const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
-    if (!userIsZeus && !await isOperationHost(req.session.userId, req.params.operationId)) {
-        return res.status(403).json({ success: false, error: 'Permission denied' });
-    }
+router.post('/operation/:operationId/add-squad', isAuthenticated, canManageOperation, async (req, res) => {
     try {
         const { squadName, squadColor, parentSquadId } = req.body;
 
@@ -1265,11 +1270,7 @@ router.post('/api/migrate-hierarchy', isAdmin, async (req, res) => {
 
 // ── ORBAT publish / unpublish ──────────────────────────────────────────────
 
-router.post('/operation/:operationId/publish-orbat', isAuthenticated, async (req, res) => {
-    const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
-    if (!userIsZeus && !await isOperationHost(req.session.userId, req.params.operationId)) {
-        return res.status(403).json({ success: false, error: 'Permission denied' });
-    }
+router.post('/operation/:operationId/publish-orbat', isAuthenticated, canManageOperation, async (req, res) => {
     try {
         await db.query('UPDATE operations SET orbat_published = 1 WHERE id = ?', [req.params.operationId]);
 
@@ -1280,8 +1281,6 @@ router.post('/operation/:operationId/publish-orbat', isAuthenticated, async (req
                 const [ops] = await db.query('SELECT * FROM operations WHERE id = ?', [req.params.operationId]);
                 const op = ops[0];
                 if (op && op.discord_thread_id) {
-                    const { discordClient } = require('../discord');
-                    const { EmbedBuilder } = require('discord.js');
                     const thread = await discordClient.channels.fetch(op.discord_thread_id);
                     if (thread) {
                         const roleId = op.operation_type === 'side'
@@ -1309,11 +1308,7 @@ router.post('/operation/:operationId/publish-orbat', isAuthenticated, async (req
     }
 });
 
-router.post('/operation/:operationId/unpublish-orbat', isAuthenticated, async (req, res) => {
-    const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
-    if (!userIsZeus && !await isOperationHost(req.session.userId, req.params.operationId)) {
-        return res.status(403).json({ success: false, error: 'Permission denied' });
-    }
+router.post('/operation/:operationId/unpublish-orbat', isAuthenticated, canManageOperation, async (req, res) => {
     try {
         await db.query('UPDATE operations SET orbat_published = 0 WHERE id = ?', [req.params.operationId]);
         res.json({ success: true });

@@ -360,7 +360,7 @@ async function publishOrbat() {
         });
         const d = await r.json();
         if (d.success) location.reload(); else alert(d.error || 'Failed to publish');
-    } catch { alert('Failed to publish ORBAT'); }
+    } catch(e) { console.error('Error publishing ORBAT:', e); alert('Failed to publish ORBAT'); }
 }
 
 async function unpublishOrbat() {
@@ -372,7 +372,7 @@ async function unpublishOrbat() {
         });
         const d = await r.json();
         if (d.success) location.reload(); else alert(d.error || 'Failed to unpublish');
-    } catch { alert('Failed to unpublish ORBAT'); }
+    } catch(e) { console.error('Error unpublishing ORBAT:', e); alert('Failed to unpublish ORBAT'); }
 }
 <% } %>
 
