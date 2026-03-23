@@ -234,7 +234,7 @@ async function updateOperationPost(client, operation) {
     }
 }
 
-async function postOperationNews(client, operation, newsContent, author) {
+async function postOperationNews(client, operation, newsContent, author, ping) {
     try {
         if (!operation.discord_thread_id) {
             console.warn('⚠️  Operation has no forum thread');
@@ -256,7 +256,15 @@ async function postOperationNews(client, operation, newsContent, author) {
             .setTimestamp()
             .setFooter({ text: `Posted by ${author}` });
 
-        const message = await thread.send({ embeds: [embed] });
+        const sendPayload = { embeds: [embed] };
+        if (ping) {
+            const roleId = operation.operation_type === 'side'
+                ? process.env.DISCORD_SIDE_OPS_ROLE_ID
+                : process.env.DISCORD_MAIN_OPS_ROLE_ID;
+            if (roleId) sendPayload.content = `<@&${roleId}>`;
+        }
+
+        const message = await thread.send(sendPayload);
         console.log(`✅ Posted news to operation thread: ${operation.title}`);
 
         return message;

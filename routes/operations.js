@@ -527,25 +527,26 @@ router.post('/:id/news', isAuthenticated, async (req, res) => {
             return res.json({ success: false, error: 'Access denied' });
         }
 
-        const { content } = req.body;
-        
+        const { content, ping } = req.body;
+
         await db.query(`
             INSERT INTO operation_news (operation_id, content, posted_by)
             VALUES (?, ?, ?)
         `, [req.params.id, content, req.session.userId]);
-        
+
         if (process.env.DISCORD_BOT_TOKEN) {
             try {
                 const { postOperationNews } = require('../discord/operations');
                 const { discordClient } = require('../discord');
-                
+
                 const [ops] = await db.query('SELECT * FROM operations WHERE id = ?', [req.params.id]);
                 if (ops[0] && ops[0].is_published) {
                     await postOperationNews(
                         discordClient,
                         ops[0],
                         content,
-                        req.session.username || req.session.discord_global_name || 'Staff'
+                        req.session.username || req.session.discord_global_name || 'Staff',
+                        ping
                     );
                 }
             } catch (discordError) {

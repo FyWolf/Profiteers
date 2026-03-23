@@ -121,7 +121,13 @@ function timestampToUTC(timestamp) {
                         <h3 style="color: #9B59B6; margin-bottom: 15px;">📢 Post News Update</h3>
                         <form id="newsForm">
                             <div id="editor" style="min-height: 200px; background: white; color: black; padding: 15px; border-radius: 4px; margin-bottom: 15px;"></div>
-                            <button type="submit" class="btn btn-primary" style="width: 100%;">Post Update</button>
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9em; color: var(--khaki); cursor: pointer; white-space: nowrap;">
+                                    <input type="checkbox" id="newsPing" style="accent-color: #9B59B6;">
+                                    Ping players
+                                </label>
+                                <button type="submit" class="btn btn-primary" style="flex: 1;">Post Update</button>
+                            </div>
                         </form>
                     </div>
                 <% } %>
@@ -338,10 +344,11 @@ document.getElementById('newsForm').addEventListener('submit', async (e) => {
     }
     
     try {
+        const ping = document.getElementById('newsPing')?.checked || false;
         const response = await fetch('/operations/<%= operation.id %>/news', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content })
+            body: JSON.stringify({ content, ping })
         });
         const data = await response.json();
         
