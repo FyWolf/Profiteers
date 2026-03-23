@@ -3,6 +3,8 @@ const router = express.Router();
 const db = require('../config/database');
 const { isAuthenticated, isAdmin } = require('../middleware/auth');
 const { isZeus, checkZeusStatus } = require('../middleware/zeus');
+const { EmbedBuilder } = require('discord.js');
+const { discordClient } = require('../discord');
 
 function buildTree(squads) {
     const byId = {};
@@ -73,6 +75,17 @@ async function isHostOfRoleOperation(userId, roleId) {
         WHERE r.id = ? AND os.operation_id IS NOT NULL
     `, [roleId]);
     return rows.length > 0 && rows[0].host_id == userId;
+}
+
+// Middleware: check if user is Zeus/Admin or the operation host
+function canManageOperation(req, res, next) {
+    (async () => {
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (userIsZeus || await isOperationHost(req.session.userId, req.params.operationId)) {
+            return next();
+        }
+        return res.status(403).json({ success: false, error: 'Permission denied' });
+    })().catch(next);
 }
 
 router.get('/api/templates', async (req, res) => {
@@ -541,6 +554,24 @@ router.get('/operation/:operationId', async (req, res) => {
             await isOperationHost(req.session.userId, req.params.operationId)
         );
 
+        const orbatPublished = !!operation.orbat_published;
+
+        // If ORBAT is draft and user can't manage, show placeholder
+        if (!orbatPublished && !canManage && operation.orbat_type === 'dynamic') {
+            return res.render('orbat/view', {
+                title: `ORBAT - ${operation.title}`,
+                operation: operation,
+                squads: [],
+                squadTree: [],
+                rolesBySquad: {},
+                teamsBySquad: {},
+                assignments: {},
+                canManage: false,
+                canClaim: false,
+                orbatPublished: false
+            });
+        }
+
         let squads = [];
         let rolesBySquad = {};
         let assignments = {};
@@ -618,7 +649,8 @@ router.get('/operation/:operationId', async (req, res) => {
             }
         }
 
-        const canClaim = req.session.userId && operation.orbat_type === 'dynamic';
+        // Non-managers can only claim if ORBAT is published
+        const canClaim = req.session.userId && operation.orbat_type === 'dynamic' && orbatPublished;
 
         res.render('orbat/view', {
             title: `ORBAT - ${operation.title}`,
@@ -629,7 +661,8 @@ router.get('/operation/:operationId', async (req, res) => {
             teamsBySquad: teamsBySquad,
             assignments: assignments,
             canManage: canManage,
-            canClaim: canClaim
+            canClaim: canClaim,
+            orbatPublished: orbatPublished
         });
     } catch (error) {
         console.error('Error loading ORBAT:', error);
@@ -645,7 +678,7 @@ router.get('/operation/:operationId', async (req, res) => {
 router.post('/claim/:roleId', isAuthenticated, async (req, res) => {
     try {
         const [roles] = await db.query(`
-            SELECT orp.*, os.operation_id, oper.orbat_type
+            SELECT orp.*, os.operation_id, oper.orbat_type, oper.orbat_published
             FROM orbat_roles orp
             JOIN orbat_squads os ON orp.squad_id = os.id
             JOIN operations oper ON os.operation_id = oper.id
@@ -660,6 +693,10 @@ router.post('/claim/:roleId', isAuthenticated, async (req, res) => {
 
         if (role.orbat_type !== 'dynamic') {
             return res.json({ success: false, error: 'Can only claim slots in dynamic ORBATs' });
+        }
+
+        if (!role.orbat_published) {
+            return res.json({ success: false, error: 'ORBAT is not published yet' });
         }
 
         const [existing] = await db.query('SELECT * FROM orbat_assignments WHERE role_id = ?', [req.params.roleId]);
@@ -790,11 +827,7 @@ router.post('/unassign/:roleId', isAuthenticated, async (req, res) => {
     }
 });
 
-router.post('/operation/:operationId/create-dynamic', isAuthenticated, async (req, res) => {
-    const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
-    if (!userIsZeus && !await isOperationHost(req.session.userId, req.params.operationId)) {
-        return res.status(403).json({ success: false, error: 'Permission denied' });
-    }
+router.post('/operation/:operationId/create-dynamic', isAuthenticated, canManageOperation, async (req, res) => {
     try {
         const { squadName, squadColor, roleName } = req.body;
 
@@ -810,9 +843,9 @@ router.post('/operation/:operationId/create-dynamic', isAuthenticated, async (re
             [squadId, roleName]
         );
 
-        // Flag the operation as dynamic so the ORBAT view renders the correct mode
+        // Flag the operation as dynamic (draft) so the ORBAT view renders the correct mode
         await db.query(
-            'UPDATE operations SET orbat_type = ? WHERE id = ?',
+            'UPDATE operations SET orbat_type = ?, orbat_published = 0 WHERE id = ?',
             ['dynamic', req.params.operationId]
         );
 
@@ -823,11 +856,7 @@ router.post('/operation/:operationId/create-dynamic', isAuthenticated, async (re
     }
 });
 
-router.post('/operation/:operationId/add-squad', isAuthenticated, async (req, res) => {
-    const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
-    if (!userIsZeus && !await isOperationHost(req.session.userId, req.params.operationId)) {
-        return res.status(403).json({ success: false, error: 'Permission denied' });
-    }
+router.post('/operation/:operationId/add-squad', isAuthenticated, canManageOperation, async (req, res) => {
     try {
         const { squadName, squadColor, parentSquadId } = req.body;
 
@@ -1236,6 +1265,56 @@ router.post('/api/migrate-hierarchy', isAdmin, async (req, res) => {
     } catch (error) {
         console.error('Migration error:', error);
         res.json({ success: false, error: error.message });
+    }
+});
+
+// ── ORBAT publish / unpublish ──────────────────────────────────────────────
+
+router.post('/operation/:operationId/publish-orbat', isAuthenticated, canManageOperation, async (req, res) => {
+    try {
+        await db.query('UPDATE operations SET orbat_published = 1 WHERE id = ?', [req.params.operationId]);
+
+        // Optionally notify via Discord
+        const { notify } = req.body;
+        if (notify && process.env.DISCORD_BOT_TOKEN) {
+            try {
+                const [ops] = await db.query('SELECT * FROM operations WHERE id = ?', [req.params.operationId]);
+                const op = ops[0];
+                if (op && op.discord_thread_id) {
+                    const thread = await discordClient.channels.fetch(op.discord_thread_id);
+                    if (thread) {
+                        const roleId = op.operation_type === 'side'
+                            ? process.env.DISCORD_SIDE_OPS_ROLE_ID
+                            : process.env.DISCORD_MAIN_OPS_ROLE_ID;
+                        const mention = roleId ? `<@&${roleId}>` : '';
+                        const websiteUrl = process.env.WEBSITE_URL || 'https://profiteerpmc.com';
+                        const embed = new EmbedBuilder()
+                            .setTitle('ORBAT Published')
+                            .setDescription(`The ORBAT for **${op.title}** is now available!\n\n[View ORBAT](${websiteUrl}/orbat/operation/${op.id})`)
+                            .setColor(0x6B8E23)
+                            .setTimestamp();
+                        await thread.send({ content: mention, embeds: [embed] });
+                    }
+                }
+            } catch (discordError) {
+                console.error('Discord ORBAT publish notification error:', discordError);
+            }
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error publishing ORBAT:', error);
+        res.json({ success: false, error: 'Failed to publish ORBAT' });
+    }
+});
+
+router.post('/operation/:operationId/unpublish-orbat', isAuthenticated, canManageOperation, async (req, res) => {
+    try {
+        await db.query('UPDATE operations SET orbat_published = 0 WHERE id = ?', [req.params.operationId]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error unpublishing ORBAT:', error);
+        res.json({ success: false, error: 'Failed to unpublish ORBAT' });
     }
 });
 
