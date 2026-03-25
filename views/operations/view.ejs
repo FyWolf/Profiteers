@@ -381,11 +381,16 @@ document.getElementById('newsForm').addEventListener('submit', async (e) => {
         return;
     }
 
+    const formData = new FormData();
+    formData.append('content', content);
+    Array.from(document.getElementById('newsFiles').files).forEach(file => {
+        formData.append('attachments', file);
+    });
+
     try {
         const response = await fetch('/operations/<%= operation.id %>/news', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content })
+            body: formData
         });
         const data = await response.json();
         if (data.success) {

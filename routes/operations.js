@@ -13,11 +13,23 @@ function safeFileName(originalName) {
     return `${Date.now()}_${rand}${ext}`;
 }
 
+const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']);
+const ALLOWED_FILE_MIMES = new Set([
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+]);
+
 // Inline image upload for the Quill news editor
 router.post('/upload-image', isAuthenticated, async (req, res) => {
     try {
         if (!req.files || !req.files.image) return res.json({ success: false, error: 'No file provided' });
         const file = req.files.image;
+        if (!ALLOWED_IMAGE_MIMES.has(file.mimetype)) {
+            return res.json({ success: false, error: 'Only image files are allowed' });
+        }
         const newsDir = path.join(__dirname, '../public/images/news');
         fs.mkdirSync(newsDir, { recursive: true });
         const fileName = safeFileName(file.name);
@@ -555,15 +567,17 @@ router.post('/:id/news', isAuthenticated, async (req, res) => {
 
         // Handle file attachments
         const newsDir = path.join(__dirname, '../public/images/news');
-        if (!fs.existsSync(newsDir)) fs.mkdirSync(newsDir, { recursive: true });
+        fs.mkdirSync(newsDir, { recursive: true });
 
         const uploadedFiles = [];
         if (req.files && req.files.attachments) {
             const files = Array.isArray(req.files.attachments) ? req.files.attachments : [req.files.attachments];
             for (const file of files) {
+                if (!ALLOWED_FILE_MIMES.has(file.mimetype)) continue;
+                const buffer = file.data;
                 const fileName = safeFileName(file.name);
                 await file.mv(path.join(newsDir, fileName));
-                uploadedFiles.push({ name: file.name, webPath: '/images/news/' + fileName, mimetype: file.mimetype });
+                uploadedFiles.push({ name: file.name, webPath: '/images/news/' + fileName, mimetype: file.mimetype, buffer });
             }
         }
 
@@ -574,7 +588,7 @@ router.post('/:id/news', isAuthenticated, async (req, res) => {
                 if (f.mimetype && f.mimetype.startsWith('image/')) {
                     return `<br><img src="${f.webPath}" style="max-width:100%;border-radius:4px;margin-top:8px;">`;
                 }
-                const safeName = f.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+                const safeName = f.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
                 return `<br><a href="${f.webPath}" target="_blank" style="color:var(--accent);">📎 ${safeName}</a>`;
             }).join('');
         }

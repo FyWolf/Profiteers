@@ -1,4 +1,6 @@
 const { EmbedBuilder, AttachmentBuilder, ChannelType } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 const db = require('../config/database');
 
 function htmlToMarkdown(html) {
@@ -247,7 +249,7 @@ async function postOperationNews(client, operation, newsContent, author, attachm
             return null;
         }
 
-        const cleanContent = htmlToMarkdown(newsContent);
+        const cleanContent = htmlToMarkdown(newsContent) || null;
 
         const embed = new EmbedBuilder()
             .setTitle('📰 Operation Update')
@@ -256,10 +258,29 @@ async function postOperationNews(client, operation, newsContent, author, attachm
             .setTimestamp()
             .setFooter({ text: `Posted by ${author}` });
 
-        const discordFiles = attachments.map(f => new AttachmentBuilder(f.buffer, { name: f.name }));
+        // Extract inline images from HTML content (Quill editor uploads)
+        const imgRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/gi;
+        const inlineImages = [];
+        let imgMatch;
+        while ((imgMatch = imgRegex.exec(newsContent)) !== null) {
+            const src = imgMatch[1];
+            if (src.startsWith('/images/news/')) {
+                try {
+                    const filePath = path.join(__dirname, '../public', src);
+                    const buffer = fs.readFileSync(filePath);
+                    inlineImages.push({ buffer, name: path.basename(src) });
+                } catch (e) { /* file not found, skip */ }
+            }
+        }
 
-        // Use first image as embed thumbnail if available
-        const firstImage = attachments.find(f => f.mimetype && f.mimetype.startsWith('image/'));
+        // Combine inline images with explicit attachments (avoid duplicates by name)
+        const inlineNames = new Set(inlineImages.map(f => f.name));
+        const explicitFiles = attachments.filter(a => a.buffer && !inlineNames.has(a.name));
+        const allFiles = [...inlineImages, ...explicitFiles];
+
+        const discordFiles = allFiles.map(f => new AttachmentBuilder(f.buffer, { name: f.name }));
+
+        const firstImage = allFiles[0];
         if (firstImage) {
             embed.setImage(`attachment://${firstImage.name}`);
         }
