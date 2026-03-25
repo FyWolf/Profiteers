@@ -1,4 +1,6 @@
 const { EmbedBuilder, AttachmentBuilder, ChannelType } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 const db = require('../config/database');
 const fs = require('fs');
 const path = require('path');
@@ -236,6 +238,7 @@ async function updateOperationPost(client, operation) {
     }
 }
 
+<<<<<<< HEAD
 const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg']);
 
 function safeAttachmentName(filename) {
@@ -243,6 +246,9 @@ function safeAttachmentName(filename) {
 }
 
 async function postOperationNews(client, operation, newsContent, author, ping) {
+=======
+async function postOperationNews(client, operation, newsContent, author, attachments = []) {
+>>>>>>> a140af0a7e93a75fe90d971a3850e91a0c7d32c9
     try {
         if (!operation.discord_thread_id) {
             console.warn('⚠️  Operation has no forum thread');
@@ -255,6 +261,7 @@ async function postOperationNews(client, operation, newsContent, author, ping) {
             return null;
         }
 
+<<<<<<< HEAD
         // Extract inline images saved via /upload-image (src starts with /images/news/)
         const imgRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/gi;
         const discordFiles = [];
@@ -277,6 +284,8 @@ async function postOperationNews(client, operation, newsContent, author, ping) {
             }
         }
 
+=======
+>>>>>>> a140af0a7e93a75fe90d971a3850e91a0c7d32c9
         const cleanContent = htmlToMarkdown(newsContent) || null;
 
         const embed = new EmbedBuilder()
@@ -286,6 +295,7 @@ async function postOperationNews(client, operation, newsContent, author, ping) {
             .setTimestamp()
             .setFooter({ text: `Posted by ${author}` });
 
+<<<<<<< HEAD
         if (firstImageAttachName) {
             embed.setImage(`attachment://${firstImageAttachName}`);
         }
@@ -297,9 +307,36 @@ async function postOperationNews(client, operation, newsContent, author, ping) {
                 ? process.env.DISCORD_SIDE_OPS_ROLE_ID
                 : process.env.DISCORD_MAIN_OPS_ROLE_ID;
             if (roleId) sendPayload.content = `<@&${roleId}>`;
+=======
+        // Extract inline images from HTML content (Quill editor uploads)
+        const imgRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/gi;
+        const inlineImages = [];
+        let imgMatch;
+        while ((imgMatch = imgRegex.exec(newsContent)) !== null) {
+            const src = imgMatch[1];
+            if (src.startsWith('/images/news/')) {
+                try {
+                    const filePath = path.join(__dirname, '../public', src);
+                    const buffer = fs.readFileSync(filePath);
+                    inlineImages.push({ buffer, name: path.basename(src) });
+                } catch (e) { /* file not found, skip */ }
+            }
+>>>>>>> a140af0a7e93a75fe90d971a3850e91a0c7d32c9
         }
 
-        const message = await thread.send(sendPayload);
+        // Combine inline images with explicit attachments (avoid duplicates by name)
+        const inlineNames = new Set(inlineImages.map(f => f.name));
+        const explicitFiles = attachments.filter(a => a.buffer && !inlineNames.has(a.name));
+        const allFiles = [...inlineImages, ...explicitFiles];
+
+        const discordFiles = allFiles.map(f => new AttachmentBuilder(f.buffer, { name: f.name }));
+
+        const firstImage = allFiles[0];
+        if (firstImage) {
+            embed.setImage(`attachment://${firstImage.name}`);
+        }
+
+        const message = await thread.send({ embeds: [embed], files: discordFiles });
         console.log(`✅ Posted news to operation thread: ${operation.title}`);
 
         return message;
