@@ -234,7 +234,7 @@ async function updateOperationPost(client, operation) {
     }
 }
 
-async function postOperationNews(client, operation, newsContent, author, ping) {
+async function postOperationNews(client, operation, newsContent, author, attachments = []) {
     try {
         if (!operation.discord_thread_id) {
             console.warn('⚠️  Operation has no forum thread');
@@ -256,15 +256,15 @@ async function postOperationNews(client, operation, newsContent, author, ping) {
             .setTimestamp()
             .setFooter({ text: `Posted by ${author}` });
 
-        const sendPayload = { embeds: [embed] };
-        if (ping) {
-            const roleId = operation.operation_type === 'side'
-                ? process.env.DISCORD_SIDE_OPS_ROLE_ID
-                : process.env.DISCORD_MAIN_OPS_ROLE_ID;
-            if (roleId) sendPayload.content = `<@&${roleId}>`;
+        const discordFiles = attachments.map(f => new AttachmentBuilder(f.buffer, { name: f.name }));
+
+        // Use first image as embed thumbnail if available
+        const firstImage = attachments.find(f => f.mimetype && f.mimetype.startsWith('image/'));
+        if (firstImage) {
+            embed.setImage(`attachment://${firstImage.name}`);
         }
 
-        const message = await thread.send(sendPayload);
+        const message = await thread.send({ embeds: [embed], files: discordFiles });
         console.log(`✅ Posted news to operation thread: ${operation.title}`);
 
         return message;

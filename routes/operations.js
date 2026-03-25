@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const path = require('path');
+const fs = require('fs');
 const db = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
 const { isZeus, checkZeusStatus } = require('../middleware/zeus');
@@ -527,12 +528,38 @@ router.post('/:id/news', isAuthenticated, async (req, res) => {
             return res.json({ success: false, error: 'Access denied' });
         }
 
-        const { content, ping } = req.body;
+        const content = req.body.content;
+
+        // Handle file attachments
+        const newsDir = path.join(__dirname, '../public/images/news');
+        if (!fs.existsSync(newsDir)) fs.mkdirSync(newsDir, { recursive: true });
+
+        const uploadedFiles = [];
+        if (req.files && req.files.attachments) {
+            const files = Array.isArray(req.files.attachments) ? req.files.attachments : [req.files.attachments];
+            for (const file of files) {
+                const safeName = Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+                const filePath = path.join(newsDir, safeName);
+                await file.mv(filePath);
+                uploadedFiles.push({ name: file.name, webPath: '/images/news/' + safeName, buffer: file.data, mimetype: file.mimetype });
+            }
+        }
+
+        // Append images/links to content for website display
+        let finalContent = content;
+        if (uploadedFiles.length > 0) {
+            finalContent += uploadedFiles.map(f => {
+                if (f.mimetype && f.mimetype.startsWith('image/')) {
+                    return `<br><img src="${f.webPath}" style="max-width:100%;border-radius:4px;margin-top:8px;">`;
+                }
+                return `<br><a href="${f.webPath}" target="_blank" style="color:var(--accent);">📎 ${f.name}</a>`;
+            }).join('');
+        }
 
         await db.query(`
             INSERT INTO operation_news (operation_id, content, posted_by)
             VALUES (?, ?, ?)
-        `, [req.params.id, content, req.session.userId]);
+        `, [req.params.id, finalContent, req.session.userId]);
 
         if (process.env.DISCORD_BOT_TOKEN) {
             try {
@@ -546,7 +573,7 @@ router.post('/:id/news', isAuthenticated, async (req, res) => {
                         ops[0],
                         content,
                         req.session.username || req.session.discord_global_name || 'Staff',
-                        ping
+                        uploadedFiles
                     );
                 }
             } catch (discordError) {
@@ -554,7 +581,7 @@ router.post('/:id/news', isAuthenticated, async (req, res) => {
                 // Don't fail the news post if Discord fails
             }
         }
-        
+
         res.json({ success: true });
     } catch (error) {
         console.error('Error posting news:', error);
