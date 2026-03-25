@@ -120,14 +120,14 @@ function timestampToUTC(timestamp) {
                     <div class="card" style="margin-bottom: 25px; background: rgba(155, 89, 182, 0.1); border: 2px solid #9B59B6;">
                         <h3 style="color: #9B59B6; margin-bottom: 15px;">📢 Post News Update</h3>
                         <form id="newsForm">
-                            <div id="editor" style="min-height: 200px; background: white; color: black; padding: 15px; border-radius: 4px; margin-bottom: 15px;"></div>
-                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9em; color: var(--khaki); cursor: pointer; white-space: nowrap;">
-                                    <input type="checkbox" id="newsPing" style="accent-color: #9B59B6;">
-                                    Ping players
-                                </label>
-                                <button type="submit" class="btn btn-primary" style="flex: 1;">Post Update</button>
+                            <div id="editor" style="margin-bottom: 15px;"></div>
+                            <div style="margin-bottom: 12px;">
+                                <label style="display:block;font-size:0.88em;color:var(--khaki);margin-bottom:6px;">📎 Attach files (optional)</label>
+                                <input type="file" id="newsFiles" multiple accept="image/*,.pdf,.doc,.docx,.txt" style="display:none;">
+                                <label for="newsFiles" class="btn" style="display:inline-block;cursor:pointer;padding:6px 14px;font-size:0.85em;">Choose files</label>
+                                <div id="filePreview" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
                             </div>
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">Post Update</button>
                         </form>
                     </div>
                 <% } %>
@@ -321,39 +321,82 @@ async function setAttendance(status) {
 <% if (canManage) { %>
 const quill = new Quill('#editor', {
     theme: 'snow',
+    placeholder: 'Write your update here...',
     modules: {
-        toolbar: [
-            ['bold', 'italic', 'underline', 'strike'],
-            ['blockquote', 'code-block'],
-            [{ 'header': 1 }, { 'header': 2 }],
-            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-            [{ 'color': [] }, { 'background': [] }],
-            ['link', 'image'],
-            ['clean']
-        ]
+        toolbar: {
+            container: [
+                ['bold', 'italic', 'underline', 'strike'],
+                ['blockquote', 'code-block'],
+                [{ 'header': 1 }, { 'header': 2 }],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                [{ 'color': [] }, { 'background': [] }],
+                ['link', 'image'],
+                ['clean']
+            ],
+            handlers: {
+                'image': function() {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = async () => {
+                        const file = input.files[0];
+                        if (!file) return;
+                        const fd = new FormData();
+                        fd.append('image', file);
+                        try {
+                            const r = await fetch('/operations/upload-image', { method: 'POST', body: fd });
+                            const d = await r.json();
+                            if (d.success) {
+                                const range = quill.getSelection(true);
+                                quill.insertEmbed(range.index, 'image', d.url);
+                                quill.setSelection(range.index + 1);
+                            } else { alert(d.error || 'Image upload failed'); }
+                        } catch(e) { alert('Image upload failed'); }
+                    };
+                    input.click();
+                },
+            }
+        }
     }
+});
+
+// Show selected filenames below the choose-files button
+document.getElementById('newsFiles').addEventListener('change', function() {
+    const preview = document.getElementById('filePreview');
+    preview.innerHTML = '';
+    Array.from(this.files).forEach(file => {
+        const tag = document.createElement('span');
+        tag.style.cssText = 'background:rgba(0,0,0,0.3);padding:3px 10px;border-radius:3px;font-size:0.8em;color:var(--sand);';
+        tag.textContent = file.name;
+        preview.appendChild(tag);
+    });
 });
 
 document.getElementById('newsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     const content = quill.root.innerHTML;
     if (!content || content === '<p><br></p>') {
         alert('Please enter some content');
         return;
     }
-    
+
+    const formData = new FormData();
+    formData.append('content', content);
+    Array.from(document.getElementById('newsFiles').files).forEach(file => {
+        formData.append('attachments', file);
+    });
+
     try {
-        const ping = document.getElementById('newsPing')?.checked || false;
         const response = await fetch('/operations/<%= operation.id %>/news', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content, ping })
+            body: formData
         });
         const data = await response.json();
-        
         if (data.success) {
             location.reload();
+        } else {
+            alert(data.error || 'Failed to post update');
         }
     } catch (error) {
         console.error('Error posting news:', error);

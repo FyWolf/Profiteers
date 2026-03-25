@@ -212,7 +212,7 @@ function renderOpNode(node, isRoot) {
         <div class="subtitle"><%= operation.title %></div>
     </header>
 
-    <% if (canManage && operation.orbat_type === 'dynamic' && !orbatPublished) { %>
+    <% if (canManage && operation.orbat_type === 'dynamic' && !locals.orbatPublished) { %>
         <div style="margin-bottom: 20px; padding: 15px; background: rgba(243, 156, 18, 0.15); border: 2px solid #F39C12; border-radius: 8px;">
             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                 <div>
@@ -228,7 +228,7 @@ function renderOpNode(node, isRoot) {
                 </div>
             </div>
         </div>
-    <% } else if (canManage && operation.orbat_type === 'dynamic' && orbatPublished) { %>
+    <% } else if (canManage && operation.orbat_type === 'dynamic' && locals.orbatPublished) { %>
         <div style="margin-bottom: 20px; padding: 15px; background: rgba(52, 152, 219, 0.1); border: 1px solid #3498DB; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
             <strong style="color: #3498DB;">🎯 Dynamic ORBAT - First come, first served</strong>
             <button onclick="unpublishOrbat()" class="btn" style="font-size: 0.8em; padding: 4px 12px; opacity: 0.7;">Unpublish</button>
@@ -277,7 +277,7 @@ function renderOpNode(node, isRoot) {
                             </button>
                         </form>
                     </div>
-                <% } else if (operation.orbat_type === 'dynamic' && !orbatPublished) { %>
+                <% } else if (operation.orbat_type === 'dynamic' && !locals.orbatPublished) { %>
                     <h3>ORBAT Not Ready Yet</h3>
                     <p style="color: var(--khaki);">The host is still working on the ORBAT. Check back later!</p>
                 <% } else if (operation.orbat_type === 'dynamic') { %>

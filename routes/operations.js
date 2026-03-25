@@ -1,9 +1,45 @@
 const express = require('express');
 const router = express.Router();
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 const db = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
 const { isZeus, checkZeusStatus } = require('../middleware/zeus');
+
+function safeFileName(originalName) {
+    const ext = path.extname(originalName).replace(/[^a-z0-9.]/gi, '').slice(0, 10);
+    const rand = crypto.randomBytes(8).toString('hex');
+    return `${Date.now()}_${rand}${ext}`;
+}
+
+const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']);
+const ALLOWED_FILE_MIMES = new Set([
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+]);
+
+// Inline image upload for the Quill news editor
+router.post('/upload-image', isAuthenticated, async (req, res) => {
+    try {
+        if (!req.files || !req.files.image) return res.json({ success: false, error: 'No file provided' });
+        const file = req.files.image;
+        if (!ALLOWED_IMAGE_MIMES.has(file.mimetype)) {
+            return res.json({ success: false, error: 'Only image files are allowed' });
+        }
+        const newsDir = path.join(__dirname, '../public/images/news');
+        fs.mkdirSync(newsDir, { recursive: true });
+        const fileName = safeFileName(file.name);
+        await file.mv(path.join(newsDir, fileName));
+        res.json({ success: true, url: '/images/news/' + fileName });
+    } catch (e) {
+        console.error('Image upload error:', e);
+        res.json({ success: false, error: 'Upload failed' });
+    }
+});
 
 // Helper function to convert datetime-local input to unix timestamp
 // Input: "2024-02-26T14:00" (user enters this as UTC)
@@ -527,12 +563,40 @@ router.post('/:id/news', isAuthenticated, async (req, res) => {
             return res.json({ success: false, error: 'Access denied' });
         }
 
-        const { content, ping } = req.body;
+        const content = req.body.content;
+
+        // Handle file attachments
+        const newsDir = path.join(__dirname, '../public/images/news');
+        fs.mkdirSync(newsDir, { recursive: true });
+
+        const uploadedFiles = [];
+        if (req.files && req.files.attachments) {
+            const files = Array.isArray(req.files.attachments) ? req.files.attachments : [req.files.attachments];
+            for (const file of files) {
+                if (!ALLOWED_FILE_MIMES.has(file.mimetype)) continue;
+                const buffer = file.data;
+                const fileName = safeFileName(file.name);
+                await file.mv(path.join(newsDir, fileName));
+                uploadedFiles.push({ name: file.name, webPath: '/images/news/' + fileName, mimetype: file.mimetype, buffer });
+            }
+        }
+
+        // Append images/links to content for website display
+        let finalContent = content;
+        if (uploadedFiles.length > 0) {
+            finalContent += uploadedFiles.map(f => {
+                if (f.mimetype && f.mimetype.startsWith('image/')) {
+                    return `<br><img src="${f.webPath}" style="max-width:100%;border-radius:4px;margin-top:8px;">`;
+                }
+                const safeName = f.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+                return `<br><a href="${f.webPath}" target="_blank" style="color:var(--accent);">📎 ${safeName}</a>`;
+            }).join('');
+        }
 
         await db.query(`
             INSERT INTO operation_news (operation_id, content, posted_by)
             VALUES (?, ?, ?)
-        `, [req.params.id, content, req.session.userId]);
+        `, [req.params.id, finalContent, req.session.userId]);
 
         if (process.env.DISCORD_BOT_TOKEN) {
             try {
@@ -546,7 +610,7 @@ router.post('/:id/news', isAuthenticated, async (req, res) => {
                         ops[0],
                         content,
                         req.session.username || req.session.discord_global_name || 'Staff',
-                        ping
+                        uploadedFiles
                     );
                 }
             } catch (discordError) {
@@ -554,7 +618,7 @@ router.post('/:id/news', isAuthenticated, async (req, res) => {
                 // Don't fail the news post if Discord fails
             }
         }
-        
+
         res.json({ success: true });
     } catch (error) {
         console.error('Error posting news:', error);
