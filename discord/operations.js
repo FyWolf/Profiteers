@@ -1,5 +1,7 @@
 const { EmbedBuilder, AttachmentBuilder, ChannelType } = require('discord.js');
 const db = require('../config/database');
+const fs = require('fs');
+const path = require('path');
 
 function htmlToMarkdown(html) {
     if (!html) return '';
@@ -234,6 +236,12 @@ async function updateOperationPost(client, operation) {
     }
 }
 
+const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg']);
+
+function safeAttachmentName(filename) {
+    return filename.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
+}
+
 async function postOperationNews(client, operation, newsContent, author, ping) {
     try {
         if (!operation.discord_thread_id) {
@@ -247,7 +255,29 @@ async function postOperationNews(client, operation, newsContent, author, ping) {
             return null;
         }
 
-        const cleanContent = htmlToMarkdown(newsContent);
+        // Extract inline images saved via /upload-image (src starts with /images/news/)
+        const imgRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/gi;
+        const discordFiles = [];
+        let firstImageAttachName = null;
+        let imgMatch;
+        while ((imgMatch = imgRegex.exec(newsContent)) !== null) {
+            const src = imgMatch[1];
+            if (src.startsWith('/images/news/')) {
+                try {
+                    const filePath = path.join(__dirname, '../public', src);
+                    const buffer = fs.readFileSync(filePath);
+                    const safeName = safeAttachmentName(path.basename(src));
+                    discordFiles.push(new AttachmentBuilder(buffer, { name: safeName }));
+                    if (!firstImageAttachName && IMAGE_EXTENSIONS.has(path.extname(safeName).toLowerCase())) {
+                        firstImageAttachName = safeName;
+                    }
+                } catch (e) {
+                    console.warn(`⚠️  Could not read inline image: ${src}`, e.message);
+                }
+            }
+        }
+
+        const cleanContent = htmlToMarkdown(newsContent) || null;
 
         const embed = new EmbedBuilder()
             .setTitle('📰 Operation Update')
@@ -256,7 +286,12 @@ async function postOperationNews(client, operation, newsContent, author, ping) {
             .setTimestamp()
             .setFooter({ text: `Posted by ${author}` });
 
+        if (firstImageAttachName) {
+            embed.setImage(`attachment://${firstImageAttachName}`);
+        }
+
         const sendPayload = { embeds: [embed] };
+        if (discordFiles.length > 0) sendPayload.files = discordFiles;
         if (ping) {
             const roleId = operation.operation_type === 'side'
                 ? process.env.DISCORD_SIDE_OPS_ROLE_ID

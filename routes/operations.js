@@ -527,7 +527,9 @@ router.post('/:id/news', isAuthenticated, async (req, res) => {
             return res.json({ success: false, error: 'Access denied' });
         }
 
-        const { content, ping } = req.body;
+        const { ping } = req.body;
+        // Strip base64 data: URIs (Quill fallback when upload fails) to prevent ER_DATA_TOO_LONG
+        const content = (req.body.content || '').replace(/<img[^>]*src=["']data:[^"']*["'][^>]*>/gi, '');
 
         await db.query(`
             INSERT INTO operation_news (operation_id, content, posted_by)
