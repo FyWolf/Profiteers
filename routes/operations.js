@@ -2,9 +2,32 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const db = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
 const { isZeus, checkZeusStatus } = require('../middleware/zeus');
+
+function safeFileName(originalName) {
+    const ext = path.extname(originalName).replace(/[^a-z0-9.]/gi, '').slice(0, 10);
+    const rand = crypto.randomBytes(8).toString('hex');
+    return `${Date.now()}_${rand}${ext}`;
+}
+
+// Inline image upload for the Quill news editor
+router.post('/upload-image', isAuthenticated, async (req, res) => {
+    try {
+        if (!req.files || !req.files.image) return res.json({ success: false, error: 'No file provided' });
+        const file = req.files.image;
+        const newsDir = path.join(__dirname, '../public/images/news');
+        fs.mkdirSync(newsDir, { recursive: true });
+        const fileName = safeFileName(file.name);
+        await file.mv(path.join(newsDir, fileName));
+        res.json({ success: true, url: '/images/news/' + fileName });
+    } catch (e) {
+        console.error('Image upload error:', e);
+        res.json({ success: false, error: 'Upload failed' });
+    }
+});
 
 // Helper function to convert datetime-local input to unix timestamp
 // Input: "2024-02-26T14:00" (user enters this as UTC)
@@ -538,10 +561,9 @@ router.post('/:id/news', isAuthenticated, async (req, res) => {
         if (req.files && req.files.attachments) {
             const files = Array.isArray(req.files.attachments) ? req.files.attachments : [req.files.attachments];
             for (const file of files) {
-                const safeName = Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-                const filePath = path.join(newsDir, safeName);
-                await file.mv(filePath);
-                uploadedFiles.push({ name: file.name, webPath: '/images/news/' + safeName, buffer: file.data, mimetype: file.mimetype });
+                const fileName = safeFileName(file.name);
+                await file.mv(path.join(newsDir, fileName));
+                uploadedFiles.push({ name: file.name, webPath: '/images/news/' + fileName, mimetype: file.mimetype });
             }
         }
 
@@ -552,7 +574,8 @@ router.post('/:id/news', isAuthenticated, async (req, res) => {
                 if (f.mimetype && f.mimetype.startsWith('image/')) {
                     return `<br><img src="${f.webPath}" style="max-width:100%;border-radius:4px;margin-top:8px;">`;
                 }
-                return `<br><a href="${f.webPath}" target="_blank" style="color:var(--accent);">📎 ${f.name}</a>`;
+                const safeName = f.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+                return `<br><a href="${f.webPath}" target="_blank" style="color:var(--accent);">📎 ${safeName}</a>`;
             }).join('');
         }
 
