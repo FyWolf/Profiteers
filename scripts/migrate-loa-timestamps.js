@@ -125,7 +125,13 @@ async function runStep3_DropOldColumns(conn) {
     log('Step 3/5 — Dropping old DATETIME columns…');
     const colType = await getColumnType(conn, 'start_date');
     if (colType === 'datetime') {
-        // Drop indexes that reference old columns first
+        // idx_user_dates (user_id, start_date, end_date) may be the only index
+        // supporting the FK on user_id. Add a temporary standalone index first
+        // so MySQL doesn't block the drop.
+        if (await indexExists(conn, 'idx_user_dates') && !(await indexExists(conn, 'idx_user_id_temp'))) {
+            await conn.query('ALTER TABLE leave_of_absence ADD INDEX idx_user_id_temp (user_id)');
+        }
+
         for (const idx of ['idx_user_dates', 'idx_dates']) {
             if (await indexExists(conn, idx)) {
                 await conn.query(`ALTER TABLE leave_of_absence DROP INDEX ${idx}`);
@@ -169,6 +175,11 @@ async function runStep5_RebuildIndexesAndView(conn) {
             await conn.query(`ALTER TABLE leave_of_absence DROP INDEX ${idx}`);
         }
         await conn.query(`ALTER TABLE leave_of_absence ADD INDEX ${idx} ${cols}`);
+    }
+
+    // Drop the temporary user_id index now that idx_user_dates is back
+    if (await indexExists(conn, 'idx_user_id_temp')) {
+        await conn.query('ALTER TABLE leave_of_absence DROP INDEX idx_user_id_temp');
     }
     ok('Indexes rebuilt');
 
