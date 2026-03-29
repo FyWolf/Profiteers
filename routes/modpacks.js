@@ -12,7 +12,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('../config/database');
 const ModpackIndexer = require('../services/modpack-indexer');
-const { isAuthenticated } = require('../middleware/auth');
+const { isAuthenticated, isAdmin } = require('../middleware/auth');
 const { isZeus } = require('../middleware/zeus');
 
 const indexer = new ModpackIndexer(db);
@@ -65,7 +65,7 @@ router.get('/', async (req, res) => {
             SELECT m.*, COALESCE(u.discord_global_name, u.username) as creator_name
             FROM modpacks m
             LEFT JOIN users u ON m.created_by = u.id
-            ORDER BY m.created_at DESC
+            ORDER BY m.is_pinned DESC, m.created_at DESC
         `);
 
         res.render('modpacks/list', {
@@ -234,6 +234,21 @@ router.post('/upload', isZeus, async (req, res) => {
     } catch (error) {
         console.error('Error uploading modpack:', error);
         res.redirect('/modpacks/upload/new?error=Failed to upload modpack');
+    }
+});
+
+router.post('/:id/pin', isAdmin, async (req, res) => {
+    try {
+        const [modpacks] = await db.query('SELECT id, is_pinned FROM modpacks WHERE id = ?', [req.params.id]);
+        if (modpacks.length === 0) return res.redirect('/modpacks?error=Modpack not found');
+
+        const newState = modpacks[0].is_pinned ? 0 : 1;
+        await db.query('UPDATE modpacks SET is_pinned = ? WHERE id = ?', [newState, req.params.id]);
+
+        res.redirect('/modpacks?success=' + (newState ? 'Modpack pinned' : 'Modpack unpinned'));
+    } catch (error) {
+        console.error('Error toggling modpack pin:', error);
+        res.redirect('/modpacks?error=Failed to update pin');
     }
 });
 

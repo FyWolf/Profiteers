@@ -1,0 +1,60 @@
+<div class="modpack-card" style="background: var(--camo-medium); border: 1px solid <%= mp.is_pinned ? 'var(--accent)' : 'var(--olive)' %>; border-radius: 8px; overflow: hidden; transition: transform 0.2s, border-color 0.2s; position: relative;">
+
+    <div style="padding: 20px; border-bottom: 1px solid var(--olive);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px;">
+            <h3 style="margin: 0; font-family: var(--heading-font); font-size: 1.1em; flex: 1; min-width: 0;">
+                <a href="/modpacks/<%= mp.id %>" style="color: var(--accent); text-decoration: none;">
+                    <%= mp.name %>
+                </a>
+            </h3>
+            <% if (mp.is_pinned) { %>
+                <span title="Pinned" style="font-size: 1em; flex-shrink: 0;">📌</span>
+            <% } %>
+        </div>
+        <% if (mp.description) { %>
+            <p style="color: var(--text-secondary); font-size: 0.9em; margin: 0 0 10px 0; line-height: 1.4;">
+                <%= mp.description.length > 100 ? mp.description.substring(0, 100) + '...' : mp.description %>
+            </p>
+        <% } %>
+    </div>
+
+    <div style="padding: 15px 20px; display: flex; gap: 20px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.9em;">
+            <span>🧩</span>
+            <strong style="color: var(--text-primary);"><%= mp.mod_count %></strong> mods
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.9em;">
+            <span>💾</span>
+            <strong style="color: var(--text-primary);"><%= formatSize(mp.total_size) %></strong>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 0.9em;">
+            <% if (mp.index_status === 'completed') { %>
+                <span style="color: #4CAF50;">Indexed</span>
+            <% } else if (mp.index_status === 'indexing') { %>
+                <span style="color: var(--accent);">Indexing (<%= mp.index_progress %>/<%= mp.mod_count %>)</span>
+            <% } else if (mp.index_status === 'failed') { %>
+                <span style="color: #E74C3C;">Failed</span>
+            <% } else { %>
+                <span style="color: var(--text-secondary);">Pending</span>
+            <% } %>
+        </div>
+    </div>
+
+    <div style="padding: 12px 20px; border-top: 1px solid var(--olive); display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.15);">
+        <span style="color: var(--text-secondary); font-size: 0.8em;">
+            by <%= mp.creator_name || 'Unknown' %> · <%= new Date(mp.created_at).toLocaleDateString() %>
+        </span>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <% if (isAdmin) { %>
+                <form method="POST" action="/modpacks/<%= mp.id %>/pin" style="margin: 0;">
+                    <button type="submit" class="btn btn-sm" style="padding: 4px 10px; font-size: 0.8em; opacity: 0.7;" title="<%= mp.is_pinned ? 'Unpin' : 'Pin to top' %>">
+                        <%= mp.is_pinned ? '📌 Unpin' : '📌 Pin' %>
+                    </button>
+                </form>
+            <% } %>
+            <a href="/modpacks/<%= mp.id %>/download" class="btn btn-sm" style="padding: 4px 10px; font-size: 0.8em;" title="Download preset file">⬇️</a>
+            <a href="/modpacks/<%= mp.id %>" class="btn btn-sm btn-primary" style="padding: 4px 10px; font-size: 0.8em;">View</a>
+        </div>
+    </div>
+
+</div>
