@@ -95,8 +95,8 @@
                             </div>
 
                             <div style="color: var(--khaki); font-size: 0.95em; margin-bottom: 8px;">
-                                📅 <%= new Date(loa.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %>
-                                → <%= new Date(loa.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %>
+                                📅 <%= new Date(loa.start_date * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %>
+                                → <%= new Date(loa.end_date * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %>
                             </div>
 
                             <% if (loa.superior_display_name || loa.superior_username) { %>
@@ -149,8 +149,8 @@
                     <% pastLoas.forEach(loa => { %>
                         <%
                         const now2 = new Date();
-                        const startDate2 = new Date(loa.start_date);
-                        const endDate2 = new Date(loa.end_date);
+                        const startDate2 = new Date(loa.start_date * 1000);
+                        const endDate2 = new Date(loa.end_date * 1000);
                         const isUpcoming2 = startDate2 > now2;
                         const borderColor2 = isUpcoming2 ? '#f39c12' : '#95a5a6';
                         const displayName2 = loa.roster_nickname || loa.discord_global_name || loa.username;
