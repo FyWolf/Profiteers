@@ -118,6 +118,22 @@ async function runStep2_CopyData(conn) {
         WHERE start_date_new = 0 OR end_date_new = 0 OR submitted_at_new = 0
     `);
     if (zeroes > 0) throw new Error(`${zeroes} rows converted to timestamp 0 — original DATETIME values may be invalid`);
+
+    const [[{ nulls }]] = await conn.query(`
+        SELECT COUNT(*) AS nulls FROM leave_of_absence
+        WHERE start_date_new IS NULL OR end_date_new IS NULL OR submitted_at_new IS NULL
+    `);
+    if (nulls > 0) {
+        // Show which rows are affected so the user can inspect/fix before continuing
+        const [badRows] = await conn.query(`
+            SELECT id, start_date_new, end_date_new, submitted_at_new
+            FROM leave_of_absence
+            WHERE start_date_new IS NULL OR end_date_new IS NULL OR submitted_at_new IS NULL
+        `);
+        warn(`${nulls} row(s) have NULL temp columns (original DATETIME was invalid):`);
+        badRows.forEach(r => warn(`  id=${r.id}  start=${r.start_date_new}  end=${r.end_date_new}  submitted=${r.submitted_at_new}`));
+        throw new Error('Fix the NULL rows above before continuing (update start_date_new / end_date_new / submitted_at_new directly, then re-run).');
+    }
     ok('All values converted successfully');
 }
 
@@ -150,17 +166,27 @@ async function runStep3_DropOldColumns(conn) {
 
 async function runStep4_RenameColumns(conn) {
     log('Step 4/5 — Renaming temporary columns to final names…');
+
+    // Rename with NULL allowed first to avoid strict-mode truncation errors,
+    // then tighten the NOT NULL constraints in a second pass.
     const pairs = [
-        ['start_date_new',   'start_date',   'BIGINT NOT NULL'],
-        ['end_date_new',     'end_date',     'BIGINT NOT NULL'],
-        ['submitted_at_new', 'submitted_at', 'BIGINT NOT NULL DEFAULT (UNIX_TIMESTAMP())'],
-        ['reviewed_at_new',  'reviewed_at',  'BIGINT NULL'],
+        ['start_date_new',   'start_date'],
+        ['end_date_new',     'end_date'],
+        ['submitted_at_new', 'submitted_at'],
+        ['reviewed_at_new',  'reviewed_at'],
     ];
-    for (const [oldName, newName, def] of pairs) {
+    for (const [oldName, newName] of pairs) {
         if (await tempColumnExists(conn, oldName)) {
-            await conn.query(`ALTER TABLE leave_of_absence CHANGE COLUMN ${oldName} ${newName} ${def}`);
+            await conn.query(`ALTER TABLE leave_of_absence CHANGE COLUMN ${oldName} ${newName} BIGINT NULL`);
         }
     }
+
+    // Apply final constraints now that all columns exist under their real names
+    await conn.query(`ALTER TABLE leave_of_absence MODIFY COLUMN start_date   BIGINT NOT NULL`);
+    await conn.query(`ALTER TABLE leave_of_absence MODIFY COLUMN end_date     BIGINT NOT NULL`);
+    await conn.query(`ALTER TABLE leave_of_absence MODIFY COLUMN submitted_at BIGINT NOT NULL DEFAULT (UNIX_TIMESTAMP())`);
+    // reviewed_at stays nullable — no MODIFY needed
+
     ok('Columns renamed');
 }
 
@@ -213,26 +239,41 @@ async function main() {
     try {
         // Detect current state
         const startType = await getColumnType(conn, 'start_date');
-        const hasTempCols = await tempColumnExists(conn, 'start_date_new');
+        const hasTempCols =
+            (await tempColumnExists(conn, 'start_date_new'))   ||
+            (await tempColumnExists(conn, 'end_date_new'))     ||
+            (await tempColumnExists(conn, 'submitted_at_new')) ||
+            (await tempColumnExists(conn, 'reviewed_at_new'));
 
-        if (startType === null) {
+        if (startType === null && !hasTempCols) {
             fail('Table leave_of_absence not found. Is the DB correct?');
             process.exit(1);
         }
 
-        if (startType === 'bigint' && !hasTempCols) {
-            // Check if indexes and view are already correct
-            const hasIdx = await indexExists(conn, 'idx_user_dates');
-            if (hasIdx) {
-                ok('Migration already complete — nothing to do.');
-                process.exit(0);
-            }
-            // Columns done but indexes/view still missing (previous partial run)
+        // Fully done: final column names are BIGINT, no temp cols, indexes exist
+        if (!hasTempCols && startType === 'bigint' && await indexExists(conn, 'idx_user_dates')) {
+            ok('Migration already complete — nothing to do.');
+            process.exit(0);
+        }
+
+        // Partial run: some temp cols already renamed but not all, or indexes/view missing
+        if (!hasTempCols && startType === 'bigint') {
             console.log('  Detected partial migration (columns done, indexes/view missing).');
             console.log('  Resuming from Step 5…\n');
             await runStep5_RebuildIndexesAndView(conn);
             const [[{ total }]] = await conn.query('SELECT COUNT(*) AS total FROM leave_of_absence');
             ok(`Done. ${total} LOA rows intact.`);
+            process.exit(0);
+        }
+
+        if (hasTempCols && (startType === 'bigint' || startType === null)) {
+            console.log('  Detected partial migration (some columns still need renaming).');
+            console.log('  Resuming from Step 4…\n');
+            const [[{ rowCount }]] = await conn.query('SELECT COUNT(*) AS rowCount FROM leave_of_absence');
+            await runStep4_RenameColumns(conn);
+            await runStep5_RebuildIndexesAndView(conn);
+            await verify(conn, rowCount);
+            console.log('\n✅ Migration complete. All data preserved.\n');
             process.exit(0);
         }
 
