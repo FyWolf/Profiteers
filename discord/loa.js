@@ -15,8 +15,8 @@ async function sendLOANotification(client, loa, user, superior, action = 'submit
             return null;
         }
 
-        const startDate = new Date(loa.start_date);
-        const endDate = new Date(loa.end_date);
+        const startDate = new Date(loa.start_date * 1000);
+        const endDate = new Date(loa.end_date * 1000);
         const durationMs = endDate - startDate;
         const days = Math.floor(durationMs / (1000 * 60 * 60 * 24));
         const hours = Math.floor((durationMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -108,7 +108,7 @@ async function sendLOAExpiringReminder(client, loa, user) {
         const channel = await client.channels.fetch(channelId);
         if (!channel) return null;
 
-        const endDate = new Date(loa.end_date);
+        const endDate = new Date(loa.end_date * 1000);
 
         const embed = new EmbedBuilder()
             .setTitle('🔔 Leave of Absence Ending Soon')

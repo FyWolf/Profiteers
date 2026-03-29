@@ -38,7 +38,7 @@ function renderRoleCard(role, squad) {
 
     let loaIcon = '';
     if (assignment && assignment.loa_id) {
-        const loaEnd = new Date(assignment.loa_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const loaEnd = new Date(assignment.loa_end * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         const tip = esc(`On LOA until ${loaEnd}${canManage && assignment.loa_reason ? ': ' + assignment.loa_reason : ''}`);
         loaIcon = `<span title="${tip}" style="flex-shrink:0;font-size:0.72em;cursor:help;">🛑</span>`;
     }

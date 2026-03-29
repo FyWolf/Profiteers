@@ -40,25 +40,28 @@ router.post('/submit', isAuthenticated, async (req, res) => {
             return res.redirect('/loa/submit?error=End date must be after start date');
         }
 
+        const startTs = Math.floor(startDate.getTime() / 1000);
+        const endTs = Math.floor(endDate.getTime() / 1000);
+
         const [result] = await db.query(`
-            INSERT INTO leave_of_absence 
-            (user_id, start_date, end_date, reason, superior_id, status)
-            VALUES (?, ?, ?, ?, ?, 'approved')
-        `, [req.session.userId, start_date, end_date, reason, superior_id || null]);
+            INSERT INTO leave_of_absence
+            (user_id, start_date, end_date, reason, superior_id, status, submitted_at)
+            VALUES (?, ?, ?, ?, ?, 'approved', UNIX_TIMESTAMP())
+        `, [req.session.userId, startTs, endTs, reason, superior_id || null]);
 
         if (process.env.DISCORD_BOT_TOKEN) {
             try {
                 const { sendLOANotification } = require('../discord/loa');
                 const { discordClient } = require('../discord');
-                
+
                 const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
-                const [superiors] = superior_id ? 
-                    await db.query('SELECT * FROM users WHERE id = ?', [superior_id]) : 
+                const [superiors] = superior_id ?
+                    await db.query('SELECT * FROM users WHERE id = ?', [superior_id]) :
                     [[]];
 
                 await sendLOANotification(
                     discordClient,
-                    { id: result.insertId, start_date, end_date },
+                    { id: result.insertId, start_date: startTs, end_date: endTs },
                     users[0],
                     superiors[0] || null,
                     'submitted'
@@ -116,11 +119,14 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             return res.redirect(`/loa/edit/${req.params.id}?error=End date must be after start date`);
         }
 
+        const startTs = Math.floor(startDate.getTime() / 1000);
+        const endTs = Math.floor(endDate.getTime() / 1000);
+
         const [result] = await db.query(`
-            UPDATE leave_of_absence 
+            UPDATE leave_of_absence
             SET start_date = ?, end_date = ?, reason = ?, superior_id = ?
             WHERE id = ? AND user_id = ?
-        `, [start_date, end_date, reason, superior_id || null, req.params.id, req.session.userId]);
+        `, [startTs, endTs, reason, superior_id || null, req.params.id, req.session.userId]);
 
         if (result.affectedRows === 0) {
             return res.redirect('/loa/my-loas?error=LOA not found');
@@ -237,8 +243,8 @@ router.get('/all', async (req, res) => {
         `);
 
         const now = new Date();
-        const activeLoas = loas.filter(loa => new Date(loa.end_date) >= now && loa.status === 'approved');
-        const pastLoas = loas.filter(loa => new Date(loa.end_date) < now || loa.status !== 'approved');
+        const activeLoas = loas.filter(loa => new Date(loa.end_date * 1000) >= now && loa.status === 'approved');
+        const pastLoas = loas.filter(loa => new Date(loa.end_date * 1000) < now || loa.status !== 'approved');
 
         const isAdmin = req.session.isAdmin || false;
         const { checkZeusStatus } = require('../middleware/zeus');
@@ -295,7 +301,7 @@ router.post('/review/:id', isAdmin, async (req, res) => {
         } else {
             const notes = req.body.review_notes || null;
             await db.query(
-                'UPDATE leave_of_absence SET reviewed_by = ?, reviewed_at = NOW(), review_notes = ? WHERE id = ?',
+                'UPDATE leave_of_absence SET reviewed_by = ?, reviewed_at = UNIX_TIMESTAMP(), review_notes = ? WHERE id = ?',
                 [req.session.userId, notes, req.params.id]
             );
         }
@@ -314,8 +320,8 @@ router.get('/api/check/:userId', async (req, res) => {
             FROM leave_of_absence
             WHERE user_id = ?
               AND status = 'approved'
-              AND start_date <= NOW()
-              AND end_date >= NOW()
+              AND start_date <= UNIX_TIMESTAMP()
+              AND end_date >= UNIX_TIMESTAMP()
             LIMIT 1
         `, [req.params.userId]);
 

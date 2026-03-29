@@ -28,9 +28,9 @@
             <% } else { %>
                 <%
                 const now_my = new Date();
-                const myActive   = locals.myLoas.filter(l => new Date(l.start_date) <= now_my && new Date(l.end_date) >= now_my && l.status === 'approved');
-                const myUpcoming = locals.myLoas.filter(l => new Date(l.start_date) > now_my && l.status === 'approved');
-                const myPast     = locals.myLoas.filter(l => new Date(l.end_date) < now_my || l.status !== 'approved');
+                const myActive   = locals.myLoas.filter(l => new Date(l.start_date * 1000) <= now_my && new Date(l.end_date * 1000) >= now_my && l.status === 'approved');
+                const myUpcoming = locals.myLoas.filter(l => new Date(l.start_date * 1000) > now_my && l.status === 'approved');
+                const myPast     = locals.myLoas.filter(l => new Date(l.end_date * 1000) < now_my || l.status !== 'approved');
                 %>
 
                 <% if (myActive.length > 0) { %>
@@ -111,7 +111,7 @@
                                     <div style="color: var(--khaki); font-size: 0.9em;"><%= loa.reason %></div>
                                     <% if (isReviewed && reviewerName) { %>
                                         <div style="color: var(--khaki); font-size: 0.8em; margin-top: 8px; opacity: 0.7;">
-                                            Acknowledged by <%= reviewerName %> on <%= new Date(loa.reviewed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                                            Acknowledged by <%= reviewerName %> on <%= new Date(loa.reviewed_at * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
                                             <% if (loa.review_notes) { %> — <%= loa.review_notes %><% } %>
                                         </div>
                                     <% } %>

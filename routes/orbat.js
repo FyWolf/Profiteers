@@ -638,8 +638,8 @@ router.get('/operation/:operationId', async (req, res) => {
                     LEFT JOIN operation_attendance oat ON oat.operation_id = ? AND oat.user_id = u.id
                     LEFT JOIN leave_of_absence loa ON loa.user_id = u.id
                         AND loa.status = 'approved'
-                        AND loa.start_date <= NOW()
-                        AND loa.end_date >= NOW()
+                        AND loa.start_date <= UNIX_TIMESTAMP()
+                        AND loa.end_date >= UNIX_TIMESTAMP()
                     WHERE oa.role_id IN (?)
                 `, [req.params.operationId, roleIds]);
 
