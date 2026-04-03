@@ -11,6 +11,7 @@ if (missing.length > 0) {
 }
 
 const { attachUser } = require('./middleware/auth');
+const { trackPageView } = require('./middleware/analytics');
 const passport = require('./config/passport.js');
 
 
@@ -63,6 +64,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use(attachUser);
+app.use(trackPageView);
 
 app.use('/', homeRoutes);
 app.use('/', authRoutes);

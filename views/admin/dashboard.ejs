@@ -54,6 +54,78 @@
     </section>
 
     <section class="section">
+        <h2>📈 Website Traffic</h2>
+        <div class="grid grid-3" style="margin-bottom: 1.5rem;">
+            <div class="card text-center">
+                <div style="font-size: 2.5em; color: var(--accent); margin-bottom: 10px;">👁️</div>
+                <h3><%= analytics.views_today %></h3>
+                <p>Views Today</p>
+            </div>
+            <div class="card text-center">
+                <div style="font-size: 2.5em; color: var(--accent); margin-bottom: 10px;">📅</div>
+                <h3><%= analytics.views_week %></h3>
+                <p>Views (7 days)</p>
+            </div>
+            <div class="card text-center">
+                <div style="font-size: 2.5em; color: var(--accent); margin-bottom: 10px;">🗓️</div>
+                <h3><%= analytics.views_month %></h3>
+                <p>Views (30 days)</p>
+            </div>
+            <div class="card text-center">
+                <div style="font-size: 2.5em; color: var(--accent); margin-bottom: 10px;">👤</div>
+                <h3><%= analytics.unique_today %></h3>
+                <p>Unique Users Today</p>
+            </div>
+            <div class="card text-center">
+                <div style="font-size: 2.5em; color: var(--accent); margin-bottom: 10px;">👥</div>
+                <h3><%= analytics.unique_week %></h3>
+                <p>Unique Users (7 days)</p>
+            </div>
+        </div>
+
+        <% if (dailyViews.length > 0) { %>
+        <% const maxViews = Math.max(...dailyViews.map(d => d.views), 1); %>
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <h3 style="margin-bottom: 1rem;">Daily Views (last 7 days)</h3>
+            <div style="display: flex; align-items: flex-end; gap: 8px; height: 80px;">
+                <% dailyViews.forEach(day => { %>
+                <% const barHeight = Math.max(Math.round((day.views / maxViews) * 100), 4); %>
+                <% const d = new Date(day.date); %>
+                <% const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', timeZone: 'UTC' }); %>
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end;">
+                    <span style="font-size: 0.7em; color: var(--accent);"><%= day.views %></span>
+                    <div style="width: 100%; background: var(--accent); height: <%= barHeight %>%; border-radius: 3px 3px 0 0;" title="<%= label %>: <%= day.views %> views"></div>
+                    <span style="font-size: 0.65em; white-space: nowrap; color: var(--sand-dim, #aaa);"><%= label %></span>
+                </div>
+                <% }) %>
+            </div>
+        </div>
+        <% } %>
+
+        <% if (topPages.length > 0) { %>
+        <div class="card">
+            <h3 style="margin-bottom: 1rem;">Top Pages (last 7 days)</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--border, #444);">
+                        <th style="text-align: left; padding: 6px 8px;">Page</th>
+                        <th style="text-align: right; padding: 6px 8px;">Views</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% topPages.forEach(page => { %>
+                    <tr style="border-bottom: 1px solid var(--border-subtle, #333);">
+                        <td style="padding: 6px 8px; font-family: monospace;"><%= page.path === '/' ? '/ (Home)' : page.path %></td>
+                        <td style="padding: 6px 8px; text-align: right; color: var(--accent);"><%= page.views %></td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+        <% } %>
+    </section>
+
+    <section class="section">
         <h2>🛠️ Quick Actions</h2>
         <div class="grid grid-2">
             <a href="/admin/tools/add" class="card" style="text-decoration: none; color: var(--sand);">

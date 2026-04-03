@@ -1,4 +1,4 @@
-const { EmbedBuilder, AttachmentBuilder, ChannelType } = require('discord.js');
+const { EmbedBuilder, AttachmentBuilder, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../config/database');
 const fs = require('fs');
 const path = require('path');
@@ -61,6 +61,31 @@ function htmlToMarkdown(html) {
     return text;
 }
 
+function buildAttendanceButtons(operationId) {
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`att_present_${operationId}`)
+            .setLabel('Present')
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('✅'),
+        new ButtonBuilder()
+            .setCustomId(`att_tentative_${operationId}`)
+            .setLabel('Tentative')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('❔'),
+        new ButtonBuilder()
+            .setCustomId(`att_absent_${operationId}`)
+            .setLabel('Absent')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji('❌'),
+        new ButtonBuilder()
+            .setLabel('View on Website')
+            .setStyle(ButtonStyle.Link)
+            .setURL(`${process.env.WEBSITE_URL}/operations/${operationId}`)
+            .setEmoji('🔗')
+    );
+}
+
 async function createOperationPost(client, operation) {
     try {
         const forumChannelId = process.env.DISCORD_OPERATIONS_FORUM_ID;
@@ -105,12 +130,7 @@ async function createOperationPost(client, operation) {
                 {
                     name: '👥 Attendance',
                     value: `✅ Present: ${counts.present}\n❔ Tentative: ${counts.tentative}\n❌ Absent: ${counts.absent}`,
-                    inline: true
-                },
-                {
-                    name: '🔗 View Online',
-                    value: `[Operation Page](${process.env.WEBSITE_URL}/operations/${operation.id})`,
-                    inline: true
+                    inline: false
                 }
             )
             .setTimestamp()
@@ -130,17 +150,20 @@ async function createOperationPost(client, operation) {
             }
         });
 
-        // Now post the embed as the second message (first real message)
-        const embedMessage = await thread.send({ embeds: [embed] });
+        // Now post the embed with attendance buttons
+        const embedMessage = await thread.send({
+            embeds: [embed],
+            components: [buildAttendanceButtons(operation.id)]
+        });
 
         const mainOpsRoleId = process.env.DISCORD_MAIN_OPS_ROLE_ID;
         const sideOpsRoleId = process.env.DISCORD_SIDE_OPS_ROLE_ID;
 
         const roleId = operation.operation_type === 'side' ? sideOpsRoleId : mainOpsRoleId;
         const opType = operation.operation_type === 'side' ? 'Side Operation' : 'Main Operation';
-        
+
         await thread.send({
-            content: `<@&${roleId}> **New ${opType} Posted!**\nCheck the details above and mark your attendance on the website.`
+            content: `<@&${roleId}> **New ${opType} Posted!**\nMark your attendance with the buttons above, or for the full experience head to the website: <${process.env.WEBSITE_URL}/operations/${operation.id}>`
         });
 
         // Store both thread ID and the embed message ID
@@ -208,12 +231,7 @@ async function updateOperationPost(client, operation) {
                 {
                     name: '👥 Attendance',
                     value: `✅ Present: ${counts.present}\n❔ Tentative: ${counts.tentative}\n❌ Absent: ${counts.absent}`,
-                    inline: true
-                },
-                {
-                    name: '🔗 View Online',
-                    value: `[Operation Page](${process.env.WEBSITE_URL}/operations/${operation.id})`,
-                    inline: true
+                    inline: false
                 }
             )
             .setTimestamp()
@@ -225,7 +243,10 @@ async function updateOperationPost(client, operation) {
             embed.setImage(`${process.env.WEBSITE_URL}${operation.banner_url}`);
         }
 
-        await embedMessage.edit({ embeds: [embed] });
+        await embedMessage.edit({
+            embeds: [embed],
+            components: [buildAttendanceButtons(operation.id)]
+        });
         console.log(`✅ Updated forum post for operation: ${operation.title}`);
 
         return thread;
