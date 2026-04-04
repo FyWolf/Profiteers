@@ -9,7 +9,14 @@ discordClient.on('interactionCreate', async interaction => {
     if (!interaction.isButton()) return;
 
     if (!process.env.NODE_ENV) throw new Error('NODE_ENV environment variable is not set');
-    const match = interaction.customId.match(new RegExp(`^att_${process.env.NODE_ENV}_(present|tentative|absent)_(\\d+)$`));
+    const env = process.env.NODE_ENV;
+
+    // Match new prefixed format: att_{env}_{status}_{id}
+    // Also accept legacy format (no env prefix) so old posts keep working;
+    // the embed refresh later in this handler will re-post with the correct prefix.
+    const match =
+        interaction.customId.match(new RegExp(`^att_${env}_(present|tentative|absent)_(\\d+)$`)) ||
+        interaction.customId.match(/^att_(present|tentative|absent)_(\d+)$/);
     if (!match) return;
 
     const [, status, operationIdStr] = match;
