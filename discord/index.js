@@ -15,50 +15,68 @@ discordClient.on('interactionCreate', async interaction => {
     const operationId = parseInt(operationIdStr, 10);
     const discordId   = interaction.user.id;
 
+    console.log(`[ATT] Button click: status=${status} operationId=${operationId} discordId=${discordId}`);
+
     try {
         await interaction.deferReply({ ephemeral: true });
-    } catch {
-        // Interaction already expired or acknowledged — nothing we can do
+    } catch (err) {
+        console.error(`[ATT] deferReply failed (interaction expired?):`, err.message);
         return;
     }
 
+    const opUrl = `${process.env.WEBSITE_URL}/operations/${operationId}`;
+    const fail = async (msg, logMsg) => {
+        console.error(`[ATT] FAIL — ${logMsg}`);
+        try { await interaction.editReply({ content: `${msg}\n\n🔗 View operation: <${opUrl}>` }); } catch { /* expired */ }
+    };
+
+    // 1. Look up linked website account
+    let userId;
     try {
-        const [users] = await db.query(
-            'SELECT id FROM users WHERE discord_id = ?',
-            [discordId]
-        );
-
+        const [users] = await db.query('SELECT id FROM users WHERE discord_id = ?', [discordId]);
+        console.log(`[ATT] User lookup for discord_id=${discordId}: found ${users.length} row(s)`);
         if (users.length === 0) {
-            return interaction.editReply({
-                content: `You don't have a linked account. Sign in with Discord on the website first: <${process.env.WEBSITE_URL}>`
-            });
+            return fail(
+                `You don't have a linked account. Sign in with Discord on the website first: <${process.env.WEBSITE_URL}>`,
+                `no user found for discord_id=${discordId}`
+            );
         }
+        userId = users[0].id;
+    } catch (err) {
+        return fail('Something went wrong looking up your account. Please try on the website instead.', `user lookup threw: ${err.message}`);
+    }
 
-        const userId = users[0].id;
-
-        await db.query(`
+    // 2. Write attendance
+    try {
+        const [result] = await db.query(`
             INSERT INTO operation_attendance (operation_id, user_id, status)
             VALUES (?, ?, ?)
             ON DUPLICATE KEY UPDATE status = ?, updated_at = NOW()
         `, [operationId, userId, status, status]);
+        console.log(`[ATT] INSERT result: affectedRows=${result.affectedRows} changedRows=${result.changedRows} operationId=${operationId} userId=${userId} status=${status}`);
+    } catch (err) {
+        return fail('Something went wrong saving your attendance. Please try on the website instead.', `INSERT threw: ${err.message}\n${err.stack}`);
+    }
 
-        const [operations] = await db.query(
-            'SELECT * FROM operations WHERE id = ?',
-            [operationId]
-        );
-
+    // 3. Refresh Discord embed (non-fatal if it fails)
+    try {
+        const [operations] = await db.query('SELECT * FROM operations WHERE id = ?', [operationId]);
         if (operations.length > 0) {
             await updateOperationPost(discordClient, operations[0]);
+            console.log(`[ATT] Discord embed refreshed for operation ${operationId}`);
+        } else {
+            console.warn(`[ATT] Operation ${operationId} not found — embed not refreshed`);
         }
+    } catch (err) {
+        // Don't fail the whole interaction just because the embed update failed
+        console.error(`[ATT] updateOperationPost failed (attendance was saved):`, err.message);
+    }
 
-        const labels = { present: '✅ Present', tentative: '❔ Tentative', absent: '❌ Absent' };
+    const labels = { present: '✅ Present', tentative: '❔ Tentative', absent: '❌ Absent' };
+    try {
         await interaction.editReply({ content: `Marked as **${labels[status]}**!` });
-
-    } catch (error) {
-        console.error('❌ Error handling attendance button:', error);
-        try {
-            await interaction.editReply({ content: 'Something went wrong. Please try on the website instead.' });
-        } catch { /* interaction may have expired */ }
+    } catch (err) {
+        console.error(`[ATT] editReply (success) failed:`, err.message);
     }
 });
 
