@@ -104,7 +104,7 @@ app.listen(PORT, () => {
 ║         PROFITEERS PMC WEBSITE                    ║
 ║                                                   ║
 ║  Server running on: http://localhost:${PORT}         ║
-║  Environment: ${process.env.NODE_ENV || 'development'}                        ║
+║  Environment: ${process.env.NODE_ENV}                        ║
 ║                                                   ║
 ║  Ready to deploy! 🎯                               ║
 ╚═══════════════════════════════════════════════════╝

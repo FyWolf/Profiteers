@@ -8,7 +8,8 @@ const db = require('../config/database');
 discordClient.on('interactionCreate', async interaction => {
     if (!interaction.isButton()) return;
 
-    const match = interaction.customId.match(/^att_(present|tentative|absent)_(\d+)$/);
+    if (!process.env.NODE_ENV) throw new Error('NODE_ENV environment variable is not set');
+    const match = interaction.customId.match(new RegExp(`^att_${process.env.NODE_ENV}_(present|tentative|absent)_(\\d+)$`));
     if (!match) return;
 
     const [, status, operationIdStr] = match;
@@ -30,7 +31,23 @@ discordClient.on('interactionCreate', async interaction => {
         try { await interaction.editReply({ content: `${msg}\n\n🔗 View operation: <${opUrl}>` }); } catch { /* expired */ }
     };
 
-    // 1. Look up linked website account
+    // 1. Check the operation exists
+    let operation;
+    try {
+        const [operations] = await db.query('SELECT * FROM operations WHERE id = ?', [operationId]);
+        console.log(`[ATT] Operation lookup for id=${operationId}: found ${operations.length} row(s)`);
+        if (operations.length === 0) {
+            return fail(
+                `This operation no longer exists. It may have been cancelled or removed.`,
+                `operation ${operationId} not found in DB`
+            );
+        }
+        operation = operations[0];
+    } catch (err) {
+        return fail('Something went wrong looking up the operation. Please try on the website instead.', `operation lookup threw: ${err.message}`);
+    }
+
+    // 2. Look up linked website account
     let userId;
     try {
         const [users] = await db.query('SELECT id FROM users WHERE discord_id = ?', [discordId]);
@@ -46,7 +63,7 @@ discordClient.on('interactionCreate', async interaction => {
         return fail('Something went wrong looking up your account. Please try on the website instead.', `user lookup threw: ${err.message}`);
     }
 
-    // 2. Write attendance
+    // 3. Write attendance
     try {
         const [result] = await db.query(`
             INSERT INTO operation_attendance (operation_id, user_id, status)
@@ -55,18 +72,13 @@ discordClient.on('interactionCreate', async interaction => {
         `, [operationId, userId, status, status]);
         console.log(`[ATT] INSERT result: affectedRows=${result.affectedRows} changedRows=${result.changedRows} operationId=${operationId} userId=${userId} status=${status}`);
     } catch (err) {
-        return fail('Something went wrong saving your attendance. Please try on the website instead.', `INSERT threw: ${err.message}\n${err.stack}`);
+        return fail('Something went wrong saving your attendance. Please try on the website instead.', `INSERT threw: ${err.message}`);
     }
 
-    // 3. Refresh Discord embed (non-fatal if it fails)
+    // 4. Refresh Discord embed (non-fatal if it fails)
     try {
-        const [operations] = await db.query('SELECT * FROM operations WHERE id = ?', [operationId]);
-        if (operations.length > 0) {
-            await updateOperationPost(discordClient, operations[0]);
-            console.log(`[ATT] Discord embed refreshed for operation ${operationId}`);
-        } else {
-            console.warn(`[ATT] Operation ${operationId} not found — embed not refreshed`);
-        }
+        await updateOperationPost(discordClient, operation);
+        console.log(`[ATT] Discord embed refreshed for operation ${operationId}`);
     } catch (err) {
         // Don't fail the whole interaction just because the embed update failed
         console.error(`[ATT] updateOperationPost failed (attendance was saved):`, err.message);

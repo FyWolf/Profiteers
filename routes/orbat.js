@@ -1287,7 +1287,8 @@ router.post('/operation/:operationId/publish-orbat', isAuthenticated, canManageO
                             ? process.env.DISCORD_SIDE_OPS_ROLE_ID
                             : process.env.DISCORD_MAIN_OPS_ROLE_ID;
                         const mention = roleId ? `<@&${roleId}>` : '';
-                        const websiteUrl = process.env.WEBSITE_URL || 'https://profiteerpmc.com';
+                        const websiteUrl = process.env.WEBSITE_URL;
+                        if (!websiteUrl) throw new Error('WEBSITE_URL environment variable is not set');
                         const embed = new EmbedBuilder()
                             .setTitle('ORBAT Published')
                             .setDescription(`The ORBAT for **${op.title}** is now available!\n\n[View ORBAT](${websiteUrl}/orbat/operation/${op.id})`)

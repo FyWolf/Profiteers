@@ -61,20 +61,23 @@ function htmlToMarkdown(html) {
     return text;
 }
 
+const ENV_PREFIX = process.env.NODE_ENV;
+if (!ENV_PREFIX) throw new Error('NODE_ENV environment variable is not set');
+
 function buildAttendanceButtons(operationId) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-            .setCustomId(`att_present_${operationId}`)
+            .setCustomId(`att_${ENV_PREFIX}_present_${operationId}`)
             .setLabel('Present')
             .setStyle(ButtonStyle.Success)
             .setEmoji('✅'),
         new ButtonBuilder()
-            .setCustomId(`att_tentative_${operationId}`)
+            .setCustomId(`att_${ENV_PREFIX}_tentative_${operationId}`)
             .setLabel('Tentative')
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('❔'),
         new ButtonBuilder()
-            .setCustomId(`att_absent_${operationId}`)
+            .setCustomId(`att_${ENV_PREFIX}_absent_${operationId}`)
             .setLabel('Absent')
             .setStyle(ButtonStyle.Danger)
             .setEmoji('❌'),
