@@ -1,89 +1,126 @@
 <%- include('../partials/header') %>
 
+<style>
+.stat-bar { display:flex; gap:28px; flex-wrap:wrap; margin-top:16px; padding-top:16px; border-top:1px solid rgba(107,142,35,0.3); }
+.stat-chip { display:flex; flex-direction:column; align-items:center; }
+.stat-val { font-family:var(--heading-font); font-size:1.7em; color:var(--accent); line-height:1; }
+.stat-lbl { font-size:0.7em; color:var(--khaki); margin-top:3px; }
+
+.top-row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+.top-row h2 { margin:0; font-size:1.1em; color:var(--khaki); letter-spacing:2px; }
+
+.admin-table { width:100%; border-collapse:collapse; }
+.admin-table th { padding:10px 12px; font-size:0.7em; color:var(--khaki); border-bottom:2px solid rgba(107,142,35,0.35); font-family:var(--heading-font); letter-spacing:1px; text-align:left; opacity:.85; white-space:nowrap; }
+.admin-table td { padding:11px 12px; border-bottom:1px solid rgba(107,142,35,0.1); vertical-align:middle; }
+.admin-table tbody tr:hover td { background:rgba(107,142,35,0.05); }
+.admin-table .link-cell { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+.act { padding:5px 10px; border-radius:6px; font-size:0.76em; font-weight:700; text-decoration:none; cursor:pointer; border:1px solid transparent; transition:all 0.2s; white-space:nowrap; display:inline-block; font-family:var(--body-font); }
+.act-edit { background:rgba(252,176,13,0.1); border-color:rgba(252,176,13,0.35); color:var(--accent); }
+.act-edit:hover { background:rgba(252,176,13,0.22); }
+.act-del  { background:rgba(231,76,60,0.1);  border-color:rgba(231,76,60,0.35);  color:#ff7b7b; }
+.act-del:hover  { background:rgba(231,76,60,0.22); }
+
+.pill-on  { padding:4px 12px; border-radius:20px; font-size:0.78em; font-weight:700; cursor:pointer; border:1px solid var(--olive); background:rgba(107,142,35,0.25); color:var(--olive-light); font-family:var(--heading-font); transition:all 0.2s; }
+.pill-off { padding:4px 12px; border-radius:20px; font-size:0.78em; font-weight:700; cursor:pointer; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); color:var(--khaki); font-family:var(--heading-font); transition:all 0.2s; opacity:.7; }
+.pill-on:hover, .pill-off:hover { border-color:var(--accent); opacity:1; }
+
+.empty-state { text-align:center; padding:48px 20px; color:var(--khaki); opacity:.6; }
+.empty-icon { font-size:3em; margin-bottom:12px; }
+.empty-state p { font-size:.9em; margin-top:6px; }
+</style>
+
 <div class="container">
     <header>
         <h1>MANAGE TOOLS</h1>
         <div class="subtitle">Internal Tools Administration</div>
+        <div class="stat-bar">
+            <div class="stat-chip">
+                <span class="stat-val"><%= tools.length %></span>
+                <span class="stat-lbl">Total Tools</span>
+            </div>
+            <div class="stat-chip">
+                <span class="stat-val"><%= tools.filter(t => t.is_visible).length %></span>
+                <span class="stat-lbl">Visible</span>
+            </div>
+            <div class="stat-chip">
+                <span class="stat-val"><%= tools.filter(t => !t.is_visible).length %></span>
+                <span class="stat-lbl">Hidden</span>
+            </div>
+        </div>
     </header>
 
     <section class="section">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="margin: 0;">All Tools</h2>
+        <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+        <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+        <div class="top-row">
+            <h2>ALL TOOLS</h2>
             <a href="/admin/tools/add" class="btn btn-primary">➕ Add New Tool</a>
         </div>
 
-        <% if (success) { %>
-            <div class="alert alert-success"><%= success %></div>
-        <% } %>
-        
-        <% if (error) { %>
-            <div class="alert alert-error"><%= error %></div>
-        <% } %>
-
         <% if (tools.length === 0) { %>
-            <div class="card text-center">
-                <h3>No Tools Yet</h3>
+            <div class="empty-state">
+                <div class="empty-icon">🔧</div>
+                <strong>No tools yet</strong>
                 <p>Create your first internal tool to get started.</p>
-                <a href="/admin/tools/add" class="btn btn-primary mt-2">Add First Tool</a>
             </div>
         <% } else { %>
-            <table>
+            <table class="admin-table">
                 <thead>
                     <tr>
                         <th>Order</th>
                         <th>Title</th>
                         <th>Link</th>
-                        <th>Visible</th>
+                        <th>Visibility</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <% tools.forEach(tool => { %>
-                        <tr>
-                            <td><%= tool.order_index %></td>
-                            <td><strong><%= tool.title %></strong></td>
-                            <td><a href="<%= tool.link %>" target="_blank" style="color: var(--accent);"><%= tool.link %></a></td>
-                            <td>
-                                <button onclick="toggleVisibility(<%= tool.id %>)" 
-                                        class="btn" 
-                                        style="<%= tool.is_visible ? 'background: var(--olive);' : 'background: #888;' %> padding: 6px 12px;">
-                                    <%= tool.is_visible ? '✅ Visible' : '❌ Hidden' %>
-                                </button>
-                            </td>
-                            <td>
-                                <a href="/admin/tools/edit/<%= tool.id %>" class="btn" style="padding: 6px 12px;">Edit</a>
-                                <form method="POST" action="/admin/tools/delete/<%= tool.id %>" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this tool?');">
-                                    <button type="submit" class="btn btn-danger" style="padding: 6px 12px;">Delete</button>
+                    <tr>
+                        <td style="color:var(--khaki); font-size:0.9em;"><%= tool.order_index %></td>
+                        <td><strong><%= tool.title %></strong></td>
+                        <td class="link-cell">
+                            <a href="<%= tool.link %>" target="_blank" style="color:var(--accent); font-size:0.85em; font-family:monospace;">
+                                <%= tool.link %>
+                            </a>
+                        </td>
+                        <td>
+                            <button onclick="toggleVisibility(<%= tool.id %>)"
+                                    class="<%= tool.is_visible ? 'pill-on' : 'pill-off' %>">
+                                <%= tool.is_visible ? '● Visible' : '○ Hidden' %>
+                            </button>
+                        </td>
+                        <td>
+                            <div style="display:flex; gap:6px;">
+                                <a href="/admin/tools/edit/<%= tool.id %>" class="act act-edit">Edit</a>
+                                <form method="POST" action="/admin/tools/delete/<%= tool.id %>" style="display:inline"
+                                      onsubmit="return confirm('Delete this tool?')">
+                                    <button type="submit" class="act act-del">Delete</button>
                                 </form>
-                            </td>
-                        </tr>
-                    <% }); %>
+                            </div>
+                        </td>
+                    </tr>
+                    <% }) %>
                 </tbody>
             </table>
         <% } %>
     </section>
 
-    <section class="section">
+    <div class="mt-2">
         <a href="/admin" class="btn">← Back to Dashboard</a>
-    </section>
+    </div>
 </div>
 
 <script>
 async function toggleVisibility(id) {
     try {
-        const response = await fetch(`/admin/tools/toggle/${id}`, {
-            method: 'POST'
-        });
-        const data = await response.json();
-        
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Failed to toggle visibility');
-        }
-    } catch (error) {
-        alert('Error toggling visibility');
-    }
+        const res  = await fetch(`/admin/tools/toggle/${id}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) location.reload();
+        else alert('Failed to toggle visibility');
+    } catch { alert('Error toggling visibility'); }
 }
 </script>
 

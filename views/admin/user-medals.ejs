@@ -1,122 +1,155 @@
 <%- include('../partials/header') %>
 
+<style>
+.top-row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+.top-row h2 { margin:0; font-size:1.1em; color:var(--khaki); letter-spacing:2px; }
+
+.cards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+.item-card {
+    background:linear-gradient(135deg,rgba(0,0,0,0.45) 0%,rgba(10,20,10,0.45) 100%);
+    border:1px solid rgba(107,142,35,0.5);
+    border-radius:12px;
+    padding:18px 20px;
+    display:flex; flex-direction:column;
+    transition:border-color 0.2s;
+}
+.item-card:hover { border-color:rgba(252,176,13,0.4); }
+.card-footer { display:flex; gap:8px; margin-top:14px; padding-top:14px; border-top:1px solid rgba(107,142,35,0.2); }
+
+.award-meta { font-size:0.8em; color:var(--khaki); margin-top:10px; padding-top:10px; border-top:1px solid rgba(107,142,35,0.15); display:flex; flex-direction:column; gap:4px; }
+.award-notes { margin-top:8px; padding:8px 12px; background:rgba(0,0,0,0.3); border-left:2px solid rgba(252,176,13,0.4); border-radius:0 6px 6px 0; font-style:italic; font-size:0.9em; color:var(--sand); opacity:.8; }
+
+.act { padding:5px 10px; border-radius:6px; font-size:0.76em; font-weight:700; text-decoration:none; cursor:pointer; border:1px solid transparent; transition:all 0.2s; white-space:nowrap; display:inline-block; font-family:var(--body-font); width:100%; text-align:center; }
+.act-del { background:rgba(231,76,60,0.1); border-color:rgba(231,76,60,0.35); color:#ff7b7b; }
+.act-del:hover { background:rgba(231,76,60,0.22); }
+
+.form-card { background:rgba(0,0,0,0.25); border:1px solid rgba(107,142,35,0.4); border-radius:10px; padding:20px; }
+.form-card select, .form-card textarea {
+    width:100%; padding:10px 12px;
+    background:rgba(0,0,0,0.4);
+    border:1px solid rgba(107,142,35,0.5);
+    border-radius:7px;
+    color:var(--sand);
+    font-family:var(--body-font);
+    font-size:0.9em;
+    transition:border-color 0.2s;
+}
+.form-card select:focus, .form-card textarea:focus { outline:none; border-color:var(--accent); }
+.form-card label { display:block; font-size:0.8em; color:var(--khaki); letter-spacing:0.5px; margin-bottom:6px; text-transform:uppercase; }
+.form-card .field { margin-bottom:16px; }
+.form-card textarea { min-height:80px; resize:vertical; }
+
+.all-awarded { text-align:center; padding:24px; background:rgba(107,142,35,0.08); border:1px solid rgba(107,142,35,0.3); border-radius:10px; }
+
+.empty-state { text-align:center; padding:40px 20px; color:var(--khaki); opacity:.6; }
+.empty-icon  { font-size:3em; margin-bottom:12px; }
+.empty-state p { font-size:.9em; margin-top:6px; }
+</style>
+
+<%
+    const displayName = (user.discord_global_name && user.discord_global_name !== user.discord_username)
+        ? user.discord_global_name
+        : user.username;
+    const avatarUrl = user.discord_avatar
+        ? `https://cdn.discordapp.com/avatars/${user.discord_id}/${user.discord_avatar}.png?size=64`
+        : null;
+%>
+
 <div class="container">
     <header>
-        <h1>MANAGE USER MEDALS</h1>
-        <div class="subtitle">
-            <% if (user.discord_global_name && user.discord_global_name !== user.discord_username) { %>
-                <%= user.discord_global_name %> (@<%= user.discord_username %>)
-            <% } else { %>
-                <%= user.username %>
+        <h1>USER MEDALS</h1>
+        <div class="subtitle" style="display:flex; align-items:center; justify-content:center; gap:10px;">
+            <% if (avatarUrl) { %>
+                <img src="<%= avatarUrl %>" style="width:28px; height:28px; border-radius:50%; border:2px solid var(--olive);">
+            <% } %>
+            <%= displayName %>
+            <% if (user.discord_username) { %>
+                <span style="font-size:0.7em; opacity:.6;">@<%= user.discord_username %></span>
             <% } %>
         </div>
     </header>
 
-    <% if (success) { %>
-        <div class="alert alert-success"><%= success %></div>
-    <% } %>
-    
-    <% if (error) { %>
-        <div class="alert alert-error"><%= error %></div>
-    <% } %>
+    <% if (success) { %><div class="alert alert-success" style="margin-bottom:16px;"><%= success %></div><% } %>
+    <% if (error) { %><div class="alert alert-error" style="margin-bottom:16px;"><%= error %></div><% } %>
 
-    <% if (availableMedals.length > 0) { %>
-        <section class="section">
-            <h2 style="margin-bottom: 20px;">🎖️ Award New Medal</h2>
-            
+    <%# ── Award form ───────────────────────────── %>
+    <section class="section">
+        <div class="top-row"><h2>AWARD MEDAL</h2></div>
+
+        <% if (availableMedals.length > 0) { %>
+        <div class="form-card">
             <form method="POST" action="/admin/users/<%= user.id %>/medals/award">
-                <div class="form-group">
+                <div class="field">
                     <label for="medalId">Select Medal *</label>
-                    <select id="medalId" name="medalId" required style="padding: 12px; border: 2px solid var(--olive); border-radius: 8px; background: rgba(40,40,40,0.9); color: var(--sand); font-family: inherit; width: 100%;">
-                        <option value="">Choose a medal to award...</option>
+                    <select id="medalId" name="medalId" required>
+                        <option value="">Choose a medal…</option>
                         <% availableMedals.forEach(medal => { %>
-                            <option value="<%= medal.id %>">
-                                <%= medal.icon %> <%= medal.name %>
-                            </option>
-                        <% }); %>
+                            <option value="<%= medal.id %>"><%= medal.icon %> <%= medal.name %></option>
+                        <% }) %>
                     </select>
                 </div>
-
-                <div class="form-group">
-                    <label for="notes">Notes (Optional)</label>
-                    <textarea id="notes" name="notes" rows="3" placeholder="Why is this medal being awarded? (visible to the user)" style="padding: 12px; border: 2px solid var(--olive); border-radius: 8px; background: rgba(40,40,40,0.9); color: var(--sand); font-family: inherit; width: 100%; resize: vertical;"></textarea>
-                    <small style="color: var(--khaki); margin-top: 5px; display: block;">
-                        Add a personal message about why this medal is being awarded
-                    </small>
+                <div class="field">
+                    <label for="notes">Notes (optional)</label>
+                    <textarea id="notes" name="notes" placeholder="Why is this medal being awarded?"></textarea>
                 </div>
-
-                <button type="submit" class="btn btn-primary" style="width: 100%;">
-                    🏅 Award Medal
-                </button>
+                <button type="submit" class="btn btn-primary" style="width:100%;">🏅 Award Medal</button>
             </form>
-        </section>
-    <% } else { %>
-        <section class="section">
-            <div class="card text-center" style="background: rgba(107,142,35,0.1);">
-                <h3 style="color: var(--olive-light);">🎉 All Medals Awarded!</h3>
-                <p style="color: var(--khaki);">This user has received all available medals.</p>
-            </div>
-        </section>
-    <% } %>
+        </div>
+        <% } else { %>
+        <div class="all-awarded">
+            <div style="font-size:2em; margin-bottom:8px;">🎉</div>
+            <strong style="color:var(--olive-light);">All medals awarded!</strong>
+            <p style="font-size:0.85em; color:var(--khaki); margin-top:6px;">This user has received every available medal.</p>
+        </div>
+        <% } %>
+    </section>
 
+    <%# ── Current medals ──────────────────────── %>
     <section class="section">
-        <h2 style="margin-bottom: 20px;">
-            Current Medals
-            <span style="color: var(--khaki); font-size: 0.7em; font-weight: normal;">
-                (<%= userMedals.length %>)
-            </span>
-        </h2>
+        <div class="top-row">
+            <h2>CURRENT MEDALS (<%= userMedals.length %>)</h2>
+        </div>
 
         <% if (userMedals.length === 0) { %>
-            <div class="card text-center">
-                <h3>No Medals Yet</h3>
-                <p style="color: var(--khaki);">Award this user their first medal!</p>
+            <div class="empty-state">
+                <div class="empty-icon">🏅</div>
+                <strong>No medals yet</strong>
+                <p>Award this user their first medal above.</p>
             </div>
         <% } else { %>
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
+            <div class="cards-grid">
                 <% userMedals.forEach(medal => { %>
-                    <div class="card" style="border-left: 4px solid <%= medal.color %>;">
-                        <div style="display: flex; align-items: start; gap: 15px; margin-bottom: 12px;">
-                            <div style="font-size: 2.5em;">
-                                <%= medal.icon %>
+                <div class="item-card" style="border-left:3px solid <%= medal.color %>;">
+                    <div style="display:flex; align-items:flex-start; gap:14px; flex:1;">
+                        <span style="font-size:2.2em; line-height:1; flex-shrink:0;"><%= medal.icon %></span>
+                        <div style="flex:1;">
+                            <div style="font-family:var(--heading-font); font-size:0.92em; color:<%= medal.color %>; margin-bottom:4px;"><%= medal.name %></div>
+                            <div style="font-size:0.8em; color:var(--khaki); line-height:1.5;"><%= medal.description %></div>
+                            <div class="award-meta">
+                                <span>Awarded: <strong><%= new Date(medal.awarded_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) %></strong></span>
+                                <span>By: <strong><%= medal.awarded_by_username %></strong></span>
                             </div>
-                            <div style="flex: 1;">
-                                <h3 style="color: <%= medal.color %>; margin-bottom: 6px; font-size: 1.1em;">
-                                    <%= medal.name %>
-                                </h3>
-                                <p style="color: var(--khaki); font-size: 0.9em; margin-bottom: 10px;">
-                                    <%= medal.description %>
-                                </p>
-                            </div>
-                        </div>
-                        
-                        <div style="font-size: 0.85em; color: var(--khaki); opacity: 0.8; margin-bottom: 12px; padding-top: 12px; border-top: 1px solid rgba(178, 178, 125, 0.2);">
-                            <div><strong>Awarded:</strong> <%= new Date(medal.awarded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></div>
-                            <div><strong>By:</strong> <%= medal.awarded_by_username %></div>
                             <% if (medal.notes) { %>
-                                <div style="margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; font-style: italic;">
-                                    "<%= medal.notes %>"
-                                </div>
+                                <div class="award-notes">"<%= medal.notes %>"</div>
                             <% } %>
                         </div>
-                        
-                        <form method="POST" action="/admin/users/<%= user.id %>/medals/revoke/<%= medal.award_id %>" onsubmit="return confirm('Revoke this medal from the user?')">
-                            <button type="submit" class="btn btn-danger" style="width: 100%; padding: 8px;">
-                                ❌ Revoke Medal
-                            </button>
+                    </div>
+                    <div class="card-footer">
+                        <form method="POST" action="/admin/users/<%= user.id %>/medals/revoke/<%= medal.award_id %>" style="width:100%"
+                              onsubmit="return confirm('Revoke this medal?')">
+                            <button type="submit" class="act act-del">❌ Revoke</button>
                         </form>
                     </div>
-                <% }); %>
+                </div>
+                <% }) %>
             </div>
         <% } %>
     </section>
 
-    <section class="section">
-        <div style="display: flex; gap: 15px;">
-            <a href="/admin/users" class="btn">← Back to Users</a>
-            <a href="/admin/medals" class="btn">View All Medals</a>
-        </div>
-    </section>
+    <div style="display:flex; gap:10px; margin-bottom:30px;">
+        <a href="/admin/users" class="btn">← Back to Users</a>
+        <a href="/admin/medals" class="btn">View All Medals</a>
+    </div>
 </div>
 
 <%- include('../partials/footer') %>

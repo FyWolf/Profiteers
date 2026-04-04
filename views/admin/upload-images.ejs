@@ -1,68 +1,85 @@
 <%- include('../partials/header') %>
 
+<style>
+.form-wrap { max-width:800px; margin:0 auto; }
+.field { margin-bottom:20px; }
+.field label { display:block; font-size:0.8em; color:var(--khaki); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:7px; }
+.field input, .field textarea, .field select {
+    width:100%; padding:10px 14px;
+    background:rgba(0,0,0,0.4);
+    border:1px solid rgba(107,142,35,0.5);
+    border-radius:7px;
+    color:var(--sand);
+    font-family:var(--body-font);
+    font-size:0.92em;
+    transition:border-color 0.2s;
+}
+.field input:focus, .field select:focus { outline:none; border-color:var(--accent); box-shadow:0 0 8px rgba(252,176,13,0.15); }
+.field small { display:block; margin-top:5px; font-size:0.78em; color:var(--khaki); opacity:.7; }
+.field small a { color:var(--accent); }
+.form-actions { display:flex; gap:12px; margin-top:28px; padding-top:20px; border-top:1px solid rgba(107,142,35,0.25); }
+.info-box { padding:14px 18px; background:rgba(52,152,219,0.07); border-left:3px solid rgba(52,152,219,0.5); border-radius:0 8px 8px 0; margin-top:24px; }
+.info-box p { font-size:0.86em; color:var(--khaki); line-height:1.75; margin:0; }
+.info-box strong { color:#6bb8f7; display:block; margin-bottom:6px; text-transform:uppercase; font-size:0.88em; letter-spacing:0.5px; }
+.preview-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; margin-top:16px; }
+.preview-item { background:rgba(0,0,0,0.4); border:1px solid rgba(107,142,35,0.4); border-radius:8px; overflow:hidden; }
+.preview-item img { width:100%; height:120px; object-fit:cover; display:block; }
+.preview-item p { font-size:0.74em; padding:6px 8px; color:var(--khaki); word-break:break-all; margin:0; }
+.caption-field { margin-bottom:12px; }
+.caption-field label { display:block; font-size:0.78em; color:var(--khaki); margin-bottom:5px; opacity:.8; }
+</style>
+
 <div class="container">
     <header>
         <h1>UPLOAD IMAGES</h1>
         <div class="subtitle">Add to Gallery</div>
     </header>
 
-    <section class="section" style="max-width: 800px; margin: 0 auto 30px;">
-        <form method="POST" action="/admin/gallery/upload" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="folder_id">Destination Folder *</label>
-                <select id="folder_id" name="folder_id" required>
-                    <option value="">Select a folder...</option>
-                    <% folders.forEach(folder => { %>
-                        <option value="<%= folder.id %>"><%= folder.path %></option>
-                    <% }); %>
-                </select>
-                <small style="color: var(--khaki); display: block; margin-top: 5px;">
-                    Don't see your folder? <a href="/admin/gallery/add-folder" style="color: var(--accent);">Create one first →</a>
-                </small>
+    <section class="section">
+        <div class="form-wrap">
+            <form method="POST" action="/admin/gallery/upload" enctype="multipart/form-data">
+
+                <div class="field">
+                    <label for="folder_id">Destination Folder *</label>
+                    <select id="folder_id" name="folder_id" required>
+                        <option value="">Select a folder…</option>
+                        <% folders.forEach(folder => { %>
+                            <option value="<%= folder.id %>"><%= folder.path %></option>
+                        <% }); %>
+                    </select>
+                    <small>Don't see your folder? <a href="/admin/gallery/add-folder">Create one first →</a></small>
+                </div>
+
+                <div class="field">
+                    <label for="images">Select Images *</label>
+                    <input type="file" id="images" name="images"
+                           accept="image/*" multiple required
+                           onchange="previewImages(this)">
+                    <small>Select multiple images at once. Max 10MB per file.</small>
+                </div>
+
+                <div id="imagePreview" class="preview-grid" style="display:none;"></div>
+
+                <div id="captionsContainer" style="display:none; margin-top:20px;">
+                    <div style="font-size:0.8em; color:var(--khaki); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">Captions (Optional)</div>
+                    <div id="captionInputs"></div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" style="flex:1;">⬆️ Upload Images</button>
+                    <a href="/admin/gallery" class="btn">Cancel</a>
+                </div>
+            </form>
+
+            <div class="info-box">
+                <strong>💡 Upload Tips</strong>
+                <p>
+                    Supported formats: JPG, PNG, GIF, WebP.<br>
+                    Maximum file size: 10MB per image.<br>
+                    You can select multiple images at once — images will be timestamped automatically.
+                </p>
             </div>
-
-            <div class="form-group">
-                <label for="images">Select Images *</label>
-                <input type="file" 
-                       id="images" 
-                       name="images" 
-                       accept="image/*" 
-                       multiple 
-                       required
-                       onchange="previewImages(this)">
-                <small style="color: var(--khaki); display: block; margin-top: 5px;">
-                    You can select multiple images at once. Max 10MB per file.
-                </small>
-            </div>
-
-            <div id="imagePreview" class="grid grid-4" style="margin-top: 20px; display: none;"></div>
-
-            <div class="form-group" id="captionsContainer" style="display: none; margin-top: 20px;">
-                <label>Image Captions (Optional)</label>
-                <small style="color: var(--khaki); display: block; margin-bottom: 10px;">
-                    Add captions for each image below:
-                </small>
-                <div id="captionInputs"></div>
-            </div>
-
-            <div style="display: flex; gap: 15px; margin-top: 30px;">
-                <button type="submit" class="btn btn-primary" style="flex: 1;">
-                    ⬆️ Upload Images
-                </button>
-                <a href="/admin/gallery" class="btn" style="flex: 0 0 auto;">Cancel</a>
-            </div>
-        </form>
-    </section>
-
-    <section class="section" style="max-width: 800px; margin: 0 auto;">
-        <h3>💡 Upload Tips</h3>
-        <ul style="margin-left: 20px; line-height: 2;">
-            <li>Supported formats: JPG, PNG, GIF, WebP</li>
-            <li>Maximum file size: 10MB per image</li>
-            <li>Use descriptive captions to help organize and search</li>
-            <li>You can upload multiple images at once</li>
-            <li>Images will be timestamped automatically</li>
-        </ul>
+        </div>
     </section>
 </div>
 
@@ -71,32 +88,33 @@ function previewImages(input) {
     const preview = document.getElementById('imagePreview');
     const captionsContainer = document.getElementById('captionsContainer');
     const captionInputs = document.getElementById('captionInputs');
-    
+
     preview.innerHTML = '';
     captionInputs.innerHTML = '';
-    
+
     if (input.files && input.files.length > 0) {
         preview.style.display = 'grid';
         captionsContainer.style.display = 'block';
-        
+
         Array.from(input.files).forEach((file, index) => {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const div = document.createElement('div');
-                div.className = 'card';
+                div.className = 'preview-item';
                 div.innerHTML = `
-                    <img src="${e.target.result}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px;">
-                    <p style="font-size: 0.85em; margin-top: 8px; word-break: break-all;">${file.name}</p>
+                    <img src="${e.target.result}">
+                    <p>${file.name}</p>
                 `;
                 preview.appendChild(div);
             };
             reader.readAsDataURL(file);
-            
+
             const captionDiv = document.createElement('div');
-            captionDiv.className = 'form-group';
+            captionDiv.className = 'caption-field';
             captionDiv.innerHTML = `
                 <label>${file.name}</label>
-                <input type="text" name="captions" placeholder="Optional caption for this image">
+                <input type="text" name="captions" placeholder="Optional caption for this image"
+                       style="width:100%; padding:8px 12px; background:rgba(0,0,0,0.4); border:1px solid rgba(107,142,35,0.5); border-radius:7px; color:var(--sand); font-family:var(--body-font); font-size:0.88em;">
             `;
             captionInputs.appendChild(captionDiv);
         });

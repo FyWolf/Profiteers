@@ -1,222 +1,535 @@
 <%- include('../partials/header') %>
 
+<style>
+/* ── Stat chips ──────────────────────────────────────────────── */
+.users-stat-bar {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(107,142,35,0.3);
+}
+.users-stat { display: flex; flex-direction: column; align-items: center; }
+.users-stat-val {
+    font-family: var(--heading-font);
+    font-size: 1.7em;
+    color: var(--accent);
+    line-height: 1;
+}
+.users-stat-lbl { font-size: 0.7em; color: var(--khaki); margin-top: 3px; }
+
+/* ── Search row ──────────────────────────────────────────────── */
+.search-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+.search-row h2 { margin: 0; font-size: 1.1em; color: var(--khaki); letter-spacing: 2px; }
+.search-form  { display: flex; gap: 8px; flex: 1; max-width: 380px; }
+.search-input {
+    flex: 1;
+    padding: 9px 14px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(107,142,35,0.5);
+    border-radius: 7px;
+    color: var(--sand);
+    font-family: var(--body-font);
+    font-size: 0.88em;
+    transition: border-color 0.2s;
+}
+.search-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 8px rgba(252,176,13,0.2); }
+.search-input::placeholder { color: var(--khaki); opacity: 0.55; }
+.search-btn {
+    padding: 9px 16px;
+    background: linear-gradient(135deg, var(--olive) 0%, var(--olive-light) 100%);
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 0.88em;
+    transition: filter 0.2s;
+}
+.search-btn:hover { filter: brightness(1.15); }
+.clear-btn {
+    padding: 9px 14px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(107,142,35,0.4);
+    border-radius: 7px;
+    color: var(--khaki);
+    text-decoration: none;
+    font-size: 0.88em;
+    transition: all 0.2s;
+}
+.clear-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Table ───────────────────────────────────────────────────── */
+.users-table { width: 100%; border-collapse: collapse; }
+.users-table th {
+    padding: 10px 12px;
+    font-size: 0.7em;
+    color: var(--khaki);
+    border-bottom: 2px solid rgba(107,142,35,0.35);
+    font-family: var(--heading-font);
+    letter-spacing: 1px;
+    text-align: left;
+    white-space: nowrap;
+    opacity: 0.85;
+}
+.users-table td {
+    padding: 11px 12px;
+    border-bottom: 1px solid rgba(107,142,35,0.1);
+    vertical-align: middle;
+}
+.users-table tbody tr:hover td { background: rgba(107,142,35,0.05); }
+
+/* ── User cell ───────────────────────────────────────────────── */
+.user-cell { display: flex; align-items: center; gap: 11px; }
+.user-avatar {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    border: 2px solid rgba(107,142,35,0.6);
+    flex-shrink: 0;
+    object-fit: cover;
+}
+.avatar-placeholder {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--olive) 0%, var(--olive-light) 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.05em;
+    flex-shrink: 0;
+}
+.user-name { font-weight: 700; font-size: 0.95em; }
+.user-handle { font-size: 0.75em; color: var(--khaki); opacity: 0.7; margin-top: 1px; }
+.you-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    background: rgba(252,176,13,0.15);
+    border: 1px solid rgba(252,176,13,0.4);
+    border-radius: 10px;
+    font-size: 0.65em;
+    color: var(--accent);
+    font-family: var(--heading-font);
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+}
+
+/* ── Badges ──────────────────────────────────────────────────── */
+.auth-badge {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 0.75em;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.auth-discord { background: rgba(88,101,242,0.15); border: 1px solid rgba(88,101,242,0.5); color: #8b97ff; }
+.auth-local   { background: rgba(107,142,35,0.15); border: 1px solid rgba(107,142,35,0.5); color: var(--olive-light); }
+
+/* ── Admin toggle ────────────────────────────────────────────── */
+.admin-toggle {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.78em;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    font-family: var(--heading-font);
+    letter-spacing: 0.5px;
+}
+.admin-toggle.is-admin {
+    background: rgba(107,142,35,0.25);
+    border-color: var(--olive);
+    color: var(--olive-light);
+}
+.admin-toggle.is-admin:hover  { background: rgba(107,142,35,0.45); }
+.admin-toggle.not-admin {
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.12);
+    color: var(--khaki);
+    opacity: 0.7;
+}
+.admin-toggle.not-admin:hover { border-color: var(--olive); color: var(--olive-light); opacity: 1; }
+.admin-toggle:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+
+/* ── Date cell ───────────────────────────────────────────────── */
+.date-cell { font-size: 0.82em; color: var(--khaki); white-space: nowrap; }
+.date-never { color: rgba(244,243,232,0.2); font-size: 0.9em; }
+
+/* ── Action buttons ──────────────────────────────────────────── */
+.action-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.action-btn {
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 0.76em;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+    font-family: var(--body-font);
+}
+.action-medals    { background: rgba(252,176,13,0.1);   border-color: rgba(252,176,13,0.35); color: var(--accent); }
+.action-medals:hover    { background: rgba(252,176,13,0.22); }
+.action-trainings { background: rgba(52,152,219,0.1);   border-color: rgba(52,152,219,0.35); color: #6bb8f7; }
+.action-trainings:hover { background: rgba(52,152,219,0.22); }
+.action-delete    { background: rgba(231,76,60,0.1);    border-color: rgba(231,76,60,0.35);  color: #ff7b7b; }
+.action-delete:hover    { background: rgba(231,76,60,0.22); }
+
+/* ── Pagination ──────────────────────────────────────────────── */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+}
+.page-btn {
+    padding: 6px 13px;
+    border-radius: 6px;
+    font-size: 0.82em;
+    text-decoration: none;
+    transition: all 0.2s;
+    font-family: var(--heading-font);
+    letter-spacing: 0.5px;
+}
+.page-btn.current { background: var(--accent); color: var(--camo-dark); font-weight: 700; cursor: default; }
+.page-btn:not(.current) {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(107,142,35,0.35);
+    color: var(--sand);
+}
+.page-btn:not(.current):hover { border-color: var(--accent); color: var(--accent); }
+.page-dots { color: var(--khaki); padding: 4px 2px; opacity: 0.5; font-size: 0.85em; }
+.page-info { font-size: 0.78em; color: var(--khaki); margin-top: 10px; text-align: center; opacity: 0.7; }
+
+/* ── Filter pills ────────────────────────────────────────────── */
+.filter-bar {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.filter-group { display: flex; align-items: center; gap: 6px; }
+.filter-label { font-size: 0.72em; color: var(--khaki); text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; }
+.filter-pill {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.76em;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid rgba(107,142,35,0.35);
+    color: var(--khaki);
+    background: rgba(0,0,0,0.25);
+    transition: all 0.18s;
+    letter-spacing: 0.3px;
+}
+.filter-pill:hover { border-color: var(--accent); color: var(--accent); }
+.filter-pill.active { background: rgba(252,176,13,0.15); border-color: var(--accent); color: var(--accent); }
+
+/* ── Sortable column headers ─────────────────────────────────── */
+.sort-th { white-space: nowrap; }
+.sort-th a {
+    color: inherit;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.15s;
+}
+.sort-th a:hover { color: var(--accent); }
+.sort-th.active a { color: var(--accent); }
+.sort-icon { font-size: 0.85em; opacity: 0.5; }
+.sort-th.active .sort-icon { opacity: 1; }
+
+/* ── Empty state ─────────────────────────────────────────────── */
+.empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--khaki);
+    opacity: 0.6;
+}
+.empty-state .empty-icon { font-size: 3em; margin-bottom: 12px; }
+.empty-state p { font-size: 0.9em; margin-top: 6px; }
+.empty-state a { color: var(--accent); text-decoration: none; }
+.empty-state a:hover { text-decoration: underline; }
+</style>
+
 <div class="container">
     <header>
         <h1>MANAGE USERS</h1>
         <div class="subtitle">User Account Administration</div>
+        <div class="users-stat-bar">
+            <div class="users-stat">
+                <span class="users-stat-val"><%= globalStats.total %></span>
+                <span class="users-stat-lbl">Total Users</span>
+            </div>
+            <div class="users-stat">
+                <span class="users-stat-val"><%= globalStats.discord_users %></span>
+                <span class="users-stat-lbl">Discord Members</span>
+            </div>
+            <div class="users-stat">
+                <span class="users-stat-val"><%= globalStats.admins %></span>
+                <span class="users-stat-lbl">Admins</span>
+            </div>
+        </div>
     </header>
 
     <section class="section">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
-            <h2 style="margin: 0;">All Users (<%= totalUsers %>)</h2>
-            
-            <form method="GET" action="/admin/users" style="flex: 1; max-width: 400px;">
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" 
-                           name="search" 
-                           value="<%= search %>" 
-                           placeholder="Search users..." 
-                           style="flex: 1; padding: 10px; background: rgba(40,40,40,0.9); color: var(--sand); border: 2px solid var(--olive); border-radius: 4px;">
-                    <button type="submit" class="btn btn-primary">🔍</button>
-                    <% if (search) { %>
-                        <a href="/admin/users" class="btn">Clear</a>
-                    <% } %>
-                </div>
+        <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+        <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+        <%
+        // Build query string helpers — available for the whole template
+        function qs(overrides) {
+            const p = { sort, order };
+            if (search)     p.search = search;
+            if (filterType) p.type   = filterType;
+            if (filterRole) p.role   = filterRole;
+            Object.assign(p, overrides);
+            return Object.entries(p)
+                .filter(([, v]) => v !== '' && v != null)
+                .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+                .join('&');
+        }
+        function sortHref(col) {
+            const isActive   = sort === col;
+            const dateCol    = col === 'joined' || col === 'last_login';
+            const defaultOrd = dateCol ? 'desc' : 'asc';
+            const nextOrd    = isActive ? (order === 'asc' ? 'desc' : 'asc') : defaultOrd;
+            return '/admin/users?' + qs({ sort: col, order: nextOrd, page: '' });
+        }
+        function sortIcon(col) {
+            if (sort !== col) return '<span class="sort-icon">⇅</span>';
+            return `<span class="sort-icon">${order === 'asc' ? '↑' : '↓'}</span>`;
+        }
+        function filterHref(key, val) {
+            const cur    = key === 'type' ? filterType : filterRole;
+            const newVal = cur === val ? '' : val;
+            return '/admin/users?' + qs({ [key]: newVal, page: '' });
+        }
+        %>
+
+        <div class="search-row">
+            <h2>ALL USERS (<%= totalUsers %>)</h2>
+            <form method="GET" action="/admin/users" class="search-form">
+                <% if (sort !== 'joined') { %><input type="hidden" name="sort" value="<%= sort %>"><% } %>
+                <% if (order !== 'desc') { %><input type="hidden" name="order" value="<%= order %>"><% } %>
+                <% if (filterType) { %><input type="hidden" name="type" value="<%= filterType %>"><% } %>
+                <% if (filterRole) { %><input type="hidden" name="role" value="<%= filterRole %>"><% } %>
+                <input type="text"
+                       name="search"
+                       value="<%= search %>"
+                       placeholder="Search by username or Discord..."
+                       class="search-input">
+                <button type="submit" class="search-btn">🔍</button>
+                <% if (search) { %>
+                    <a href="/admin/users?<%= qs({ search: '', page: '' }) %>" class="clear-btn">✕ Clear</a>
+                <% } %>
             </form>
         </div>
 
-        <% if (success) { %>
-            <div class="alert alert-success"><%= success %></div>
-        <% } %>
-        
-        <% if (error) { %>
-            <div class="alert alert-error"><%= error %></div>
-        <% } %>
+        <div class="filter-bar">
+            <div class="filter-group">
+                <span class="filter-label">Type:</span>
+                <a href="/admin/users?<%= qs({ type: '', page: '' }) %>"
+                   class="filter-pill <%= !filterType ? 'active' : '' %>">All</a>
+                <a href="<%= filterHref('type', 'discord') %>"
+                   class="filter-pill <%= filterType === 'discord' ? 'active' : '' %>">Discord</a>
+                <a href="<%= filterHref('type', 'local') %>"
+                   class="filter-pill <%= filterType === 'local' ? 'active' : '' %>">Local</a>
+            </div>
+            <div class="filter-group">
+                <span class="filter-label">Role:</span>
+                <a href="/admin/users?<%= qs({ role: '', page: '' }) %>"
+                   class="filter-pill <%= !filterRole ? 'active' : '' %>">All</a>
+                <a href="<%= filterHref('role', 'admin') %>"
+                   class="filter-pill <%= filterRole === 'admin' ? 'active' : '' %>">Admin</a>
+                <a href="<%= filterHref('role', 'user') %>"
+                   class="filter-pill <%= filterRole === 'user' ? 'active' : '' %>">User</a>
+            </div>
+        </div>
 
         <% if (users.length === 0) { %>
-            <div class="card text-center">
+            <div class="empty-state">
+                <div class="empty-icon"><%= search ? '🔍' : '👥' %></div>
                 <% if (search) { %>
-                    <h3>No Users Found</h3>
-                    <p>No users match your search. <a href="/admin/users">Clear search</a></p>
+                    <strong>No users match "<%= search %>"</strong>
+                    <p><a href="/admin/users">Clear search</a> to see all users.</p>
                 <% } else { %>
-                    <h3>No Users Yet</h3>
-                    <p>Users will appear here when they login via Discord.</p>
+                    <strong>No users yet</strong>
+                    <p>Users will appear here after they log in via Discord.</p>
                 <% } %>
             </div>
         <% } else { %>
-            <table>
+            <table class="users-table">
                 <thead>
                     <tr>
-                        <th>User</th>
-                        <th>Auth Type</th>
-                        <th>Admin</th>
-                        <th>Joined</th>
-                        <th>Last Login</th>
+                        <th class="sort-th <%= sort==='username' ? 'active' : '' %>">
+                            <a href="<%= sortHref('username') %>">User <%- sortIcon('username') %></a>
+                        </th>
+                        <th class="sort-th <%= sort==='type' ? 'active' : '' %>">
+                            <a href="<%= sortHref('type') %>">Type <%- sortIcon('type') %></a>
+                        </th>
+                        <th class="sort-th <%= sort==='role' ? 'active' : '' %>">
+                            <a href="<%= sortHref('role') %>">Role <%- sortIcon('role') %></a>
+                        </th>
+                        <th class="sort-th <%= sort==='joined' ? 'active' : '' %>">
+                            <a href="<%= sortHref('joined') %>">Joined <%- sortIcon('joined') %></a>
+                        </th>
+                        <th class="sort-th <%= sort==='last_login' ? 'active' : '' %>">
+                            <a href="<%= sortHref('last_login') %>">Last Login <%- sortIcon('last_login') %></a>
+                        </th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <% users.forEach(user => { %>
-                        <tr>
-                            <td>
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <% if (user.discord_avatar) { %>
-                                        <img src="https://cdn.discordapp.com/avatars/<%= user.discord_id %>/<%= user.discord_avatar %>.png?size=64" 
-                                             alt="<%= user.username %>" 
-                                             style="width: 32px; height: 32px; border-radius: 50%;">
-                                    <% } else { %>
-                                        <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--olive); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700;">
-                                            <%= user.username.charAt(0).toUpperCase() %>
-                                        </div>
-                                    <% } %>
-                                    <div>
-                                        <strong><%= user.username %></strong>
-                                        <% if (user.discord_global_name && user.discord_global_name !== user.discord_username) { %>
-                                            <br><small style="color: var(--khaki);">Display: <%= user.discord_global_name %></small>
-                                        <% } %>
-                                        <% if (user.discord_username) { %>
-                                            <br><small style="color: var(--khaki); opacity: 0.7;">@<%= user.discord_username %></small>
-                                        <% } %>
+                    <% users.forEach(u => {
+                        const isSelf = u.id === locals.user.id;
+                        const avatarUrl = u.discord_avatar
+                            ? `https://cdn.discordapp.com/avatars/${u.discord_id}/${u.discord_avatar}.png?size=64`
+                            : null;
+                        const joined    = new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        const lastLogin = u.last_login
+                            ? new Date(u.last_login).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                            : null;
+                    %>
+                    <tr>
+                        <%# User cell %>
+                        <td>
+                            <div class="user-cell">
+                                <% if (avatarUrl) { %>
+                                    <img src="<%= avatarUrl %>" alt="<%= u.username %>" class="user-avatar">
+                                <% } else { %>
+                                    <div class="avatar-placeholder"><%= u.username.charAt(0).toUpperCase() %></div>
+                                <% } %>
+                                <div>
+                                    <div class="user-name">
+                                        <%= u.username %>
+                                        <% if (isSelf) { %><span class="you-badge">YOU</span><% } %>
                                     </div>
+                                    <% if (u.discord_username) { %>
+                                        <div class="user-handle">@<%= u.discord_username %></div>
+                                    <% } %>
                                 </div>
-                            </td>
-                            <td>
-                                <% if (user.auth_type === 'discord') { %>
-                                    <span style="padding: 4px 8px; background: rgba(88, 101, 242, 0.2); border: 1px solid #5865F2; border-radius: 4px; font-size: 0.85em;">
-                                        Discord
-                                    </span>
-                                <% } else { %>
-                                    <span style="padding: 4px 8px; background: rgba(107,142,35,0.2); border: 1px solid var(--olive); border-radius: 4px; font-size: 0.85em;">
-                                        Local
-                                    </span>
+                            </div>
+                        </td>
+
+                        <%# Auth type %>
+                        <td>
+                            <span class="auth-badge auth-<%= u.auth_type %>">
+                                <%= u.auth_type === 'discord' ? 'Discord' : 'Local' %>
+                            </span>
+                        </td>
+
+                        <%# Admin toggle %>
+                        <td>
+                            <button class="admin-toggle <%= u.is_admin ? 'is-admin' : 'not-admin' %>"
+                                    onclick="toggleAdmin(<%= u.id %>)"
+                                    <%= isSelf ? 'disabled' : '' %>>
+                                <%= u.is_admin ? '★ Admin' : 'User' %>
+                            </button>
+                        </td>
+
+                        <%# Joined %>
+                        <td class="date-cell"><%= joined %></td>
+
+                        <%# Last login %>
+                        <td class="date-cell">
+                            <% if (lastLogin) { %>
+                                <%= lastLogin %>
+                            <% } else { %>
+                                <span class="date-never">—</span>
+                            <% } %>
+                        </td>
+
+                        <%# Actions %>
+                        <td>
+                            <div class="action-row">
+                                <a href="/admin/users/<%= u.id %>/medals" class="action-btn action-medals">🏅 Medals</a>
+                                <a href="/admin/users/<%= u.id %>/trainings" class="action-btn action-trainings">🎓 Trainings</a>
+                                <% if (!isSelf) { %>
+                                <form method="POST" action="/admin/users/delete/<%= u.id %>" style="display:inline"
+                                      onsubmit="return confirm('Delete <%= u.username %>? This cannot be undone.')">
+                                    <button type="submit" class="action-btn action-delete">Delete</button>
+                                </form>
                                 <% } %>
-                            </td>
-                            <td>
-                                <button onclick="toggleAdmin(<%= user.id %>)" 
-                                        class="btn" 
-                                        style="<%= user.is_admin ? 'background: var(--olive);' : 'background: #888;' %> padding: 6px 12px;"
-                                        <%= user.id === locals.user.id ? 'disabled title="Cannot modify yourself"' : '' %>>
-                                    <%= user.is_admin ? '✅ Admin' : '❌ User' %>
-                                </button>
-                            </td>
-                            <td>
-                                <%= new Date(user.created_at).toLocaleDateString() %>
-                            </td>
-                            <td>
-                                <% if (user.last_login) { %>
-                                    <%= new Date(user.last_login).toLocaleDateString() %>
-                                <% } else { %>
-                                    <span style="color: var(--khaki);">Never</span>
-                                <% } %>
-                            </td>
-                            <td>
-                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                                    <a href="/admin/users/<%= user.id %>/medals" class="btn" style="padding: 6px 12px; font-size: 0.9em;">
-                                        🏅 Medals
-                                    </a>
-                                    <a href="/admin/users/<%= user.id %>/trainings" class="btn" style="padding: 6px 12px; font-size: 0.9em; background: #3498DB;">
-                                        🎓 Trainings
-                                    </a>
-                                    <form method="POST" 
-                                          action="/admin/users/delete/<%= user.id %>" 
-                                          style="display: inline;" 
-                                          onsubmit="return <%= user.id === locals.user.id ? 'false' : 'confirm(\'Are you sure you want to delete this user?\')' %>">
-                                        <button type="submit" 
-                                                class="btn btn-danger" 
-                                                style="padding: 6px 12px; font-size: 0.9em;"
-                                                <%= user.id === locals.user.id ? 'disabled title="Cannot delete yourself"' : '' %>>
-                                            Delete
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    <% }); %>
+                            </div>
+                        </td>
+                    </tr>
+                    <% }) %>
                 </tbody>
             </table>
 
+            <%# Pagination %>
             <% if (totalPages > 1) { %>
-                <div style="margin-top: 25px; padding: 20px; background: rgba(107,142,35,0.1); border-radius: 8px;">
-                    <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">
-                        <% if (currentPage > 1) { %>
-                            <a href="/admin/users?page=<%= currentPage - 1 %><%= search ? '&search=' + encodeURIComponent(search) : '' %>" class="btn">
-                                ← Previous
-                            </a>
-                        <% } %>
-                        
-                        <div style="display: flex; gap: 5px;">
-                            <% 
-                            const startPage = Math.max(1, currentPage - 2);
-                            const endPage = Math.min(totalPages, currentPage + 2);
-                            
-                            if (startPage > 1) { %>
-                                <a href="/admin/users?page=1<%= search ? '&search=' + encodeURIComponent(search) : '' %>" class="btn">1</a>
-                                <% if (startPage > 2) { %>
-                                    <span style="padding: 8px; color: var(--khaki);">...</span>
-                                <% } %>
-                            <% }
-                            
-                            for (let i = startPage; i <= endPage; i++) { %>
-                                <% if (i === currentPage) { %>
-                                    <span class="btn btn-primary" style="cursor: default;"><%= i %></span>
-                                <% } else { %>
-                                    <a href="/admin/users?page=<%= i %><%= search ? '&search=' + encodeURIComponent(search) : '' %>" class="btn"><%= i %></a>
-                                <% } %>
-                            <% }
-                            
-                            if (endPage < totalPages) { %>
-                                <% if (endPage < totalPages - 1) { %>
-                                    <span style="padding: 8px; color: var(--khaki);">...</span>
-                                <% } %>
-                                <a href="/admin/users?page=<%= totalPages %><%= search ? '&search=' + encodeURIComponent(search) : '' %>" class="btn"><%= totalPages %></a>
-                            <% } %>
-                        </div>
-                        
-                        <% if (currentPage < totalPages) { %>
-                            <a href="/admin/users?page=<%= currentPage + 1 %><%= search ? '&search=' + encodeURIComponent(search) : '' %>" class="btn">
-                                Next →
-                            </a>
-                        <% } %>
-                    </div>
-                    
-                    <div style="text-align: center; margin-top: 10px; color: var(--khaki); font-size: 0.9em;">
-                        Page <%= currentPage %> of <%= totalPages %> (Showing <%= users.length %> of <%= totalUsers %> users)
-                    </div>
-                </div>
-            <% } %>
+            <%
+                const pSp = Math.max(1, currentPage - 2);
+                const pEp = Math.min(totalPages, currentPage + 2);
+            %>
+            <div class="pagination">
+                <% if (currentPage > 1) { %>
+                    <a href="/admin/users?<%= qs({ page: currentPage - 1 }) %>" class="page-btn">← Prev</a>
+                <% } %>
 
-            <div style="margin-top: 20px; padding: 15px; background: rgba(107,142,35,0.1); border: 1px solid var(--olive); border-radius: 8px;">
-                <h4 style="color: var(--olive-light); margin-bottom: 10px;">📊 Summary</h4>
-                <p>
-                    <strong>Total Users:</strong> <%= totalUsers %><br>
-                    <strong>Showing:</strong> <%= users.length %> users on this page<br>
-                    <strong>Admins on Page:</strong> <%= users.filter(u => u.is_admin).length %>
-                </p>
+                <% if (pSp > 1) { %>
+                    <a href="/admin/users?<%= qs({ page: 1 }) %>" class="page-btn">1</a>
+                    <% if (pSp > 2) { %><span class="page-dots">···</span><% } %>
+                <% } %>
+
+                <% for (let i = pSp; i <= pEp; i++) { %>
+                    <% if (i === currentPage) { %>
+                        <span class="page-btn current"><%= i %></span>
+                    <% } else { %>
+                        <a href="/admin/users?<%= qs({ page: i }) %>" class="page-btn"><%= i %></a>
+                    <% } %>
+                <% } %>
+
+                <% if (pEp < totalPages) { %>
+                    <% if (pEp < totalPages - 1) { %><span class="page-dots">···</span><% } %>
+                    <a href="/admin/users?<%= qs({ page: totalPages }) %>" class="page-btn"><%= totalPages %></a>
+                <% } %>
+
+                <% if (currentPage < totalPages) { %>
+                    <a href="/admin/users?<%= qs({ page: currentPage + 1 }) %>" class="page-btn">Next →</a>
+                <% } %>
             </div>
+            <div class="page-info">
+                Page <%= currentPage %> of <%= totalPages %> &nbsp;·&nbsp; Showing <%= users.length %> of <%= totalUsers %> users
+            </div>
+            <% } %>
         <% } %>
     </section>
 
-    <section class="section">
+    <div style="margin-bottom: 30px;">
         <a href="/admin" class="btn">← Back to Dashboard</a>
-    </section>
+    </div>
 </div>
 
 <script>
 async function toggleAdmin(id) {
-    if (!confirm('Are you sure you want to toggle admin status for this user?')) return;
-    
+    if (!confirm('Toggle admin status for this user?')) return;
     try {
-        const response = await fetch(`/admin/users/toggle-admin/${id}`, {
-            method: 'POST'
-        });
-        const data = await response.json();
-        
+        const res  = await fetch(`/admin/users/toggle-admin/${id}`, { method: 'POST' });
+        const data = await res.json();
         if (data.success) {
             location.reload();
         } else {
             alert(data.error || 'Failed to toggle admin status');
         }
-    } catch (error) {
+    } catch {
         alert('Error toggling admin status');
     }
 }

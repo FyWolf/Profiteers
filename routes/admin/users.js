@@ -5,21 +5,43 @@ const db = require('../../config/database');
 
 router.get('/', async (req, res) => {
     try {
-        const search = req.query.search || '';
-        const page = parseInt(req.query.page) || 1;
-        const limit = 50;
-        const offset = (page - 1) * limit;
+        const search     = req.query.search || '';
+        const page       = parseInt(req.query.page) || 1;
+        const limit      = 50;
+        const offset     = (page - 1) * limit;
 
-        let whereClause = '';
-        let params = [];
+        // Sorting — whitelist column keys to prevent injection
+        const SORT_COLS = {
+            username:   'username',
+            type:       'auth_type',
+            role:       'is_admin',
+            joined:     'created_at',
+            last_login: 'last_login'
+        };
+        const sort     = SORT_COLS[req.query.sort] ? req.query.sort : 'joined';
+        const order    = req.query.order === 'asc' ? 'ASC' : 'DESC';
+        const sortCol  = SORT_COLS[sort];
+
+        // Filters
+        const filterType = ['discord', 'local'].includes(req.query.type) ? req.query.type : '';
+        const filterRole = ['admin', 'user'].includes(req.query.role) ? req.query.role : '';
+
+        // Build WHERE
+        const conditions = [];
+        const params = [];
 
         if (search) {
-            whereClause = `WHERE
-                username LIKE ? OR
-                discord_username LIKE ? OR
-                discord_global_name LIKE ?`;
-            params = [`%${search}%`, `%${search}%`, `%${search}%`];
+            conditions.push('(username LIKE ? OR discord_username LIKE ? OR discord_global_name LIKE ?)');
+            params.push(`%${search}%`, `%${search}%`, `%${search}%`);
         }
+        if (filterType) {
+            conditions.push('auth_type = ?');
+            params.push(filterType);
+        }
+        if (filterRole === 'admin') conditions.push('is_admin = 1');
+        if (filterRole === 'user')  conditions.push('is_admin = 0');
+
+        const whereClause = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
         const [countResult] = await db.query(
             `SELECT COUNT(*) as total FROM users ${whereClause}`,
@@ -42,17 +64,30 @@ router.get('/', async (req, res) => {
                 last_login
             FROM users
             ${whereClause}
-            ORDER BY created_at DESC
+            ORDER BY ${sortCol} ${order}
             LIMIT ? OFFSET ?
         `, [...params, limit, offset]);
 
+        const [[globalStats]] = await db.query(`
+            SELECT
+                COUNT(*) as total,
+                SUM(is_admin) as admins,
+                SUM(auth_type = 'discord') as discord_users
+            FROM users
+        `);
+
         res.render('admin/users', {
             title: 'Manage Users - Admin',
-            users: users,
-            search: search,
+            users,
+            search,
+            sort,
+            order: order.toLowerCase(),
+            filterType,
+            filterRole,
             currentPage: page,
-            totalPages: totalPages,
-            totalUsers: totalUsers,
+            totalPages,
+            totalUsers,
+            globalStats,
             success: req.query.success,
             error: req.query.error
         });
