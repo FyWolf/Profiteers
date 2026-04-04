@@ -1,177 +1,416 @@
 <%- include('../partials/header') %>
 
+<style>
+/* ── Stat bar ────────────────────────────────────────────────── */
+.dash-stat-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.dash-stat-chip {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(107,142,35,0.5);
+    border-radius: 10px;
+    padding: 12px 18px;
+    flex: 1;
+    min-width: 130px;
+}
+.chip-icon { font-size: 1.5em; flex-shrink: 0; }
+.chip-value {
+    font-family: var(--heading-font);
+    font-size: 1.7em;
+    color: var(--accent);
+    line-height: 1;
+}
+.chip-label { font-size: 0.75em; color: var(--khaki); margin-top: 2px; }
+
+/* ── Traffic numbers ─────────────────────────────────────────── */
+.traffic-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 6px;
+}
+.traffic-num {
+    border-left: 3px solid var(--accent);
+    padding: 10px 14px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 0 8px 8px 0;
+}
+.t-val {
+    font-family: var(--heading-font);
+    font-size: 1.9em;
+    color: var(--accent);
+    line-height: 1;
+}
+.t-label { font-size: 0.72em; color: var(--khaki); margin-top: 3px; }
+
+/* ── Bar chart ───────────────────────────────────────────────── */
+.traffic-charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+}
+@media (max-width: 768px) { .traffic-charts { grid-template-columns: 1fr; } }
+
+.chart-label {
+    font-size: 0.72em;
+    color: var(--khaki);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    opacity: 0.8;
+}
+.bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 90px;
+}
+.bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    height: 100%;
+    justify-content: flex-end;
+}
+.bar-val  { font-size: 0.68em; color: var(--accent); }
+.bar-fill {
+    width: 100%;
+    background: linear-gradient(180deg, var(--accent) 0%, var(--olive) 100%);
+    border-radius: 3px 3px 0 0;
+    min-height: 4px;
+}
+.bar-lbl  { font-size: 0.62em; white-space: nowrap; color: var(--khaki); opacity: 0.75; }
+
+/* ── Top pages table ─────────────────────────────────────────── */
+.pages-table { width: 100%; border-collapse: collapse; }
+.pages-table th {
+    text-align: left;
+    padding: 6px 8px;
+    font-size: 0.72em;
+    color: var(--khaki);
+    border-bottom: 1px solid rgba(107,142,35,0.4);
+    font-family: var(--heading-font);
+    letter-spacing: 1px;
+    opacity: 0.8;
+}
+.pages-table th:last-child { text-align: right; }
+.pages-table td { padding: 6px 8px; border-bottom: 1px solid rgba(107,142,35,0.12); font-size: 0.88em; }
+.pages-table tr:last-child td { border-bottom: none; }
+.pages-table .path { font-family: monospace; }
+.pages-table .views { text-align: right; color: var(--accent); font-weight: 700; }
+.page-bar { height: 3px; background: rgba(107,142,35,0.2); border-radius: 2px; margin-top: 3px; }
+.page-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; opacity: 0.6; }
+
+/* ── Management grid ─────────────────────────────────────────── */
+.manage-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+@media (max-width: 1024px) { .manage-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px)  { .manage-grid { grid-template-columns: 1fr; } }
+
+.manage-card {
+    background: linear-gradient(135deg, rgba(0,0,0,0.45) 0%, rgba(10,20,10,0.45) 100%);
+    border: 1px solid rgba(107,142,35,0.6);
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
+}
+.manage-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(252,176,13,0.12);
+}
+.manage-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.manage-icon  { font-size: 1.7em; }
+.manage-badge { font-family: var(--heading-font); font-size: 1.5em; color: var(--accent); line-height: 1; text-align: right; }
+.manage-badge-sub { font-size: 0.5em; color: var(--khaki); display: block; font-family: var(--body-font); }
+.manage-title { font-family: var(--heading-font); font-size: 0.85em; color: var(--sand); letter-spacing: 1px; margin-bottom: 5px; }
+.manage-desc  { font-size: 0.78em; color: var(--khaki); line-height: 1.5; flex: 1; margin-bottom: 14px; }
+.manage-card-footer {
+    display: flex;
+    gap: 8px;
+    border-top: 1px solid rgba(107,142,35,0.25);
+    padding-top: 12px;
+    margin-top: auto;
+}
+.manage-link {
+    font-size: 0.75em;
+    font-weight: 700;
+    text-decoration: none;
+    padding: 5px 12px;
+    border-radius: 5px;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+.manage-link.primary {
+    background: linear-gradient(135deg, var(--olive) 0%, var(--olive-light) 100%);
+    color: #fff;
+}
+.manage-link.primary:hover { filter: brightness(1.15); }
+.manage-link.secondary {
+    background: rgba(252,176,13,0.08);
+    border: 1px solid rgba(252,176,13,0.35);
+    color: var(--accent);
+}
+.manage-link.secondary:hover { background: rgba(252,176,13,0.18); }
+</style>
+
 <div class="container">
     <header>
         <h1>ADMIN DASHBOARD</h1>
         <div class="subtitle">Management Control Panel</div>
     </header>
 
-    <section class="section">
-        <h2>📊 Statistics</h2>
-        <div class="grid grid-3">
-            <div class="card text-center">
-                <div style="font-size: 3em; color: var(--accent); margin-bottom: 10px;">🔧</div>
-                <h3><%= stats.tools %></h3>
-                <p>Tools</p>
-                <a href="/admin/tools" class="btn mt-2">Manage</a>
+    <%# ── Quick stats bar ─────────────────────────────────────── %>
+    <section class="section" style="padding: 20px 28px;">
+        <div class="dash-stat-bar">
+            <div class="dash-stat-chip">
+                <span class="chip-icon">👥</span>
+                <div>
+                    <div class="chip-value"><%= stats.users %></div>
+                    <div class="chip-label">Registered Users</div>
+                </div>
             </div>
-            
-            <div class="card text-center">
-                <div style="font-size: 3em; color: var(--accent); margin-bottom: 10px;">📁</div>
-                <h3><%= stats.folders %></h3>
-                <p>Gallery Folders</p>
-                <a href="/admin/gallery" class="btn mt-2">Manage</a>
+            <div class="dash-stat-chip">
+                <span class="chip-icon">🔧</span>
+                <div>
+                    <div class="chip-value"><%= stats.tools %></div>
+                    <div class="chip-label">Tools</div>
+                </div>
             </div>
-            
-            <div class="card text-center">
-                <div style="font-size: 3em; color: var(--accent); margin-bottom: 10px;">🖼️</div>
-                <h3><%= stats.images %></h3>
-                <p>Gallery Images</p>
-                <a href="/admin/gallery" class="btn mt-2">Manage</a>
+            <div class="dash-stat-chip">
+                <span class="chip-icon">🖼️</span>
+                <div>
+                    <div class="chip-value"><%= stats.images %></div>
+                    <div class="chip-label">Gallery Images</div>
+                </div>
             </div>
-            
-            <div class="card text-center">
-                <div style="font-size: 3em; color: var(--accent); margin-bottom: 10px;">👥</div>
-                <h3><%= stats.users %></h3>
-                <p>Registered Users</p>
-                <a href="/admin/users" class="btn mt-2">Manage</a>
+            <div class="dash-stat-chip">
+                <span class="chip-icon">🏅</span>
+                <div>
+                    <div class="chip-value"><%= stats.medals || 0 %></div>
+                    <div class="chip-label">Medals</div>
+                </div>
             </div>
-            
-            <div class="card text-center">
-                <div style="font-size: 3em; color: var(--accent); margin-bottom: 10px;">🏅</div>
-                <h3><%= stats.medals || 0 %></h3>
-                <p>Medals Created</p>
-                <a href="/admin/medals" class="btn mt-2">Manage</a>
-            </div>
-            
-            <div class="card text-center">
-                <div style="font-size: 3em; color: var(--accent); margin-bottom: 10px;">🎓</div>
-                <h3><%= stats.trainings || 0 %></h3>
-                <p>Trainings</p>
-                <a href="/admin/trainings" class="btn mt-2">Manage</a>
+            <div class="dash-stat-chip">
+                <span class="chip-icon">🎓</span>
+                <div>
+                    <div class="chip-value"><%= stats.trainings || 0 %></div>
+                    <div class="chip-label">Trainings</div>
+                </div>
             </div>
         </div>
     </section>
 
+    <%# ── Traffic ─────────────────────────────────────────────── %>
     <section class="section">
         <h2>📈 Website Traffic</h2>
-        <div class="grid grid-3" style="margin-bottom: 1.5rem;">
-            <div class="card text-center">
-                <div style="font-size: 2.5em; color: var(--accent); margin-bottom: 10px;">👁️</div>
-                <h3><%= analytics.views_today %></h3>
-                <p>Views Today</p>
+
+        <div class="traffic-row">
+            <div class="traffic-num">
+                <div class="t-val"><%= analytics.views_today %></div>
+                <div class="t-label">Views Today</div>
             </div>
-            <div class="card text-center">
-                <div style="font-size: 2.5em; color: var(--accent); margin-bottom: 10px;">📅</div>
-                <h3><%= analytics.views_week %></h3>
-                <p>Views (7 days)</p>
+            <div class="traffic-num">
+                <div class="t-val"><%= analytics.views_week %></div>
+                <div class="t-label">Views (7 days)</div>
             </div>
-            <div class="card text-center">
-                <div style="font-size: 2.5em; color: var(--accent); margin-bottom: 10px;">🗓️</div>
-                <h3><%= analytics.views_month %></h3>
-                <p>Views (30 days)</p>
+            <div class="traffic-num">
+                <div class="t-val"><%= analytics.views_month %></div>
+                <div class="t-label">Views (30 days)</div>
             </div>
-            <div class="card text-center">
-                <div style="font-size: 2.5em; color: var(--accent); margin-bottom: 10px;">👤</div>
-                <h3><%= analytics.unique_today %></h3>
-                <p>Unique Users Today</p>
+            <div class="traffic-num">
+                <div class="t-val"><%= analytics.unique_today %></div>
+                <div class="t-label">Unique Users Today</div>
             </div>
-            <div class="card text-center">
-                <div style="font-size: 2.5em; color: var(--accent); margin-bottom: 10px;">👥</div>
-                <h3><%= analytics.unique_week %></h3>
-                <p>Unique Users (7 days)</p>
+            <div class="traffic-num">
+                <div class="t-val"><%= analytics.unique_week %></div>
+                <div class="t-label">Unique Users (7 days)</div>
             </div>
         </div>
 
-        <% if (dailyViews.length > 0) { %>
-        <% const maxViews = Math.max(...dailyViews.map(d => d.views), 1); %>
-        <div class="card" style="margin-bottom: 1.5rem;">
-            <h3 style="margin-bottom: 1rem;">Daily Views (last 7 days)</h3>
-            <div style="display: flex; align-items: flex-end; gap: 8px; height: 80px;">
-                <% dailyViews.forEach(day => { %>
-                <% const barHeight = Math.max(Math.round((day.views / maxViews) * 100), 4); %>
-                <% const d = new Date(day.date); %>
-                <% const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', timeZone: 'UTC' }); %>
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end;">
-                    <span style="font-size: 0.7em; color: var(--accent);"><%= day.views %></span>
-                    <div style="width: 100%; background: var(--accent); height: <%= barHeight %>%; border-radius: 3px 3px 0 0;" title="<%= label %>: <%= day.views %> views"></div>
-                    <span style="font-size: 0.65em; white-space: nowrap; color: var(--sand-dim, #aaa);"><%= label %></span>
-                </div>
-                <% }) %>
-            </div>
-        </div>
-        <% } %>
+        <p style="font-size: 0.78em; color: var(--khaki); opacity: 0.65; margin: 10px 0 0;">
+            🤖 Bots filtered out —
+            <strong style="color: var(--accent); opacity: 1;"><%= analytics.bots_today %></strong> today &nbsp;·&nbsp;
+            <strong style="color: var(--accent); opacity: 1;"><%= analytics.bots_week %></strong> this week
+        </p>
 
-        <% if (topPages.length > 0) { %>
-        <div class="card">
-            <h3 style="margin-bottom: 1rem;">Top Pages (last 7 days)</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="border-bottom: 1px solid var(--border, #444);">
-                        <th style="text-align: left; padding: 6px 8px;">Page</th>
-                        <th style="text-align: right; padding: 6px 8px;">Views</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% topPages.forEach(page => { %>
-                    <tr style="border-bottom: 1px solid var(--border-subtle, #333);">
-                        <td style="padding: 6px 8px; font-family: monospace;"><%= page.path === '/' ? '/ (Home)' : page.path %></td>
-                        <td style="padding: 6px 8px; text-align: right; color: var(--accent);"><%= page.views %></td>
-                    </tr>
+        <% if (dailyViews.length > 0 || topPages.length > 0) { %>
+        <div class="traffic-charts">
+
+            <% if (dailyViews.length > 0) { %>
+            <% const maxDV = Math.max(...dailyViews.map(d => d.views), 1); %>
+            <div>
+                <div class="chart-label">Daily views — last 7 days</div>
+                <div class="bar-chart">
+                    <% dailyViews.forEach(day => { %>
+                    <% const h = Math.max(Math.round((day.views / maxDV) * 100), 4); %>
+                    <% const lbl = new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }); %>
+                    <div class="bar-col">
+                        <span class="bar-val"><%= day.views %></span>
+                        <div class="bar-fill" style="height:<%= h %>%" title="<%= lbl %>: <%= day.views %>"></div>
+                        <span class="bar-lbl"><%= lbl %></span>
+                    </div>
                     <% }) %>
-                </tbody>
-            </table>
+                </div>
+            </div>
+            <% } %>
+
+            <% if (topPages.length > 0) { %>
+            <% const maxPV = topPages[0].views; %>
+            <div>
+                <div class="chart-label">Top pages — last 7 days</div>
+                <table class="pages-table">
+                    <thead><tr><th>Page</th><th>Views</th></tr></thead>
+                    <tbody>
+                        <% topPages.forEach(page => { %>
+                        <tr>
+                            <td class="path">
+                                <%= page.path === '/' ? '/ (Home)' : page.path %>
+                                <div class="page-bar"><div class="page-bar-fill" style="width:<%= Math.round((page.views/maxPV)*100) %>%"></div></div>
+                            </td>
+                            <td class="views"><%= page.views %></td>
+                        </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+            <% } %>
+
         </div>
         <% } %>
     </section>
 
+    <%# ── Management ──────────────────────────────────────────── %>
     <section class="section">
-        <h2>🛠️ Quick Actions</h2>
-        <div class="grid grid-2">
-            <a href="/admin/tools/add" class="card" style="text-decoration: none; color: var(--sand);">
-                <h3>➕ Add New Tool</h3>
-                <p>Create a new internal tool listing</p>
-            </a>
-            
-            <a href="/admin/gallery/add-folder" class="card" style="text-decoration: none; color: var(--sand);">
-                <h3>📁 Create Gallery Folder</h3>
-                <p>Add a new folder to organize images</p>
-            </a>
-            
-            <a href="/admin/gallery/upload" class="card" style="text-decoration: none; color: var(--sand);">
-                <h3>⬆️ Upload Images</h3>
-                <p>Add new images to the gallery</p>
-            </a>
-            
-            <a href="/admin/users" class="card" style="text-decoration: none; color: var(--sand);">
-                <h3>👥 Manage Users</h3>
-                <p>View and manage user accounts</p>
-            </a>
-            
-            <a href="/admin/medals" class="card" style="text-decoration: none; color: var(--sand);">
-                <h3>🏅 Manage Medals</h3>
-                <p>Create and award medals</p>
-            </a>
-            
-            <a href="/admin/trainings" class="card" style="text-decoration: none; color: var(--sand);">
-                <h3>🎓 Manage Trainings</h3>
-                <p>Manage training certifications</p>
-            </a>
-            
-            <a href="/orbat/templates" class="card" style="text-decoration: none; color: var(--sand);">
-                <h3>📋 Manage ORBATs</h3>
-                <p>Create and manage ORBAT templates</p>
-            </a>
-            
-            <a href="/loa/all" class="card" style="text-decoration: none; color: var(--sand);">
-                <h3>🛑 View All LOAs</h3>
-                <p>Manage leave of absence requests</p>
-            </a>
-            
-            <a href="/" class="card" style="text-decoration: none; color: var(--sand);">
-                <h3>🌐 View Public Site</h3>
-                <p>See the website as visitors do</p>
-            </a>
+        <h2>⚙️ Management</h2>
+        <div class="manage-grid">
+
+            <div class="manage-card">
+                <div class="manage-card-top">
+                    <span class="manage-icon">🔧</span>
+                    <div class="manage-badge"><%= stats.tools %><span class="manage-badge-sub">tools</span></div>
+                </div>
+                <div class="manage-title">Tools</div>
+                <div class="manage-desc">Manage internal tool listings available to members.</div>
+                <div class="manage-card-footer">
+                    <a href="/admin/tools" class="manage-link primary">Manage</a>
+                    <a href="/admin/tools/add" class="manage-link secondary">+ New</a>
+                </div>
+            </div>
+
+            <div class="manage-card">
+                <div class="manage-card-top">
+                    <span class="manage-icon">🖼️</span>
+                    <div class="manage-badge"><%= stats.images %><span class="manage-badge-sub"><%= stats.folders %> folders</span></div>
+                </div>
+                <div class="manage-title">Gallery</div>
+                <div class="manage-desc">Manage image folders and upload new screenshots.</div>
+                <div class="manage-card-footer">
+                    <a href="/admin/gallery" class="manage-link primary">Manage</a>
+                    <a href="/admin/gallery/upload" class="manage-link secondary">+ Upload</a>
+                </div>
+            </div>
+
+            <div class="manage-card">
+                <div class="manage-card-top">
+                    <span class="manage-icon">👥</span>
+                    <div class="manage-badge"><%= stats.users %><span class="manage-badge-sub">members</span></div>
+                </div>
+                <div class="manage-title">Users</div>
+                <div class="manage-desc">View and manage member accounts and permissions.</div>
+                <div class="manage-card-footer">
+                    <a href="/admin/users" class="manage-link primary">Manage</a>
+                </div>
+            </div>
+
+            <div class="manage-card">
+                <div class="manage-card-top">
+                    <span class="manage-icon">🏅</span>
+                    <div class="manage-badge"><%= stats.medals || 0 %><span class="manage-badge-sub">medals</span></div>
+                </div>
+                <div class="manage-title">Medals</div>
+                <div class="manage-desc">Create medals and award them to members for achievements.</div>
+                <div class="manage-card-footer">
+                    <a href="/admin/medals" class="manage-link primary">Manage</a>
+                </div>
+            </div>
+
+            <div class="manage-card">
+                <div class="manage-card-top">
+                    <span class="manage-icon">🎓</span>
+                    <div class="manage-badge"><%= stats.trainings || 0 %><span class="manage-badge-sub">trainings</span></div>
+                </div>
+                <div class="manage-title">Trainings</div>
+                <div class="manage-desc">Manage training certifications available to members.</div>
+                <div class="manage-card-footer">
+                    <a href="/admin/trainings" class="manage-link primary">Manage</a>
+                </div>
+            </div>
+
+            <div class="manage-card">
+                <div class="manage-card-top">
+                    <span class="manage-icon">📋</span>
+                </div>
+                <div class="manage-title">ORBATs</div>
+                <div class="manage-desc">Create and manage order of battle templates for operations.</div>
+                <div class="manage-card-footer">
+                    <a href="/orbat/templates" class="manage-link primary">Manage</a>
+                </div>
+            </div>
+
+            <div class="manage-card">
+                <div class="manage-card-top">
+                    <span class="manage-icon">🎯</span>
+                </div>
+                <div class="manage-title">Operations</div>
+                <div class="manage-desc">Schedule and manage operations, missions, and side ops.</div>
+                <div class="manage-card-footer">
+                    <a href="/operations/manage/list" class="manage-link primary">Manage</a>
+                </div>
+            </div>
+
+            <div class="manage-card">
+                <div class="manage-card-top">
+                    <span class="manage-icon">🛑</span>
+                </div>
+                <div class="manage-title">Leave of Absence</div>
+                <div class="manage-desc">Review and manage pending LOA requests from members.</div>
+                <div class="manage-card-footer">
+                    <a href="/loa/all" class="manage-link primary">View All</a>
+                </div>
+            </div>
+
+            <div class="manage-card">
+                <div class="manage-card-top">
+                    <span class="manage-icon">🎒</span>
+                </div>
+                <div class="manage-title">Modpacks</div>
+                <div class="manage-desc">Upload and manage mission modpacks for players.</div>
+                <div class="manage-card-footer">
+                    <a href="/modpacks" class="manage-link primary">Manage</a>
+                    <a href="/modpacks/upload/new" class="manage-link secondary">+ Upload</a>
+                </div>
+            </div>
+
         </div>
     </section>
 </div>
