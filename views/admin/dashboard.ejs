@@ -18,19 +18,14 @@
     flex: 1;
     min-width: 130px;
 }
-.chip-icon { font-size: 1.5em; flex-shrink: 0; }
-.chip-value {
-    font-family: var(--heading-font);
-    font-size: 1.7em;
-    color: var(--accent);
-    line-height: 1;
-}
+.chip-icon  { font-size: 1.5em; flex-shrink: 0; }
+.chip-value { font-family: var(--heading-font); font-size: 1.7em; color: var(--accent); line-height: 1; }
 .chip-label { font-size: 0.75em; color: var(--khaki); margin-top: 2px; }
 
 /* ── Traffic numbers ─────────────────────────────────────────── */
 .traffic-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 10px;
     margin-bottom: 6px;
 }
@@ -40,23 +35,14 @@
     background: rgba(0,0,0,0.3);
     border-radius: 0 8px 8px 0;
 }
-.t-val {
-    font-family: var(--heading-font);
-    font-size: 1.9em;
-    color: var(--accent);
-    line-height: 1;
-}
+.traffic-num.sessions { border-left-color: #6bb8f7; }
+.traffic-num.ips      { border-left-color: var(--olive-light); }
+.t-val   { font-family: var(--heading-font); font-size: 1.9em; color: var(--accent); line-height: 1; }
 .t-label { font-size: 0.72em; color: var(--khaki); margin-top: 3px; }
+.traffic-num.sessions .t-val { color: #6bb8f7; }
+.traffic-num.ips      .t-val { color: var(--olive-light); }
 
-/* ── Bar chart ───────────────────────────────────────────────── */
-.traffic-charts {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    margin-top: 20px;
-}
-@media (max-width: 768px) { .traffic-charts { grid-template-columns: 1fr; } }
-
+/* ── Section sub-label ───────────────────────────────────────── */
 .chart-label {
     font-size: 0.72em;
     color: var(--khaki);
@@ -65,12 +51,15 @@
     margin-bottom: 12px;
     opacity: 0.8;
 }
+
+/* ── Bar chart ───────────────────────────────────────────────── */
 .bar-chart {
     display: flex;
     align-items: flex-end;
     gap: 6px;
     height: 90px;
 }
+.bar-chart.dense { gap: 2px; }
 .bar-col {
     flex: 1;
     display: flex;
@@ -85,11 +74,12 @@
     width: 100%;
     background: linear-gradient(180deg, var(--accent) 0%, var(--olive) 100%);
     border-radius: 3px 3px 0 0;
-    min-height: 4px;
+    min-height: 2px;
 }
-.bar-lbl  { font-size: 0.62em; white-space: nowrap; color: var(--khaki); opacity: 0.75; }
+.bar-chart.sessions .bar-fill { background: linear-gradient(180deg, #6bb8f7 0%, #2d6a8e 100%); }
+.bar-lbl { font-size: 0.62em; white-space: nowrap; color: var(--khaki); opacity: 0.75; }
 
-/* ── Top pages table ─────────────────────────────────────────── */
+/* ── Top pages / referrers table ─────────────────────────────── */
 .pages-table { width: 100%; border-collapse: collapse; }
 .pages-table th {
     text-align: left;
@@ -108,6 +98,30 @@
 .pages-table .views { text-align: right; color: var(--accent); font-weight: 700; }
 .page-bar { height: 3px; background: rgba(107,142,35,0.2); border-radius: 2px; margin-top: 3px; }
 .page-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; opacity: 0.6; }
+.ref-bar-fill  { height: 100%; background: #6bb8f7; border-radius: 2px; opacity: 0.6; }
+
+/* ── Device breakdown ────────────────────────────────────────── */
+.device-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(107,142,35,0.1);
+}
+.device-row:last-child { border-bottom: none; }
+.device-icon  { font-size: 1.1em; width: 22px; text-align: center; flex-shrink: 0; }
+.device-label { font-size: 0.82em; color: var(--sand); width: 62px; flex-shrink: 0; text-transform: capitalize; }
+.device-bar-wrap { flex: 1; height: 6px; background: rgba(107,142,35,0.2); border-radius: 3px; }
+.device-bar-fill { height: 100%; border-radius: 3px; background: var(--olive-light); }
+.device-pct  { font-size: 0.78em; color: var(--khaki); width: 36px; text-align: right; flex-shrink: 0; }
+.device-cnt  { font-size: 0.72em; color: var(--khaki); opacity: .6; width: 40px; text-align: right; flex-shrink: 0; }
+
+/* ── Two-col / three-col chart grids ─────────────────────────── */
+.chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+.chart-grid-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 20px; margin-top: 20px; }
+@media (max-width: 900px) {
+    .chart-grid-2, .chart-grid-3 { grid-template-columns: 1fr; }
+}
 
 /* ── Management grid ─────────────────────────────────────────── */
 .manage-grid {
@@ -138,11 +152,11 @@
     justify-content: space-between;
     margin-bottom: 10px;
 }
-.manage-icon  { font-size: 1.7em; }
-.manage-badge { font-family: var(--heading-font); font-size: 1.5em; color: var(--accent); line-height: 1; text-align: right; }
+.manage-icon      { font-size: 1.7em; }
+.manage-badge     { font-family: var(--heading-font); font-size: 1.5em; color: var(--accent); line-height: 1; text-align: right; }
 .manage-badge-sub { font-size: 0.5em; color: var(--khaki); display: block; font-family: var(--body-font); }
-.manage-title { font-family: var(--heading-font); font-size: 0.85em; color: var(--sand); letter-spacing: 1px; margin-bottom: 5px; }
-.manage-desc  { font-size: 0.78em; color: var(--khaki); line-height: 1.5; flex: 1; margin-bottom: 14px; }
+.manage-title     { font-family: var(--heading-font); font-size: 0.85em; color: var(--sand); letter-spacing: 1px; margin-bottom: 5px; }
+.manage-desc      { font-size: 0.78em; color: var(--khaki); line-height: 1.5; flex: 1; margin-bottom: 14px; }
 .manage-card-footer {
     display: flex;
     gap: 8px;
@@ -184,38 +198,23 @@
         <div class="dash-stat-bar">
             <div class="dash-stat-chip">
                 <span class="chip-icon">👥</span>
-                <div>
-                    <div class="chip-value"><%= stats.users %></div>
-                    <div class="chip-label">Registered Users</div>
-                </div>
+                <div><div class="chip-value"><%= stats.users %></div><div class="chip-label">Registered Users</div></div>
             </div>
             <div class="dash-stat-chip">
                 <span class="chip-icon">🔧</span>
-                <div>
-                    <div class="chip-value"><%= stats.tools %></div>
-                    <div class="chip-label">Tools</div>
-                </div>
+                <div><div class="chip-value"><%= stats.tools %></div><div class="chip-label">Tools</div></div>
             </div>
             <div class="dash-stat-chip">
                 <span class="chip-icon">🖼️</span>
-                <div>
-                    <div class="chip-value"><%= stats.images %></div>
-                    <div class="chip-label">Gallery Images</div>
-                </div>
+                <div><div class="chip-value"><%= stats.images %></div><div class="chip-label">Gallery Images</div></div>
             </div>
             <div class="dash-stat-chip">
                 <span class="chip-icon">🏅</span>
-                <div>
-                    <div class="chip-value"><%= stats.medals || 0 %></div>
-                    <div class="chip-label">Medals</div>
-                </div>
+                <div><div class="chip-value"><%= stats.medals || 0 %></div><div class="chip-label">Medals</div></div>
             </div>
             <div class="dash-stat-chip">
                 <span class="chip-icon">🎓</span>
-                <div>
-                    <div class="chip-value"><%= stats.trainings || 0 %></div>
-                    <div class="chip-label">Trainings</div>
-                </div>
+                <div><div class="chip-value"><%= stats.trainings || 0 %></div><div class="chip-label">Trainings</div></div>
             </div>
         </div>
     </section>
@@ -224,7 +223,9 @@
     <section class="section">
         <h2>📈 Website Traffic</h2>
 
-        <div class="traffic-row">
+        <%# Page views row %>
+        <div class="chart-label" style="margin-bottom:8px;">Page Views</div>
+        <div class="traffic-row" style="margin-bottom:16px;">
             <div class="traffic-num">
                 <div class="t-val"><%= analytics.views_today %></div>
                 <div class="t-label">Views Today</div>
@@ -237,24 +238,35 @@
                 <div class="t-val"><%= analytics.views_month %></div>
                 <div class="t-label">Views (30 days)</div>
             </div>
-            <div class="traffic-num">
-                <div class="t-val"><%= analytics.unique_today %></div>
-                <div class="t-label">Unique Users Today</div>
+        </div>
+
+        <%# Sessions + IPs row %>
+        <div class="chart-label" style="margin-bottom:8px;">Unique Visitors</div>
+        <div class="traffic-row">
+            <div class="traffic-num sessions">
+                <div class="t-val"><%= analytics.sessions_today %></div>
+                <div class="t-label">Sessions Today</div>
             </div>
-            <div class="traffic-num">
-                <div class="t-val"><%= analytics.unique_week %></div>
-                <div class="t-label">Unique Users (7 days)</div>
+            <div class="traffic-num sessions">
+                <div class="t-val"><%= analytics.sessions_week %></div>
+                <div class="t-label">Sessions (7 days)</div>
+            </div>
+            <div class="traffic-num ips">
+                <div class="t-val"><%= analytics.unique_ips_week %></div>
+                <div class="t-label">Unique IPs (7 days)</div>
             </div>
         </div>
 
-        <p style="font-size: 0.78em; color: var(--khaki); opacity: 0.65; margin: 10px 0 0;">
+        <p style="font-size:0.78em; color:var(--khaki); opacity:0.65; margin:10px 0 0;">
             🤖 Bots filtered out —
-            <strong style="color: var(--accent); opacity: 1;"><%= analytics.bots_today %></strong> today &nbsp;·&nbsp;
-            <strong style="color: var(--accent); opacity: 1;"><%= analytics.bots_week %></strong> this week
+            <strong style="color:var(--accent); opacity:1;"><%= analytics.bots_today %></strong> today &nbsp;·&nbsp;
+            <strong style="color:var(--accent); opacity:1;"><%= analytics.bots_week %></strong> this week
+            &nbsp;·&nbsp; Sessions = 30-min rolling anonymous cookie
         </p>
 
+        <%# ── Row 1: daily bar + top pages ─────────────────── %>
         <% if (dailyViews.length > 0 || topPages.length > 0) { %>
-        <div class="traffic-charts">
+        <div class="chart-grid-2">
 
             <% if (dailyViews.length > 0) { %>
             <% const maxDV = Math.max(...dailyViews.map(d => d.views), 1); %>
@@ -266,7 +278,7 @@
                     <% const lbl = new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }); %>
                     <div class="bar-col">
                         <span class="bar-val"><%= day.views %></span>
-                        <div class="bar-fill" style="height:<%= h %>%" title="<%= lbl %>: <%= day.views %>"></div>
+                        <div class="bar-fill" style="height:<%= h %>%"></div>
                         <span class="bar-lbl"><%= lbl %></span>
                     </div>
                     <% }) %>
@@ -297,6 +309,78 @@
 
         </div>
         <% } %>
+
+        <%# ── Row 2: hourly heatmap + device + referrers ──── %>
+        <% const hasHourly   = hourlyViews.some(h => h.views > 0); %>
+        <% const hasDevice   = deviceBreakdown.length > 0; %>
+        <% const hasReferrer = topReferrers.length > 0; %>
+
+        <% if (hasHourly || hasDevice || hasReferrer) { %>
+        <div class="chart-grid-3" style="margin-top:24px;">
+
+            <%# Hourly heatmap %>
+            <% if (hasHourly) { %>
+            <% const maxHV = Math.max(...hourlyViews.map(h => h.views), 1); %>
+            <div>
+                <div class="chart-label">Activity by hour — last 7 days (UTC)</div>
+                <div class="bar-chart dense">
+                    <% hourlyViews.forEach(h => { %>
+                    <% const ht = Math.max(Math.round((h.views / maxHV) * 100), 2); %>
+                    <div class="bar-col" title="<%= h.hour %>:00 — <%= h.views %> views">
+                        <div class="bar-fill" style="height:<%= ht %>%" <%= h.views === 0 ? 'style="opacity:0.2; height:2%"' : '' %>></div>
+                        <span class="bar-lbl"><%= h.hour % 6 === 0 ? h.hour : '' %></span>
+                    </div>
+                    <% }) %>
+                </div>
+            </div>
+            <% } %>
+
+            <%# Device breakdown %>
+            <% if (hasDevice) { %>
+            <% const deviceTotal = deviceBreakdown.reduce((s, d) => s + d.views, 0); %>
+            <%
+                const deviceIcon = { desktop: '🖥️', mobile: '📱', tablet: '🗂️' };
+            %>
+            <div>
+                <div class="chart-label">Device types — last 7 days</div>
+                <% deviceBreakdown.forEach(d => { %>
+                <% const pct = deviceTotal > 0 ? Math.round((d.views / deviceTotal) * 100) : 0; %>
+                <div class="device-row">
+                    <span class="device-icon"><%= deviceIcon[d.device_type] || '💻' %></span>
+                    <span class="device-label"><%= d.device_type %></span>
+                    <div class="device-bar-wrap"><div class="device-bar-fill" style="width:<%= pct %>%"></div></div>
+                    <span class="device-pct"><%= pct %>%</span>
+                    <span class="device-cnt"><%= d.views %></span>
+                </div>
+                <% }) %>
+            </div>
+            <% } %>
+
+            <%# Top referrers %>
+            <% if (hasReferrer) { %>
+            <% const maxRV = topReferrers[0].views; %>
+            <div>
+                <div class="chart-label">Traffic sources — last 7 days</div>
+                <table class="pages-table">
+                    <thead><tr><th>Source</th><th>Views</th></tr></thead>
+                    <tbody>
+                        <% topReferrers.forEach(r => { %>
+                        <tr>
+                            <td>
+                                <%= r.source %>
+                                <div class="page-bar"><div class="ref-bar-fill" style="width:<%= Math.round((r.views/maxRV)*100) %>%"></div></div>
+                            </td>
+                            <td class="views" style="color:#6bb8f7;"><%= r.views %></td>
+                        </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+            <% } %>
+
+        </div>
+        <% } %>
+
     </section>
 
     <%# ── Management ──────────────────────────────────────────── %>
@@ -367,9 +451,7 @@
             </div>
 
             <div class="manage-card">
-                <div class="manage-card-top">
-                    <span class="manage-icon">📋</span>
-                </div>
+                <div class="manage-card-top"><span class="manage-icon">📋</span></div>
                 <div class="manage-title">ORBATs</div>
                 <div class="manage-desc">Create and manage order of battle templates for operations.</div>
                 <div class="manage-card-footer">
@@ -378,9 +460,7 @@
             </div>
 
             <div class="manage-card">
-                <div class="manage-card-top">
-                    <span class="manage-icon">🎯</span>
-                </div>
+                <div class="manage-card-top"><span class="manage-icon">🎯</span></div>
                 <div class="manage-title">Operations</div>
                 <div class="manage-desc">Schedule and manage operations, missions, and side ops.</div>
                 <div class="manage-card-footer">
@@ -389,9 +469,7 @@
             </div>
 
             <div class="manage-card">
-                <div class="manage-card-top">
-                    <span class="manage-icon">🛑</span>
-                </div>
+                <div class="manage-card-top"><span class="manage-icon">🛑</span></div>
                 <div class="manage-title">Leave of Absence</div>
                 <div class="manage-desc">Review and manage pending LOA requests from members.</div>
                 <div class="manage-card-footer">
@@ -400,9 +478,7 @@
             </div>
 
             <div class="manage-card">
-                <div class="manage-card-top">
-                    <span class="manage-icon">🎒</span>
-                </div>
+                <div class="manage-card-top"><span class="manage-icon">🎒</span></div>
                 <div class="manage-title">Modpacks</div>
                 <div class="manage-desc">Upload and manage mission modpacks for players.</div>
                 <div class="manage-card-footer">
