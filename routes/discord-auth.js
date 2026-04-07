@@ -2,6 +2,13 @@ const express = require('express');
 const router = express.Router();
 const passport = require('../config/passport');
 
+function sanitizeRedirect(url) {
+    if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
+        return url;
+    }
+    return '/';
+}
+
 router.get('/discord', passport.authenticate('discord'));
 
 router.get('/discord/callback', 
@@ -14,7 +21,7 @@ router.get('/discord/callback',
         req.session.username = req.user.username;
         req.session.isAdmin = Boolean(req.user.is_admin);
         
-        const redirect = req.session.redirectTo || '/';
+        const redirect = sanitizeRedirect(req.session.redirectTo);
         delete req.session.redirectTo;
         res.redirect(redirect);
     }

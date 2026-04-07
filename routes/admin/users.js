@@ -232,27 +232,34 @@ router.post('/:userId/sync-trainings', async (req, res) => {
 
         const [trainings] = await db.query('SELECT id, discord_role_id FROM trainings');
 
-        await db.query('DELETE FROM user_trainings WHERE user_id = ?', [userId]);
+        const matchedTrainings = trainings.filter(t => userRoles.includes(t.discord_role_id));
 
-        let assignedCount = 0;
-        for (const training of trainings) {
-            if (userRoles.includes(training.discord_role_id)) {
-                await db.query(
+        const conn = await db.getConnection();
+        try {
+            await conn.beginTransaction();
+            await conn.query('DELETE FROM user_trainings WHERE user_id = ?', [userId]);
+            for (const training of matchedTrainings) {
+                await conn.query(
                     'INSERT INTO user_trainings (user_id, training_id) VALUES (?, ?)',
                     [userId, training.id]
                 );
-                assignedCount++;
             }
+            await conn.commit();
+        } catch (txErr) {
+            await conn.rollback();
+            throw txErr;
+        } finally {
+            conn.release();
         }
 
         res.json({
             success: true,
-            message: `Synced ${assignedCount} training(s)`,
-            count: assignedCount
+            message: `Synced ${matchedTrainings.length} training(s)`,
+            count: matchedTrainings.length
         });
     } catch (error) {
         console.error('Error syncing trainings:', error);
-        res.json({ success: false, error: error.message || 'Failed to sync trainings' });
+        res.json({ success: false, error: 'Failed to sync trainings' });
     }
 });
 

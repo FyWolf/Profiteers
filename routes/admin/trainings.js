@@ -3,6 +3,16 @@ const router = express.Router();
 const path = require('path');
 const db = require('../../config/database');
 
+const BADGES_UPLOAD_DIR = path.join(__dirname, '..', '..', 'public', 'images', 'badges');
+
+async function saveBadgeImage(file) {
+    const ext = path.extname(file.name).replace(/[^a-z0-9.]/gi, '');
+    const base = path.basename(file.name, path.extname(file.name)).toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    const fileName = `${base}${ext}`;
+    await file.mv(path.join(BADGES_UPLOAD_DIR, fileName));
+    return `/images/badges/${fileName}`;
+}
+
 router.get('/', async (req, res) => {
     try {
         const [trainings] = await db.query(`
@@ -48,19 +58,7 @@ router.post('/add', async (req, res) => {
         let finalImageUrl = image_url || '/images/badges/default-training.png';
 
         if (req.files && req.files.badge_upload) {
-            const badgeFile = req.files.badge_upload;
-
-            const fileExt = path.extname(badgeFile.name).replace(/[^a-z0-9.]/gi, '');
-            const baseName = path.basename(badgeFile.name, path.extname(badgeFile.name))
-                .toLowerCase()
-                .replace(/[^a-z0-9-]/g, '-');
-            const fileName = baseName + fileExt;
-
-            const uploadPath = path.join(__dirname, '..', '..', 'public', 'images', 'badges', fileName);
-
-            await badgeFile.mv(uploadPath);
-
-            finalImageUrl = '/images/badges/' + fileName;
+            finalImageUrl = await saveBadgeImage(req.files.badge_upload);
         }
 
         await db.query(
@@ -104,19 +102,7 @@ router.post('/edit/:id', async (req, res) => {
         let finalImageUrl = image_url;
 
         if (req.files && req.files.badge_upload) {
-            const badgeFile = req.files.badge_upload;
-
-            const fileExt = path.extname(badgeFile.name).replace(/[^a-z0-9.]/gi, '');
-            const baseName = path.basename(badgeFile.name, path.extname(badgeFile.name))
-                .toLowerCase()
-                .replace(/[^a-z0-9-]/g, '-');
-            const fileName = baseName + fileExt;
-
-            const uploadPath = path.join(__dirname, '..', '..', 'public', 'images', 'badges', fileName);
-
-            await badgeFile.mv(uploadPath);
-
-            finalImageUrl = '/images/badges/' + fileName;
+            finalImageUrl = await saveBadgeImage(req.files.badge_upload);
         }
 
         await db.query(

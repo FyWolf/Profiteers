@@ -96,8 +96,9 @@ router.get('/', async (req, res) => {
             `);
             rawHourly.forEach(r => { hourlyViews[r.hour].views = r.views; });
 
-        } catch (_) {
+        } catch (analyticsErr) {
             // page_views table may not exist yet on first boot
+            console.warn('Analytics queries failed (table may not exist yet):', analyticsErr.message);
         }
 
         res.render('admin/dashboard', {

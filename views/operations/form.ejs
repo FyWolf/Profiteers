@@ -351,7 +351,7 @@ async function loadOrbatTemplates() {
 toggleOrbatOptions();
 
 <% if (typeof users !== 'undefined' && users) { %>
-const hostUsers = <%- JSON.stringify(users) %>;
+const hostUsers = <%- JSON.stringify(users).replace(/\//g, '\\/') %>;
 console.log('Host search initialized with', hostUsers.length, 'users');
 const hostSearchInput = document.getElementById('host_search');
 const hostResultsDiv = document.getElementById('host_results');

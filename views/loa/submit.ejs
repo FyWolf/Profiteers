@@ -50,7 +50,7 @@
                 </div>
 
                 <script>
-                    const users = <%- JSON.stringify(users) %>;
+                    const users = <%- JSON.stringify(users).replace(/\//g, '\\/') %>;
                     const searchInput = document.getElementById('superior_search');
                     const resultsDiv = document.getElementById('superior_results');
                     const hiddenInput = document.getElementById('superior_id');

@@ -1,27 +1,49 @@
 const express = require('express');
 const router = express.Router();
 const path = require('path');
+const sanitizeHtml = require('sanitize-html');
 const db = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
 const { isZeus, checkZeusStatus } = require('../middleware/zeus');
+
+const NEWS_ALLOWED_TAGS = [
+    'p', 'br', 'strong', 'em', 'u', 's', 'ul', 'ol', 'li',
+    'h1', 'h2', 'h3', 'blockquote', 'a', 'img', 'span', 'div'
+];
+const NEWS_ALLOWED_ATTRS = {
+    'a': ['href', 'target', 'rel'],
+    'img': ['src', 'alt', 'width', 'height'],
+    'span': ['style'],
+    'div': ['style'],
+    'p': ['style'],
+};
+
+function sanitizeNewsContent(raw) {
+    return sanitizeHtml(raw, {
+        allowedTags: NEWS_ALLOWED_TAGS,
+        allowedAttributes: NEWS_ALLOWED_ATTRS,
+        allowedSchemes: ['https', 'http'],
+        allowedSchemesByTag: { img: ['https', 'http'] },
+        transformTags: {
+            'a': (tagName, attribs) => ({
+                tagName,
+                attribs: { ...attribs, rel: 'noopener noreferrer' }
+            })
+        }
+    });
+}
 
 // Helper function to convert datetime-local input to unix timestamp
 // Input: "2024-02-26T14:00" (user enters this as UTC)
 // Output: Unix timestamp (seconds since epoch)
 function toUnixTimestamp(datetimeLocal) {
     if (!datetimeLocal) return null;
-    // Create date from ISO string treating it as UTC
-    const date = new Date(datetimeLocal + ':00Z'); // Add seconds and Z for UTC
-    return Math.floor(date.getTime() / 1000); // Convert ms to seconds
+    const date = new Date(datetimeLocal + ':00Z');
+    return Math.floor(date.getTime() / 1000);
 }
 
-// Helper function to convert unix timestamp to datetime-local format
-// Input: Unix timestamp (seconds)
-// Output: "2024-02-26T14:00" for datetime-local input
-function fromUnixTimestamp(timestamp) {
-    if (!timestamp) return '';
-    const date = new Date(timestamp * 1000); // Convert to milliseconds
-    return date.toISOString().slice(0, 16); // "2024-02-26T14:00"
+function parseBoolean(value) {
+    return value === 'on' || value === '1' || value === true;
 }
 
 router.get('/upcoming', async (req, res) => {
@@ -204,7 +226,7 @@ router.get('/:id', async (req, res) => {
         let canManage = false;
         if (req.session.userId) {
             canManage = await checkZeusStatus(req.session.userId)
-                || (operation && operation.host_id == req.session.userId);
+                || (operation && parseInt(operation.host_id) === parseInt(req.session.userId));
         }
         
         res.render('operations/view', {
@@ -416,7 +438,7 @@ router.get('/manage/edit/:id', isAuthenticated, async (req, res) => {
         }
 
         const isZeusUser = await checkZeusStatus(req.session.userId);
-        const isHost = operations[0].host_id == req.session.userId;
+        const isHost = parseInt(operations[0].host_id) === parseInt(req.session.userId);
         if (!isZeusUser && !isHost) {
             return res.redirect('/operations/' + req.params.id + '?error=Access denied');
         }
@@ -446,7 +468,7 @@ router.post('/manage/edit/:id', isAuthenticated, async (req, res) => {
     try {
         const [opCheck] = await db.query('SELECT host_id FROM operations WHERE id = ?', [req.params.id]);
         const isZeusUser = await checkZeusStatus(req.session.userId);
-        const isHost = opCheck.length > 0 && opCheck[0].host_id == req.session.userId;
+        const isHost = opCheck.length > 0 && parseInt(opCheck[0].host_id) === parseInt(req.session.userId);
         if (!isZeusUser && !isHost) {
             return res.redirect('/operations/' + req.params.id + '?error=Access denied');
         }
@@ -471,7 +493,7 @@ router.post('/manage/edit/:id', isAuthenticated, async (req, res) => {
 
         const startTimestamp = toUnixTimestamp(start_time);
         const endTimestamp = toUnixTimestamp(end_time);
-        const published = is_published === 'on' || is_published === '1' || is_published === true;
+        const published = parseBoolean(is_published);
         
         const finalOrbatType = orbat_type || 'none';
         const finalOrbatTemplateId = (finalOrbatType === 'fixed' && orbat_template_id) ? orbat_template_id : null;
@@ -522,14 +544,14 @@ router.post('/:id/news', isAuthenticated, async (req, res) => {
     try {
         const [opCheck] = await db.query('SELECT host_id FROM operations WHERE id = ?', [req.params.id]);
         const isZeusUser = await checkZeusStatus(req.session.userId);
-        const isHost = opCheck.length > 0 && opCheck[0].host_id == req.session.userId;
+        const isHost = opCheck.length > 0 && parseInt(opCheck[0].host_id) === parseInt(req.session.userId);
         if (!isZeusUser && !isHost) {
             return res.json({ success: false, error: 'Access denied' });
         }
 
         const { ping } = req.body;
-        // Strip base64 data: URIs (Quill fallback when upload fails) to prevent ER_DATA_TOO_LONG
-        const content = (req.body.content || '').replace(/<img[^>]*src=["']data:[^"']*["'][^>]*>/gi, '');
+        // Sanitize HTML from rich text editor — strips dangerous tags/attributes and data: URIs
+        const content = sanitizeNewsContent(req.body.content || '');
 
         await db.query(`
             INSERT INTO operation_news (operation_id, content, posted_by)
@@ -572,7 +594,7 @@ router.post('/news/delete/:newsId', isAuthenticated, async (req, res) => {
             WHERE opn.id = ?
         `, [req.params.newsId]);
         const isZeusUser = await checkZeusStatus(req.session.userId);
-        const isHost = newsCheck.length > 0 && newsCheck[0].host_id == req.session.userId;
+        const isHost = newsCheck.length > 0 && parseInt(newsCheck[0].host_id) === parseInt(req.session.userId);
         if (!isZeusUser && !isHost) {
             return res.json({ success: false, error: 'Access denied' });
         }

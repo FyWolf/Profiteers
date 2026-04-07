@@ -1,7 +1,32 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
+const { rateLimit } = require('express-rate-limit');
 const db = require('../config/database');
+
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    limit: 10,
+    message: 'Too many login attempts. Please try again in 15 minutes.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Only allow relative paths to prevent open redirect attacks
+function sanitizeRedirect(url) {
+    if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
+        return url;
+    }
+    return '/admin';
+}
+
+function renderLoginError(res, error, redirect) {
+    return res.render('admin-login', {
+        title: 'Admin Login - Profiteers PMC',
+        error,
+        redirect
+    });
+}
 
 router.get('/login', (req, res) => {
     if (req.isAuthenticated()) {
@@ -17,7 +42,7 @@ router.get('/login', (req, res) => {
         title: 'Login - Profiteers PMC',
         error: null,
         discordError: discordError,
-        redirect: req.query.redirect || '/admin'
+        redirect: sanitizeRedirect(req.query.redirect)
     });
 });
 
@@ -25,37 +50,30 @@ router.get('/admin-login', (req, res) => {
     if (req.isAuthenticated()) {
         return res.redirect('/admin');
     }
-    
+
     res.render('admin-login', {
         title: 'Admin Login - Profiteers PMC',
         error: null,
-        redirect: req.query.redirect || '/admin'
+        redirect: sanitizeRedirect(req.query.redirect)
     });
 });
 
-router.post('/login', async (req, res) => {
-    const { username, password, redirect } = req.body;
+router.post('/login', loginLimiter, async (req, res) => {
+    const { username, password } = req.body;
+    const redirect = sanitizeRedirect(req.body.redirect);
 
     try {
         const [users] = await db.query('SELECT * FROM users WHERE username = ?', [username]);
 
         if (users.length === 0) {
-            return res.render('admin-login', {
-                title: 'Admin Login - Profiteers PMC',
-                error: 'Invalid username or password',
-                redirect: redirect || '/admin'
-            });
+            return renderLoginError(res, 'Invalid username or password', redirect);
         }
 
         const user = users[0];
         const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
         if (!isValidPassword) {
-            return res.render('admin-login', {
-                title: 'Admin Login - Profiteers PMC',
-                error: 'Invalid username or password',
-                redirect: redirect || '/admin'
-            });
+            return renderLoginError(res, 'Invalid username or password', redirect);
         }
 
         await db.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
@@ -63,11 +81,7 @@ router.post('/login', async (req, res) => {
         req.login(user, (err) => {
             if (err) {
                 console.error('Passport login error:', err);
-                return res.render('admin-login', {
-                    title: 'Admin Login - Profiteers PMC',
-                    error: 'An error occurred during login',
-                    redirect: redirect || '/admin'
-                });
+                return renderLoginError(res, 'An error occurred during login', redirect);
             }
 
             // Set session props for backward compatibility with route handlers
@@ -75,15 +89,11 @@ router.post('/login', async (req, res) => {
             req.session.username = user.username;
             req.session.isAdmin = Boolean(user.is_admin);
 
-            res.redirect(redirect || '/admin');
+            res.redirect(redirect);
         });
     } catch (error) {
         console.error('Login error:', error);
-        res.render('admin-login', {
-            title: 'Admin Login - Profiteers PMC',
-            error: 'An error occurred during login',
-            redirect: redirect || '/admin'
-        });
+        renderLoginError(res, 'An error occurred during login', redirect);
     }
 });
 

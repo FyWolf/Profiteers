@@ -4,6 +4,13 @@ const path = require('path');
 const fs = require('fs').promises;
 const db = require('../../config/database');
 
+const ALLOWED_IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']);
+
+function isAllowedImageExt(filename) {
+    const ext = path.extname(filename).toLowerCase();
+    return ALLOWED_IMAGE_EXTS.has(ext);
+}
+
 router.get('/', async (req, res) => {
     try {
         const [folders] = await db.query('SELECT * FROM gallery_folders ORDER BY path ASC');
@@ -52,6 +59,11 @@ router.get('/add-folder', async (req, res) => {
 
 router.post('/add-folder', async (req, res) => {
     const { name, parent_id } = req.body;
+
+    // Reject names with path-traversal characters
+    if (!name || /[/\\.]/.test(name)) {
+        return res.redirect('/admin/gallery?error=Folder name must not contain / \\ or . characters');
+    }
 
     try {
         let folderPath = name;
@@ -103,7 +115,12 @@ router.post('/upload', async (req, res) => {
         for (let i = 0; i < images.length; i++) {
             const image = images[i];
             const rawName = path.basename(image.name);
-            const ext = path.extname(rawName).replace(/[^a-z0-9.]/gi, '');
+
+            if (!isAllowedImageExt(rawName)) {
+                return res.redirect('/admin/gallery?error=Only image files are allowed (.jpg, .jpeg, .png, .gif, .webp)');
+            }
+
+            const ext = path.extname(rawName).toLowerCase();
             const base = path.basename(rawName, path.extname(rawName)).replace(/[^a-zA-Z0-9_-]/g, '-');
             const fileName = Date.now() + '-' + i + '-' + base + ext;
             const uploadPath = path.join(__dirname, '..', '..', 'public', 'uploads', 'gallery', fileName);

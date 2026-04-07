@@ -1,4 +1,5 @@
 const express = require('express');
+const helmet = require('helmet');
 const session = require('express-session');
 const fileUpload = require('express-fileupload');
 const path = require('path');
@@ -37,6 +38,10 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.set('trust proxy', 1);
 
+app.use(helmet({
+    contentSecurityPolicy: false, // CSP managed separately due to inline scripts in EJS
+    crossOriginEmbedderPolicy: false
+}));
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());

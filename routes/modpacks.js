@@ -128,8 +128,13 @@ router.get('/:id/download', async (req, res) => {
         }
 
         const modpack = modpacks[0];
-        const filePath = path.join(__dirname, '..', modpack.file_path);
-        
+        const uploadsDir = path.resolve(__dirname, '..', 'public', 'uploads', 'modpacks');
+        const filePath = path.resolve(__dirname, '..', modpack.file_path);
+
+        if (!filePath.startsWith(uploadsDir + path.sep) && !filePath.startsWith(uploadsDir + '/')) {
+            return res.status(400).send('Invalid file path');
+        }
+
         if (!fs.existsSync(filePath)) {
             return res.status(404).send('Modpack file not found on server');
         }
@@ -208,18 +213,30 @@ router.post('/upload', isZeus, async (req, res) => {
 
         const relativeFilePath = `/public/uploads/modpacks/${fileName}`;
 
-        const [result] = await db.query(
-            `INSERT INTO modpacks (name, description, file_path, created_by, mod_count, index_status) VALUES (?, ?, ?, ?, ?, 'pending')`,
-            [modpackName, description, relativeFilePath, req.session.userId, parsed.mods.length]
-        );
+        const conn = await db.getConnection();
+        let modpackId;
+        try {
+            await conn.beginTransaction();
 
-        const modpackId = result.insertId;
-
-        for (const mod of parsed.mods) {
-            await db.query(
-                `INSERT INTO modpack_mods (modpack_id, workshop_id, display_name, steam_url) VALUES (?, ?, ?, ?)`,
-                [modpackId, mod.workshopId, mod.displayName, mod.steamUrl]
+            const [result] = await conn.query(
+                `INSERT INTO modpacks (name, description, file_path, created_by, mod_count, index_status) VALUES (?, ?, ?, ?, ?, 'pending')`,
+                [modpackName, description, relativeFilePath, req.session.userId, parsed.mods.length]
             );
+            modpackId = result.insertId;
+
+            for (const mod of parsed.mods) {
+                await conn.query(
+                    `INSERT INTO modpack_mods (modpack_id, workshop_id, display_name, steam_url) VALUES (?, ?, ?, ?)`,
+                    [modpackId, mod.workshopId, mod.displayName, mod.steamUrl]
+                );
+            }
+
+            await conn.commit();
+        } catch (txErr) {
+            await conn.rollback();
+            throw txErr;
+        } finally {
+            conn.release();
         }
 
         console.log(`[Modpacks] Uploaded "${modpackName}" with ${parsed.mods.length} mods. Starting background indexing...`);

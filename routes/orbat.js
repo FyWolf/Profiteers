@@ -53,7 +53,7 @@ async function isSquadEditor(userId, roleId) {
 async function isOperationHost(userId, operationId) {
     if (!userId || !operationId) return false;
     const [rows] = await db.query('SELECT host_id FROM operations WHERE id = ?', [operationId]);
-    return rows.length > 0 && rows[0].host_id == userId;
+    return rows.length > 0 && parseInt(rows[0].host_id) === parseInt(userId);
 }
 
 async function isHostOfSquadOperation(userId, squadId) {
@@ -63,7 +63,7 @@ async function isHostOfSquadOperation(userId, squadId) {
         JOIN operations o ON o.id = os.operation_id
         WHERE os.id = ? AND os.operation_id IS NOT NULL
     `, [squadId]);
-    return rows.length > 0 && rows[0].host_id == userId;
+    return rows.length > 0 && parseInt(rows[0].host_id) === parseInt(userId);
 }
 
 async function isHostOfRoleOperation(userId, roleId) {
@@ -74,18 +74,20 @@ async function isHostOfRoleOperation(userId, roleId) {
         JOIN operations o ON o.id = os.operation_id
         WHERE r.id = ? AND os.operation_id IS NOT NULL
     `, [roleId]);
-    return rows.length > 0 && rows[0].host_id == userId;
+    return rows.length > 0 && parseInt(rows[0].host_id) === parseInt(userId);
 }
 
 // Middleware: check if user is Zeus/Admin or the operation host
-function canManageOperation(req, res, next) {
-    (async () => {
+async function canManageOperation(req, res, next) {
+    try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
         if (userIsZeus || await isOperationHost(req.session.userId, req.params.operationId)) {
             return next();
         }
         return res.status(403).json({ success: false, error: 'Permission denied' });
-    })().catch(next);
+    } catch (err) {
+        next(err);
+    }
 }
 
 router.get('/api/templates', async (req, res) => {

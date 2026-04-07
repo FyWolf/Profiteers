@@ -4,6 +4,16 @@ const path = require('path');
 const fs = require('fs').promises;
 const db = require('../../config/database');
 
+const TOOLS_UPLOAD_DIR = path.join(__dirname, '..', '..', 'public', 'uploads', 'tools');
+
+async function saveToolImage(file) {
+    const ext = path.extname(file.name).replace(/[^a-z0-9.]/gi, '');
+    const base = path.basename(file.name, path.extname(file.name)).replace(/[^a-zA-Z0-9_-]/g, '-');
+    const fileName = `${Date.now()}-${base}${ext}`;
+    await file.mv(path.join(TOOLS_UPLOAD_DIR, fileName));
+    return `/uploads/tools/${fileName}`;
+}
+
 router.get('/', async (req, res) => {
     try {
         const [tools] = await db.query('SELECT * FROM tools ORDER BY order_index ASC, created_at DESC');
@@ -40,15 +50,7 @@ router.post('/add', async (req, res) => {
         let imageUrl = null;
 
         if (req.files && req.files.image) {
-            const image = req.files.image;
-            const rawName = path.basename(image.name);
-            const ext = path.extname(rawName).replace(/[^a-z0-9.]/gi, '');
-            const base = path.basename(rawName, path.extname(rawName)).replace(/[^a-zA-Z0-9_-]/g, '-');
-            const fileName = Date.now() + '-' + base + ext;
-            const uploadPath = path.join(__dirname, '..', '..', 'public', 'uploads', 'tools', fileName);
-
-            await image.mv(uploadPath);
-            imageUrl = '/uploads/tools/' + fileName;
+            imageUrl = await saveToolImage(req.files.image);
         }
 
         await db.query(
@@ -97,23 +99,13 @@ router.post('/edit/:id', async (req, res) => {
 
         if (req.files && req.files.image) {
             if (imageUrl) {
-                const oldImagePath = path.join(__dirname, '..', '..', 'public', imageUrl);
                 try {
-                    await fs.unlink(oldImagePath);
+                    await fs.unlink(path.join(__dirname, '..', '..', 'public', imageUrl));
                 } catch (err) {
                     console.log('Could not delete old image:', err);
                 }
             }
-
-            const image = req.files.image;
-            const rawName = path.basename(image.name);
-            const ext = path.extname(rawName).replace(/[^a-z0-9.]/gi, '');
-            const base = path.basename(rawName, path.extname(rawName)).replace(/[^a-zA-Z0-9_-]/g, '-');
-            const fileName = Date.now() + '-' + base + ext;
-            const uploadPath = path.join(__dirname, '..', '..', 'public', 'uploads', 'tools', fileName);
-
-            await image.mv(uploadPath);
-            imageUrl = '/uploads/tools/' + fileName;
+            imageUrl = await saveToolImage(req.files.image);
         }
 
         await db.query(

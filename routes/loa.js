@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 const { isAuthenticated, isAdmin } = require('../middleware/auth');
+const { checkZeusStatus } = require('../middleware/zeus');
+const { sendLOANotification } = require('../discord/loa');
+const { discordClient } = require('../discord');
 
 router.get('/my-loas', (req, res) => res.redirect('/loa/all'));
 
@@ -51,9 +54,6 @@ router.post('/submit', isAuthenticated, async (req, res) => {
 
         if (process.env.DISCORD_BOT_TOKEN) {
             try {
-                const { sendLOANotification } = require('../discord/loa');
-                const { discordClient } = require('../discord');
-
                 const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
                 const [superiors] = superior_id ?
                     await db.query('SELECT * FROM users WHERE id = ?', [superior_id]) :
@@ -134,9 +134,6 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
 
         if (process.env.DISCORD_BOT_TOKEN) {
             try {
-                const { sendLOANotification } = require('../discord/loa');
-                const { discordClient } = require('../discord');
-                
                 const [loas] = await db.query('SELECT * FROM leave_of_absence WHERE id = ?', [req.params.id]);
                 const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
                 const [superiors] = superior_id ? 
@@ -195,9 +192,6 @@ router.post('/delete/:id', isAuthenticated, async (req, res) => {
 
         if (process.env.DISCORD_BOT_TOKEN && loaData && userData) {
             try {
-                const { sendLOANotification } = require('../discord/loa');
-                const { discordClient } = require('../discord');
-
                 await sendLOANotification(
                     discordClient,
                     loaData,
@@ -247,7 +241,6 @@ router.get('/all', async (req, res) => {
         const pastLoas = loas.filter(loa => new Date(loa.end_date * 1000) < now || loa.status !== 'approved');
 
         const isAdmin = req.session.isAdmin || false;
-        const { checkZeusStatus } = require('../middleware/zeus');
         const isZeus = req.session.userId ? await checkZeusStatus(req.session.userId) : false;
 
         let myLoas = [];
