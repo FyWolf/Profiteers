@@ -75,6 +75,19 @@ function renderPubSquadCard(squad) {
     const canEdit = user && editorSquadIds && editorSquadIds.includes(squad.id);
     const roles = rolesBySquad[squad.id] || [];
     const teams = teamsBySquad[squad.id] || [];
+    const lrBadge = squad.lr_frequency ? `<span title="Long Range" style="font-size:0.68em;background:rgba(0,100,200,0.25);color:#7bb3e0;padding:1px 5px;border-radius:3px;white-space:nowrap;">LR ${esc(squad.lr_frequency)}</span>` : '';
+    const srBadge = squad.sr_frequency ? `<span title="Short Range" style="font-size:0.68em;background:rgba(0,180,100,0.25);color:#7de0a5;padding:1px 5px;border-radius:3px;white-space:nowrap;">SR ${esc(squad.sr_frequency)}</span>` : '';
+    const squadFreqForm = canEdit ? `
+        <div id="sqFreqForm_${squad.id}" style="display:none;padding:6px 8px;background:rgba(0,0,0,0.25);border-radius:4px;margin-bottom:6px;">
+            <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+                <span style="font-size:0.75em;color:var(--khaki);white-space:nowrap;">LR</span>
+                <input type="text" id="sqLrFreq_${squad.id}" value="${esc(squad.lr_frequency || '')}" placeholder="e.g. 45.300" style="width:80px;flex-shrink:0;margin:0;font-size:0.8em;padding:3px 6px;">
+                <span style="font-size:0.75em;color:var(--khaki);white-space:nowrap;">SR</span>
+                <input type="text" id="sqSrFreq_${squad.id}" value="${esc(squad.sr_frequency || '')}" placeholder="e.g. 50.100" style="width:80px;flex-shrink:0;margin:0;font-size:0.8em;padding:3px 6px;">
+                <button onclick="submitSquadFrequencies(${squad.id})" class="btn btn-primary" style="padding:2px 8px;font-size:0.78em;flex-shrink:0;">Save</button>
+                <button onclick="document.getElementById('sqFreqForm_${squad.id}').style.display='none'" class="btn" style="padding:2px 6px;font-size:0.78em;flex-shrink:0;">✕</button>
+            </div>
+        </div>` : '';
 
     const yourSquadBadge = canEdit
         ? `<span style="font-size: 0.55em; font-weight: 700; background: rgba(52,152,219,0.2); color: #3498DB; border: 1px solid #3498DB; padding: 2px 8px; border-radius: 3px; vertical-align: middle; letter-spacing: 0.05em;">YOUR SQUAD</span>`
@@ -114,12 +127,31 @@ function renderPubSquadCard(squad) {
                 </div>
                </div>`
             : '';
+        const teamLrBadge = team.lr_frequency ? `<span title="Long Range" style="font-size:0.65em;background:rgba(0,100,200,0.25);color:#7bb3e0;padding:1px 4px;border-radius:3px;white-space:nowrap;">LR ${esc(team.lr_frequency)}</span>` : '';
+        const teamSrBadge = team.sr_frequency ? `<span title="Short Range" style="font-size:0.65em;background:rgba(0,180,100,0.25);color:#7de0a5;padding:1px 4px;border-radius:3px;white-space:nowrap;">SR ${esc(team.sr_frequency)}</span>` : '';
+        const teamFreqBadges = (teamLrBadge || teamSrBadge) ? `<div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:2px;">${teamLrBadge}${teamSrBadge}</div>` : '';
+        const teamFreqForm = canEdit ? `
+            <div id="tmFreqForm_${team.id}" style="display:none;padding:4px 8px;background:rgba(0,0,0,0.25);">
+                <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+                    <span style="font-size:0.75em;color:var(--khaki);white-space:nowrap;">LR</span>
+                    <input type="text" id="tmLrFreq_${team.id}" value="${esc(team.lr_frequency || '')}" placeholder="e.g. 45.300" style="width:80px;flex-shrink:0;margin:0;font-size:0.8em;padding:3px 6px;">
+                    <span style="font-size:0.75em;color:var(--khaki);white-space:nowrap;">SR</span>
+                    <input type="text" id="tmSrFreq_${team.id}" value="${esc(team.sr_frequency || '')}" placeholder="e.g. 50.100" style="width:80px;flex-shrink:0;margin:0;font-size:0.8em;padding:3px 6px;">
+                    <button onclick="submitTeamFrequencies(${team.id})" class="btn btn-primary" style="padding:2px 8px;font-size:0.78em;flex-shrink:0;">Save</button>
+                    <button onclick="document.getElementById('tmFreqForm_${team.id}').style.display='none'" class="btn" style="padding:2px 6px;font-size:0.78em;flex-shrink:0;">✕</button>
+                </div>
+            </div>` : '';
         return `<div data-team-block="${team.id}">
             <div class="team-hdr" style="${canEdit ? 'cursor:grab;' : ''}display:flex;align-items:center;gap:4px;padding:3px 8px;margin-top:4px;background:rgba(0,0,0,0.25);border-left:3px solid ${team.color};">
-                <span style="font-size:0.7em;font-weight:700;color:${team.color};flex:1;letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(team.name)}</span>
+                <div style="flex:1;min-width:0;overflow:hidden;">
+                    <div style="font-size:0.7em;font-weight:700;color:${team.color};letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(team.name)}</div>
+                    ${teamFreqBadges}
+                </div>
+                ${canEdit ? `<button onclick="toggleFreqForm('tm', ${team.id})" class="btn" style="padding:1px 4px;font-size:0.62em;opacity:0.7;" title="Edit Radio Frequencies">📻</button>` : ''}
                 ${teamMgmtBtns}
             </div>
             ${teamEditForm}
+            ${teamFreqForm}
             <div id="team-roles-${team.id}" data-team-roles="${squad.id}" data-team-id="${team.id}" style="min-height:10px;">
                 ${teamRoles.map(r => renderPubRoleCard(r, squad, canEdit)).join('')}
             </div>
@@ -164,10 +196,17 @@ function renderPubSquadCard(squad) {
     return `<div class="card orbat-squad-card" style="border-left: 4px solid ${squad.color}; padding: 10px 12px;">
         <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 2px solid ${squad.color};">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                <h3 style="color: ${squad.color}; margin: 0; font-size: 0.92em;">${esc(squad.name)} ${yourSquadBadge}</h3>
+                <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+                        <h3 style="color: ${squad.color}; margin: 0; font-size: 0.92em; white-space:nowrap;">${esc(squad.name)} ${yourSquadBadge}</h3>
+                        ${lrBadge}${srBadge}
+                        ${canEdit ? `<button onclick="toggleFreqForm('sq', ${squad.id})" class="btn" style="padding:1px 4px;font-size:0.65em;opacity:0.7;" title="Edit Radio Frequencies">📻</button>` : ''}
+                    </div>
+                </div>
                 ${deleteBtn}
             </div>
         </div>
+        ${squadFreqForm}
         ${unassignedHtml}
         <div id="teams-order-${squad.id}">${teamsHtml}</div>
         ${addTeamHtml}
@@ -512,6 +551,39 @@ document.addEventListener('DOMContentLoaded', () => {
 <% } %>
 
 <script>
+function toggleFreqForm(type, id) {
+    const el = document.getElementById((type === 'sq' ? 'sqFreqForm_' : 'tmFreqForm_') + id);
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function submitSquadFrequencies(squadId) {
+    const lr = document.getElementById('sqLrFreq_' + squadId)?.value.trim() || null;
+    const sr = document.getElementById('sqSrFreq_' + squadId)?.value.trim() || null;
+    try {
+        const r = await fetch(`/orbat/api/squads/${squadId}/set-frequencies`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lr, sr })
+        });
+        const d = await r.json();
+        if (d.success) location.reload(); else alert(d.error || 'Failed to save frequencies');
+    } catch { alert('Failed to save frequencies'); }
+}
+
+async function submitTeamFrequencies(teamId) {
+    const lr = document.getElementById('tmLrFreq_' + teamId)?.value.trim() || null;
+    const sr = document.getElementById('tmSrFreq_' + teamId)?.value.trim() || null;
+    try {
+        const r = await fetch(`/orbat/api/teams/${teamId}/set-frequencies`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lr, sr })
+        });
+        const d = await r.json();
+        if (d.success) location.reload(); else alert(d.error || 'Failed to save frequencies');
+    } catch { alert('Failed to save frequencies'); }
+}
+
 // ── Drag-to-pan ORBAT canvas ──────────────────────────────────────────────
 (function() {
     const el = document.querySelector('.org-tree-scroll');

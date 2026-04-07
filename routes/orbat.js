@@ -652,6 +652,30 @@ router.get('/operation/:operationId', async (req, res) => {
         // Non-managers can only claim if ORBAT is published
         const canClaim = req.session.userId && operation.orbat_type === 'dynamic' && orbatPublished;
 
+        const editorSquadIds = [];
+        if (req.session.userId) {
+            Object.values(rolesBySquad).forEach(roleList => {
+                roleList.forEach(role => {
+                    if (role.is_editor && assignments[role.id] && assignments[role.id].user_id === req.session.userId) {
+                        editorSquadIds.push(role.squad_id);
+                    }
+                });
+            });
+            const editorSet = new Set(editorSquadIds);
+            let changed = true;
+            while (changed) {
+                changed = false;
+                for (const squad of squads) {
+                    if (squad.parent_squad_id && editorSet.has(squad.parent_squad_id) && !editorSet.has(squad.id)) {
+                        editorSet.add(squad.id);
+                        changed = true;
+                    }
+                }
+            }
+            editorSquadIds.length = 0;
+            editorSet.forEach(id => editorSquadIds.push(id));
+        }
+
         res.render('orbat/view', {
             title: `ORBAT - ${operation.title}`,
             operation: operation,
@@ -662,7 +686,8 @@ router.get('/operation/:operationId', async (req, res) => {
             assignments: assignments,
             canManage: canManage,
             canClaim: canClaim,
-            orbatPublished: orbatPublished
+            orbatPublished: orbatPublished,
+            editorSquadIds: editorSquadIds
         });
     } catch (error) {
         console.error('Error loading ORBAT:', error);
@@ -1316,6 +1341,51 @@ router.post('/operation/:operationId/unpublish-orbat', isAuthenticated, canManag
     } catch (error) {
         console.error('Error unpublishing ORBAT:', error);
         res.json({ success: false, error: 'Failed to unpublish ORBAT' });
+    }
+});
+
+// ── Radio Frequency management ─────────────────────────────────────────────
+
+router.post('/api/squads/:squadId/set-frequencies', isAuthenticated, async (req, res) => {
+    try {
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus) {
+            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, req.params.squadId)
+                || await isHostOfSquadOperation(req.session.userId, req.params.squadId);
+            if (!canEdit) return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
+        const { lr, sr } = req.body;
+        await db.query(
+            'UPDATE orbat_squads SET lr_frequency = ?, sr_frequency = ? WHERE id = ?',
+            [lr || null, sr || null, req.params.squadId]
+        );
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error setting squad frequencies:', error);
+        res.json({ success: false, error: 'Failed to set frequencies' });
+    }
+});
+
+router.post('/api/teams/:teamId/set-frequencies', isAuthenticated, async (req, res) => {
+    try {
+        const [teamRows] = await db.query('SELECT squad_id FROM orbat_teams WHERE id = ?', [req.params.teamId]);
+        if (!teamRows.length) return res.json({ success: false, error: 'Team not found' });
+        const squadId = teamRows[0].squad_id;
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus) {
+            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, squadId)
+                || await isHostOfSquadOperation(req.session.userId, squadId);
+            if (!canEdit) return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
+        const { lr, sr } = req.body;
+        await db.query(
+            'UPDATE orbat_teams SET lr_frequency = ?, sr_frequency = ? WHERE id = ?',
+            [lr || null, sr || null, req.params.teamId]
+        );
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error setting team frequencies:', error);
+        res.json({ success: false, error: 'Failed to set frequencies' });
     }
 });
 
