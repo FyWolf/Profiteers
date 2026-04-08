@@ -211,7 +211,7 @@ router.post('/upload', isZeus, async (req, res) => {
         const filePath = path.join(uploadDir, fileName);
         await file.mv(filePath);
 
-        const relativeFilePath = `/public/uploads/modpacks/${fileName}`;
+        const relativeFilePath = `public/uploads/modpacks/${fileName}`;
 
         const conn = await db.getConnection();
         let modpackId;
