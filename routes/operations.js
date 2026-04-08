@@ -366,7 +366,7 @@ router.get('/manage/create', isZeus, async (req, res) => {
 
 router.post('/manage/create', isZeus, async (req, res) => {
     try {
-        const { title, description, start_time, end_time, banner_url, orbat_type, orbat_template_id, host_id, operation_type, modpack_id } = req.body;
+        const { title, description, start_time, end_time, banner_url, orbat_type, orbat_template_id, host_id, operation_type, modpack_id, map_world } = req.body;
         let finalBannerUrl = banner_url || '/images/operations/default-banner.jpg';
 
         if (req.files && req.files.banner_upload) {
@@ -392,13 +392,14 @@ router.post('/manage/create', isZeus, async (req, res) => {
         const finalHostId = host_id || null;
         const finalOperationType = operation_type || 'main';
         const finalModpackId = modpack_id ? parseInt(modpack_id) : null;
+        const finalMapWorld = (map_world && /^[a-zA-Z0-9_-]+$/.test(map_world.trim())) ? map_world.trim() : null;
         const published = true; // New operations are published by default
 
         const [result] = await db.query(`
-            INSERT INTO operations 
-            (title, description, banner_url, start_time, end_time, created_by, orbat_type, orbat_template_id, host_id, operation_type, is_published, modpack_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [title, description, finalBannerUrl, startTimestamp, endTimestamp, req.session.userId, finalOrbatType, finalOrbatTemplateId, finalHostId, finalOperationType, published, finalModpackId]);
+            INSERT INTO operations
+            (title, description, banner_url, start_time, end_time, created_by, orbat_type, orbat_template_id, host_id, operation_type, is_published, modpack_id, map_world)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [title, description, finalBannerUrl, startTimestamp, endTimestamp, req.session.userId, finalOrbatType, finalOrbatTemplateId, finalHostId, finalOperationType, published, finalModpackId, finalMapWorld]);
 
         const newOpId = result.insertId;
 
@@ -473,7 +474,7 @@ router.post('/manage/edit/:id', isAuthenticated, async (req, res) => {
             return res.redirect('/operations/' + req.params.id + '?error=Access denied');
         }
 
-        const { title, description, start_time, end_time, banner_url, is_published, orbat_type, orbat_template_id, host_id, operation_type, modpack_id } = req.body;
+        const { title, description, start_time, end_time, banner_url, is_published, orbat_type, orbat_template_id, host_id, operation_type, modpack_id, map_world } = req.body;
         let finalBannerUrl = banner_url;
 
         if (req.files && req.files.banner_upload) {
@@ -500,13 +501,14 @@ router.post('/manage/edit/:id', isAuthenticated, async (req, res) => {
         const finalHostId = host_id || null;
         const finalOperationType = operation_type || 'main';
         const finalModpackId = modpack_id ? parseInt(modpack_id) : null;
+        const finalMapWorld = (map_world && /^[a-zA-Z0-9_-]+$/.test(map_world.trim())) ? map_world.trim() : null;
 
         await db.query(`
-            UPDATE operations 
+            UPDATE operations
             SET title = ?, description = ?, banner_url = ?, start_time = ?, end_time = ?, is_published = ?,
-                orbat_type = ?, orbat_template_id = ?, host_id = ?, operation_type = ?, modpack_id = ?
+                orbat_type = ?, orbat_template_id = ?, host_id = ?, operation_type = ?, modpack_id = ?, map_world = ?
             WHERE id = ?
-        `, [title, description, finalBannerUrl, startTimestamp, endTimestamp, published, finalOrbatType, finalOrbatTemplateId, finalHostId, finalOperationType, finalModpackId, req.params.id]);
+        `, [title, description, finalBannerUrl, startTimestamp, endTimestamp, published, finalOrbatType, finalOrbatTemplateId, finalHostId, finalOperationType, finalModpackId, finalMapWorld, req.params.id]);
 
         if (published && process.env.DISCORD_BOT_TOKEN) {
             try {

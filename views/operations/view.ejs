@@ -2,131 +2,242 @@
 // Helper function to convert unix timestamp to ISO UTC string for display
 function timestampToUTC(timestamp) {
     if (!timestamp) return '';
-    const date = new Date(timestamp * 1000); // Convert to milliseconds
-    return date.toISOString(); // "2024-02-26T14:00:00.000Z"
+    const date = new Date(timestamp * 1000);
+    return date.toISOString();
 }
 %>
 <%- include('../partials/header') %>
 
-<div class="container">
-    <div style="width: 100%; height: 300px; margin: -20px -20px 30px -20px; overflow: hidden; background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%); position: relative;">
+<style>
+.view-page-container { max-width: min(1800px, 96vw) !important; }
+
+/* Meta strip below banner */
+.op-meta-strip {
+    display: flex;
+    flex-wrap: wrap;
+    background: var(--camo-medium);
+    border: 1px solid var(--olive);
+    border-radius: 6px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+.op-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    flex: 1;
+    min-width: 200px;
+    border-right: 1px solid var(--olive);
+}
+.op-meta-item:last-child { border-right: none; }
+.op-meta-label { font-size: 0.72em; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px; }
+.op-meta-value { font-size: 0.95em; color: var(--sand); font-weight: 600; }
+.op-meta-sub   { font-size: 0.8em;  color: var(--khaki); opacity: 0.8; }
+
+/* Compact attendance */
+.att-counts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.att-count-box { padding: 10px 8px; border-radius: 4px; text-align: center; }
+.att-count-box .lbl { font-size: 0.72em; font-weight: 700; margin-bottom: 2px; }
+.att-count-box .num { font-size: 1.6em; font-weight: 900; line-height: 1; }
+.att-vote {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.att-vote .btn { padding: 7px 4px; font-size: 0.82em; justify-content: center; display: flex; align-items: center; gap: 4px; }
+.btn-tentative { background: #f39c12; }
+.btn-absent    { background: #e74c3c; }
+.att-list-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
+    border-top: 1px solid rgba(178,178,125,0.15);
+    padding-top: 10px;
+}
+.att-list-col h4 { font-size: 0.78em; font-weight: 700; margin: 0 0 6px 0; }
+.att-list-col .att-name { font-size: 0.82em; padding: 4px 0; border-bottom: 1px solid rgba(178,178,125,0.08); color: var(--khaki); }
+
+/* Tighter section spacing */
+.section { margin-bottom: 16px; }
+.section h2 { margin-bottom: 10px; font-size: 1.1em; }
+.section h3 { margin-bottom: 8px; }
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    /* Override inline grid-template-columns */
+    .view-page-container .grid-2 {
+        grid-template-columns: 1fr !important;
+    }
+    /* Show widgets (map + attendance) above briefing on mobile */
+    .op-view-right { order: -1; }
+
+    /* Banner: move action buttons to top-right so they don't overlap title */
+    .op-banner-btns {
+        top: 12px !important;
+        bottom: auto !important;
+    }
+    .op-banner-btns a {
+        padding: 7px 12px !important;
+        font-size: 0.78em !important;
+    }
+
+    /* Meta strip: stack items full-width */
+    .op-meta-item {
+        min-width: 100% !important;
+        border-right: none !important;
+        border-bottom: 1px solid var(--olive);
+        padding: 10px 16px;
+    }
+    .op-meta-item:last-child { border-bottom: none; }
+
+    /* Shrink map preview on mobile */
+    #op-map-preview-wrap { height: 180px !important; }
+}
+
+@media (max-width: 480px) {
+    /* Stack vote buttons vertically on very small screens */
+    .att-vote { grid-template-columns: 1fr; gap: 8px; }
+    .att-vote .btn { font-size: 0.9em; padding: 10px 8px; }
+    /* Attendee lists single column */
+    .att-list-grid { grid-template-columns: 1fr; }
+    /* Banner buttons wrap full-width */
+    .op-banner-btns a { flex: 1 1 100% !important; text-align: center; }
+}
+</style>
+
+<div class="container view-page-container">
+
+    <!-- ── Banner ─────────────────────────────────────────────────────── -->
+    <div style="width:calc(100% + 40px);height:220px;margin:-20px -20px 20px -20px;overflow:hidden;background:linear-gradient(135deg,#1a1a1a 0%,#2a2a2a 100%);position:relative;">
         <img src="<%= operation.banner_url %>"
              alt="<%= operation.title %>"
-             style="width: 100%; height: 100%; object-fit: cover;"
+             style="width:100%;height:100%;object-fit:cover;"
              onerror="this.src='/images/operations/default-banner.jpg';">
-        <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.9)); padding: 40px 20px 20px;">
-            <h1 style="color: var(--accent); margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">
+        <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.9));padding:30px 20px 16px;">
+            <h1 style="color:var(--accent);margin:0;text-shadow:2px 2px 4px rgba(0,0,0,0.8);">
                 <%= operation.title %>
             </h1>
         </div>
-
-        <% if (operation.orbat_type && operation.orbat_type !== 'none') { %>
-            <a href="/orbat/operation/<%= operation.id %>" 
-               style="position: absolute; bottom: 20px; right: 20px; background: var(--accent); color: var(--camo-dark); padding: 12px 24px; border-radius: 4px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 12px rgba(0,0,0,0.4); transition: all 0.3s ease;"
-               onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(0,0,0,0.5)'"
-               onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.4)'">
-                VIEW ORBAT
+        <div class="op-banner-btns" style="position:absolute;bottom:16px;right:20px;display:flex;gap:10px;flex-wrap:wrap;">
+            <a href="/operations/<%= operation.id %>/map"
+               style="background:#1a6b5a;color:#fff;padding:10px 20px;border-radius:4px;font-weight:700;text-decoration:none;box-shadow:0 4px 12px rgba(0,0,0,0.4);transition:all 0.3s ease;"
+               onmouseover="this.style.transform='translateY(-2px)'"
+               onmouseout="this.style.transform='translateY(0)'">
+                MISSION MAP
             </a>
+            <% if (operation.orbat_type && operation.orbat_type !== 'none') { %>
+                <a href="/orbat/operation/<%= operation.id %>"
+                   style="background:var(--accent);color:var(--camo-dark);padding:10px 20px;border-radius:4px;font-weight:700;text-decoration:none;box-shadow:0 4px 12px rgba(0,0,0,0.4);transition:all 0.3s ease;"
+                   onmouseover="this.style.transform='translateY(-2px)'"
+                   onmouseout="this.style.transform='translateY(0)'">
+                    VIEW ORBAT
+                </a>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- ── Meta strip: Host · Schedule · Modpack ──────────────────────── -->
+    <div class="op-meta-strip">
+        <% if (operation.host_id) { %>
+        <div class="op-meta-item">
+            <% if (operation.host_avatar) { %>
+                <img src="https://cdn.discordapp.com/avatars/<%= operation.host_discord_id %>/<%= operation.host_avatar %>.png?size=64"
+                     style="width:40px;height:40px;border-radius:50%;border:2px solid var(--accent);flex-shrink:0;"
+                     onerror="this.style.display='none'">
+            <% } else { %>
+                <div style="width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:900;color:white;font-size:1.1em;flex-shrink:0;">
+                    <%= (operation.host_display_name || operation.host_username).charAt(0).toUpperCase() %>
+                </div>
+            <% } %>
+            <div>
+                <div class="op-meta-label">Host</div>
+                <div class="op-meta-value"><%= operation.host_display_name || operation.host_username %></div>
+            </div>
+        </div>
+        <% } %>
+
+        <div class="op-meta-item">
+            <div style="color:var(--accent);font-size:1.4em;line-height:1;flex-shrink:0;">📅</div>
+            <div>
+                <div class="op-meta-label">Date</div>
+                <div class="op-meta-value local-date" data-utc="<%= timestampToUTC(operation.start_time) %>"></div>
+            </div>
+        </div>
+
+        <div class="op-meta-item">
+            <div style="color:var(--accent);font-size:1.4em;line-height:1;flex-shrink:0;">🕐</div>
+            <div>
+                <div class="op-meta-label">Time</div>
+                <div class="op-meta-value">
+                    <span class="local-time" data-utc="<%= timestampToUTC(operation.start_time) %>"></span>
+                    &ndash;
+                    <span class="local-time" data-utc="<%= timestampToUTC(operation.end_time) %>"></span>
+                </div>
+                <div class="op-meta-sub">your local timezone</div>
+            </div>
+        </div>
+
+        <% if (operation.modpack_id) { %>
+        <div class="op-meta-item" style="gap:12px;">
+            <div style="color:var(--accent);font-size:1.4em;line-height:1;flex-shrink:0;">🧩</div>
+            <div style="flex:1;min-width:0;">
+                <div class="op-meta-label">Modpack</div>
+                <div class="op-meta-value" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    <a href="/modpacks/<%= operation.modpack_id %>" style="color:var(--accent);text-decoration:none;">
+                        <%= operation.modpack_name %>
+                    </a>
+                </div>
+                <div class="op-meta-sub">
+                    <%= operation.modpack_mod_count %> mods
+                    <% if (operation.modpack_total_size) { %> · <%= (operation.modpack_total_size / (1024 * 1024 * 1024)).toFixed(2) %> GB<% } %>
+                </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0;">
+                <a href="/modpacks/<%= operation.modpack_id %>/download" class="btn btn-primary" style="padding:6px 12px;font-size:0.82em;white-space:nowrap;">
+                    Download
+                </a>
+                <a href="/modpacks/<%= operation.modpack_id %>" class="btn" style="padding:6px 12px;font-size:0.82em;white-space:nowrap;">
+                    Mod List
+                </a>
+            </div>
+        </div>
         <% } %>
     </div>
 
-    <div class="grid grid-2" style="align-items: start;">
-        <div>
+    <!-- ── Main 2-col grid ────────────────────────────────────────────── -->
+    <div class="grid grid-2" style="align-items:start;grid-template-columns:3fr 2fr;">
+
+        <!-- LEFT: Briefing + News -->
+        <div class="op-view-left">
             <section class="section">
-            <% if (operation.host_id) { %>
-                    <h2>Operation Host</h2>
-                    <div class="card">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <% if (operation.host_avatar) { %>
-                                <img src="https://cdn.discordapp.com/avatars/<%= operation.host_discord_id %>/<%= operation.host_avatar %>.png?size=128" 
-                                     style="width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--accent);">
-                            <% } else { %>
-                                <div style="width: 60px; height: 60px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 1.5em; border: 3px solid var(--accent);">
-                                    <%= (operation.host_display_name || operation.host_username).charAt(0).toUpperCase() %>
-                                </div>
-                            <% } %>
-                            <div>
-                                <div style="font-weight: 700; color: var(--accent); margin-bottom: 3px;">Hosted by</div>
-                                <div style="font-size: 1.2em; color: var(--sand); font-weight: 600;">
-                                    <%= operation.host_display_name || operation.host_username %>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-            <% } %>
                 <h2>Mission Briefing</h2>
                 <div class="card">
-                    <p style="line-height: 1.8; color: var(--khaki); white-space: pre-wrap;"><%= operation.description || 'No description provided.' %></p>
+                    <p style="line-height:1.8;color:var(--khaki);white-space:pre-wrap;margin:0;"><%= operation.description || 'No description provided.' %></p>
                 </div>
-            </section>
-
-            <section class="section">
-                <h2>Schedule</h2>
-                <div class="card">
-                    <div style="display: grid; gap: 15px;">
-                        <div>
-                            <div style="font-weight: 700; color: var(--accent); margin-bottom: 5px;">Date</div>
-                            <div style="font-size: 1.1em; color: var(--sand);" class="local-date" data-utc="<%= timestampToUTC(operation.start_time) %>"></div>
-                        </div>
-                        <div>
-                            <div style="font-weight: 700; color: var(--accent); margin-bottom: 5px;">Start Time</div>
-                            <div style="font-size: 1.1em; color: var(--sand);" class="local-datetime" data-utc="<%= timestampToUTC(operation.start_time) %>"></div>
-                        </div>
-                        <div>
-                            <div style="font-weight: 700; color: var(--accent); margin-bottom: 5px;">End Time</div>
-                            <div style="font-size: 1.1em; color: var(--sand);" class="local-datetime" data-utc="<%= timestampToUTC(operation.end_time) %>"></div>
-                        </div>
-                        <div style="padding: 10px; background: rgba(52, 152, 219, 0.1); border-left: 3px solid #3498DB; border-radius: 4px;">
-                            <small style="color: #3498DB;">
-                                Times shown in your local timezone
-                            </small>
-                        </div>
-                    </div>
-                </div>
-            <% if (operation.modpack_id) { %>
-                    <h2>Required Modpack</h2>
-                    <div class="card">
-                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                            <div>
-                                <h3 style="margin: 0 0 5px 0;">
-                                    <a href="/modpacks/<%= operation.modpack_id %>" style="color: var(--accent); text-decoration: none;">
-                                        <%= operation.modpack_name %>
-                                    </a>
-                                </h3>
-                                <p style="color: var(--khaki); margin: 0; font-size: 0.9em;">
-                                    🧩 <%= operation.modpack_mod_count %> mods
-                                    <% if (operation.modpack_total_size) { %>
-                                        · 💾 <%= (operation.modpack_total_size / (1024 * 1024 * 1024)).toFixed(2) %> GB
-                                    <% } %>
-                                </p>
-                            </div>
-                            <div style="display: flex; gap: 8px;">
-                                <a href="/modpacks/<%= operation.modpack_id %>/download" class="btn btn-primary" style="white-space: nowrap; padding: 8px 16px;">
-                                    Download Preset
-                                </a>
-                                <a href="/modpacks/<%= operation.modpack_id %>" class="btn" style="white-space: nowrap; padding: 8px 16px;">
-                                    View Mod List
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-            <% } %>
             </section>
 
             <section class="section">
                 <h2>Operation News</h2>
 
                 <% if (canManage) { %>
-                    <div class="card" style="margin-bottom: 25px; background: rgba(155, 89, 182, 0.1); border: 2px solid #9B59B6;">
-                        <h3 style="color: #9B59B6; margin-bottom: 15px;">📢 Post News Update</h3>
+                    <div class="card" style="margin-bottom:20px;background:rgba(155,89,182,0.1);border:2px solid #9B59B6;">
+                        <h3 style="color:#9B59B6;margin-bottom:12px;font-size:0.95em;">📢 Post News Update</h3>
                         <form id="newsForm">
-                            <div id="editor" style="min-height: 200px; background: white; color: black; padding: 15px; border-radius: 4px; margin-bottom: 15px;"></div>
-                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9em; color: var(--khaki); cursor: pointer; white-space: nowrap;">
-                                    <input type="checkbox" id="newsPing" style="accent-color: #9B59B6;">
+                            <div id="editor" style="min-height:160px;background:white;color:black;padding:12px;border-radius:4px;margin-bottom:12px;"></div>
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                <label style="display:flex;align-items:center;gap:6px;font-size:0.88em;color:var(--khaki);cursor:pointer;white-space:nowrap;">
+                                    <input type="checkbox" id="newsPing" style="accent-color:#9B59B6;">
                                     Ping players
                                 </label>
-                                <button type="submit" class="btn btn-primary" style="flex: 1;">Post Update</button>
+                                <button type="submit" class="btn btn-primary" style="flex:1;">Post Update</button>
                             </div>
                         </form>
                     </div>
@@ -134,41 +245,37 @@ function timestampToUTC(timestamp) {
 
                 <% if (news.length === 0) { %>
                     <div class="card text-center">
-                        <p style="color: var(--khaki); opacity: 0.7;">No news updates yet.</p>
+                        <p style="color:var(--khaki);opacity:0.7;margin:0;">No news updates yet.</p>
                     </div>
                 <% } else { %>
                     <% news.forEach(item => { %>
-                        <div class="card" style="margin-bottom: 20px;" id="news-<%= item.id %>">
-                            <div style="display: flex; align-items: start; gap: 15px; margin-bottom: 15px;">
+                        <div class="card" style="margin-bottom:14px;" id="news-<%= item.id %>">
+                            <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
                                 <% if (item.discord_avatar) { %>
-                                    <img src="https://cdn.discordapp.com/avatars/<%= item.discord_id %>/<%= item.discord_avatar %>.png?size=64" 
-                                         style="width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--accent);">
+                                    <img src="https://cdn.discordapp.com/avatars/<%= item.discord_id %>/<%= item.discord_avatar %>.png?size=64"
+                                         style="width:38px;height:38px;border-radius:50%;border:2px solid var(--accent);flex-shrink:0;"
+                                         onerror="this.style.display='none'">
                                 <% } else { %>
-                                    <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 900; color: var(--camo-dark);">
+                                    <div style="width:38px;height:38px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--camo-dark);flex-shrink:0;">
                                         <%= (item.posted_by_display_name || item.posted_by_username).charAt(0).toUpperCase() %>
                                     </div>
                                 <% } %>
-                                <div style="flex: 1;">
-                                    <div style="font-weight: 700; color: var(--sand);">
+                                <div style="flex:1;">
+                                    <div style="font-weight:700;color:var(--sand);font-size:0.92em;">
                                         <%= item.posted_by_display_name || item.posted_by_username %>
                                     </div>
-                                    <div style="font-size: 0.85em; color: var(--khaki); opacity: 0.7;">
-                                        <%= new Date(item.posted_at).toLocaleString(undefined, { 
-                                            month: 'short', 
-                                            day: 'numeric', 
-                                            year: 'numeric',
-                                            hour: '2-digit',
-                                            minute: '2-digit'
+                                    <div style="font-size:0.8em;color:var(--khaki);opacity:0.7;">
+                                        <%= new Date(item.posted_at).toLocaleString(undefined, {
+                                            month: 'short', day: 'numeric', year: 'numeric',
+                                            hour: '2-digit', minute: '2-digit'
                                         }) %>
                                     </div>
                                 </div>
                                 <% if (canManage) { %>
-                                    <button onclick="deleteNews(<%= item.id %>)" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.85em;">
-                                        🗑️
-                                    </button>
+                                    <button onclick="deleteNews(<%= item.id %>)" class="btn btn-danger" style="padding:4px 10px;font-size:0.82em;">🗑️</button>
                                 <% } %>
                             </div>
-                            <div class="news-content" style="color: var(--khaki); line-height: 1.8;">
+                            <div class="news-content" style="color:var(--khaki);line-height:1.7;">
                                 <%- item.content %>
                             </div>
                         </div>
@@ -177,84 +284,99 @@ function timestampToUTC(timestamp) {
             </section>
         </div>
 
-        <div>
-            <% if (user) { %>
+        <!-- RIGHT: Map + Attendance + Nav -->
+        <div class="op-view-right">
+            <!-- Map preview -->
+            <% if (operation.map_world) { %>
                 <section class="section">
-                    <h2>Your Attendance</h2>
-                    <div class="card">
-                        <div style="display: grid; gap: 10px;">
-                            <button onclick="setAttendance('present')" 
-                                    class="btn <%= userAttendance === 'present' ? 'btn-primary' : '' %>" 
-                                    style="width: 100%; justify-content: center; display: flex; align-items: center; gap: 8px;">
-                                ✅ Present
-                            </button>
-                            <button onclick="setAttendance('tentative')" 
-                                    class="btn <%= userAttendance === 'tentative' ? 'btn-primary' : '' %>" 
-                                    style="width: 100%; justify-content: center; display: flex; align-items: center; gap: 8px; background: #f39c12;">
-                                ⏸️ Tentative
-                            </button>
-                            <button onclick="setAttendance('absent')" 
-                                    class="btn <%= userAttendance === 'absent' ? 'btn-primary' : '' %>" 
-                                    style="width: 100%; justify-content: center; display: flex; align-items: center; gap: 8px; background: #e74c3c;">
-                                ❌ Absent
-                            </button>
-                        </div>
+                    <h2>Mission Map</h2>
+                    <div style="position:relative;border-radius:8px;overflow:hidden;border:2px solid var(--olive);height:240px;background:#0b160b;transition:border-color 0.2s;"
+                         id="op-map-preview-wrap"
+                         onmouseover="this.style.borderColor='var(--accent)'"
+                         onmouseout="this.style.borderColor='var(--olive)'">
+                        <div id="op-map-preview" style="width:100%;height:100%;"></div>
+                        <div style="position:absolute;inset:0;pointer-events:none;"></div>
+                        <a href="/operations/<%= operation.id %>/map"
+                           style="position:absolute;bottom:0;left:0;right:0;pointer-events:auto;text-decoration:none;
+                                  background:linear-gradient(transparent,rgba(0,0,0,0.82));padding:28px 14px 12px;">
+                            <div style="font-size:0.66em;color:rgba(178,178,125,0.7);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:3px;">
+                                <%= operation.map_world %>
+                            </div>
+                            <div style="color:var(--accent);font-weight:700;font-size:0.85em;letter-spacing:0.05em;font-family:'Orbitron',sans-serif;">
+                                Open Mission Map &rarr;
+                            </div>
+                        </a>
                     </div>
                 </section>
             <% } %>
 
+            <!-- Attendance (counts + vote + lists combined) -->
             <section class="section">
                 <h2>Attendance</h2>
-                <div class="card">
-                    <div style="display: grid; gap: 15px;">
-                        <div style="padding: 15px; background: rgba(46, 204, 113, 0.1); border-left: 4px solid #2ecc71; border-radius: 4px;">
-                            <div style="font-size: 0.85em; color: #2ecc71; margin-bottom: 5px; font-weight: 700;">PRESENT</div>
-                            <div style="font-size: 2em; font-weight: 900; color: #2ecc71;" id="present-count"><%= attendanceCounts.present %></div>
+                <div class="card" style="padding:14px;">
+                    <!-- Counts -->
+                    <div class="att-counts">
+                        <div class="att-count-box" style="background:rgba(46,204,113,0.12);border-left:3px solid #2ecc71;">
+                            <div class="lbl" style="color:#2ecc71;">PRESENT</div>
+                            <div class="num" style="color:#2ecc71;" id="present-count"><%= attendanceCounts.present %></div>
                         </div>
-                        <div style="padding: 15px; background: rgba(243, 156, 18, 0.1); border-left: 4px solid #f39c12; border-radius: 4px;">
-                            <div style="font-size: 0.85em; color: #f39c12; margin-bottom: 5px; font-weight: 700;">TENTATIVE</div>
-                            <div style="font-size: 2em; font-weight: 900; color: #f39c12;" id="tentative-count"><%= attendanceCounts.tentative %></div>
+                        <div class="att-count-box" style="background:rgba(243,156,18,0.12);border-left:3px solid #f39c12;">
+                            <div class="lbl" style="color:#f39c12;">TENTATIVE</div>
+                            <div class="num" style="color:#f39c12;" id="tentative-count"><%= attendanceCounts.tentative %></div>
                         </div>
-                        <div style="padding: 15px; background: rgba(231, 76, 60, 0.1); border-left: 4px solid #e74c3c; border-radius: 4px;">
-                            <div style="font-size: 0.85em; color: #e74c3c; margin-bottom: 5px; font-weight: 700;">ABSENT</div>
-                            <div style="font-size: 2em; font-weight: 900; color: #e74c3c;" id="absent-count"><%= attendanceCounts.absent %></div>
+                        <div class="att-count-box" style="background:rgba(231,76,60,0.12);border-left:3px solid #e74c3c;">
+                            <div class="lbl" style="color:#e74c3c;">ABSENT</div>
+                            <div class="num" style="color:#e74c3c;" id="absent-count"><%= attendanceCounts.absent %></div>
                         </div>
                     </div>
+
+                    <!-- Vote buttons -->
+                    <% if (user) { %>
+                    <div class="att-vote">
+                        <button onclick="setAttendance('present')"
+                                class="btn <%= userAttendance === 'present' ? 'btn-primary' : '' %>">
+                            ✅ Present
+                        </button>
+                        <button onclick="setAttendance('tentative')"
+                                class="btn btn-tentative <%= userAttendance === 'tentative' ? 'btn-primary' : '' %>">
+                            ⏸️ Tentative
+                        </button>
+                        <button onclick="setAttendance('absent')"
+                                class="btn btn-absent <%= userAttendance === 'absent' ? 'btn-primary' : '' %>">
+                            ❌ Absent
+                        </button>
+                    </div>
+
+                    <!-- Attendee lists -->
+                    <% if (attendees.present.length > 0 || attendees.tentative.length > 0) { %>
+                    <div class="att-list-grid">
+                        <% if (attendees.present.length > 0) { %>
+                        <div class="att-list-col">
+                            <h4 style="color:#2ecc71;">✅ Present (<%= attendees.present.length %>)</h4>
+                            <% attendees.present.forEach(a => { %>
+                                <div class="att-name"><%= a.discord_global_name || a.username %></div>
+                            <% }); %>
+                        </div>
+                        <% } %>
+                        <% if (attendees.tentative.length > 0) { %>
+                        <div class="att-list-col">
+                            <h4 style="color:#f39c12;">⏸️ Tentative (<%= attendees.tentative.length %>)</h4>
+                            <% attendees.tentative.forEach(a => { %>
+                                <div class="att-name"><%= a.discord_global_name || a.username %></div>
+                            <% }); %>
+                        </div>
+                        <% } %>
+                    </div>
+                    <% } %>
+                    <% } %>
                 </div>
             </section>
 
-            <% if (user) { %>
-                <% if (attendees.present.length > 0) { %>
-                    <section class="section">
-                        <h3>✅ Present (<%= attendees.present.length %>)</h3>
-                        <div class="card" style="padding: 10px;">
-                            <% attendees.present.forEach(attendee => { %>
-                                <div style="padding: 8px; border-bottom: 1px solid rgba(178, 178, 125, 0.1);">
-                                    <%= attendee.discord_global_name || attendee.username %>
-                                </div>
-                            <% }); %>
-                        </div>
-                    </section>
-                <% } %>
-
-                <% if (attendees.tentative.length > 0) { %>
-                    <section class="section">
-                        <h3>⏸️ Tentative (<%= attendees.tentative.length %>)</h3>
-                        <div class="card" style="padding: 10px;">
-                            <% attendees.tentative.forEach(attendee => { %>
-                                <div style="padding: 8px; border-bottom: 1px solid rgba(178, 178, 125, 0.1);">
-                                    <%= attendee.discord_global_name || attendee.username %>
-                                </div>
-                            <% }); %>
-                        </div>
-                    </section>
-                <% } %>
-            <% } %>
-
+            <!-- Nav buttons -->
             <section class="section">
-                <a href="/operations/upcoming" class="btn" style="width: 100%; text-align: center;">← Back to Operations</a>
+                <a href="/operations/upcoming" class="btn" style="width:100%;text-align:center;display:block;">← Back to Operations</a>
                 <% if (canManage) { %>
-                    <a href="/operations/manage/edit/<%= operation.id %>" class="btn btn-primary" style="width: 100%; text-align: center; margin-top: 10px;">
+                    <a href="/operations/manage/edit/<%= operation.id %>" class="btn btn-primary" style="width:100%;text-align:center;display:block;margin-top:8px;">
                         ✏️ Edit Operation
                     </a>
                 <% } %>
@@ -271,28 +393,14 @@ function timestampToUTC(timestamp) {
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.local-date').forEach(el => {
-        const utc = el.getAttribute('data-utc');
-        const date = new Date(utc);
-        el.textContent = date.toLocaleDateString(undefined, { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
+        const date = new Date(el.getAttribute('data-utc'));
+        el.textContent = date.toLocaleDateString(undefined, {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         });
     });
-    
-    document.querySelectorAll('.local-datetime').forEach(el => {
-        const utc = el.getAttribute('data-utc');
-        const date = new Date(utc);
-        el.textContent = date.toLocaleString(undefined, { 
-            weekday: 'short',
-            month: 'short', 
-            day: 'numeric',
-            year: 'numeric',
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: true
-        });
+    document.querySelectorAll('.local-time').forEach(el => {
+        const date = new Date(el.getAttribute('data-utc'));
+        el.textContent = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true });
     });
 });
 
@@ -305,11 +413,10 @@ async function setAttendance(status) {
             body: JSON.stringify({ status })
         });
         const data = await response.json();
-        
         if (data.success) {
-            document.getElementById('present-count').textContent = data.counts.present;
+            document.getElementById('present-count').textContent  = data.counts.present;
             document.getElementById('tentative-count').textContent = data.counts.tentative;
-            document.getElementById('absent-count').textContent = data.counts.absent;
+            document.getElementById('absent-count').textContent   = data.counts.absent;
             setTimeout(() => location.reload(), 500);
         }
     } catch (error) {
@@ -336,13 +443,8 @@ const quill = new Quill('#editor', {
 
 document.getElementById('newsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
     const content = quill.root.innerHTML;
-    if (!content || content === '<p><br></p>') {
-        alert('Please enter some content');
-        return;
-    }
-    
+    if (!content || content === '<p><br></p>') { alert('Please enter some content'); return; }
     try {
         const ping = document.getElementById('newsPing')?.checked || false;
         const response = await fetch('/operations/<%= operation.id %>/news', {
@@ -351,10 +453,7 @@ document.getElementById('newsForm').addEventListener('submit', async (e) => {
             body: JSON.stringify({ content, ping })
         });
         const data = await response.json();
-        
-        if (data.success) {
-            location.reload();
-        }
+        if (data.success) location.reload();
     } catch (error) {
         console.error('Error posting news:', error);
     }
@@ -362,21 +461,150 @@ document.getElementById('newsForm').addEventListener('submit', async (e) => {
 
 async function deleteNews(newsId) {
     if (!confirm('Delete this news update?')) return;
-    
     try {
-        const response = await fetch(`/operations/news/delete/${newsId}`, {
-            method: 'POST'
-        });
+        const response = await fetch(`/operations/news/delete/${newsId}`, { method: 'POST' });
         const data = await response.json();
-        
-        if (data.success) {
-            document.getElementById(`news-${newsId}`).remove();
-        }
+        if (data.success) document.getElementById(`news-${newsId}`).remove();
     } catch (error) {
         console.error('Error deleting news:', error);
     }
 }
 <% } %>
 </script>
+
+<% if (operation.map_world) { %>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pmtiles@4/dist/pmtiles.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/milsymbol@3.0.4/dist/milsymbol.js"></script>
+<script>
+(async function () {
+    const worldName = '<%- operation.map_world %>';
+    const OP_ID     = parseInt('<%- operation.id %>', 10);
+    const MPD       = 111320;
+    const base      = '/images/maps/' + encodeURIComponent(worldName);
+    const origin    = window.location.origin + '/';
+
+    function makeAbs(u) { return /^(\w+:)?\/\/|^data:/.test(u) ? u : origin + u.replace(/^\//, ''); }
+    function armaToLL(x, y) { return L.latLng(y / MPD, x / MPD); }
+
+    async function patchStyle(url) {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error('style not found');
+        const s = await r.json();
+        const sp = typeof s.sprite === 'string' ? s.sprite.split('/').pop() : 'sprite';
+        s.sprite = window.location.origin + '/images/maps/' + worldName + '/styles/' + sp;
+        if (typeof s.glyphs === 'string') s.glyphs = makeAbs(s.glyphs);
+        return s;
+    }
+
+    function renderAnnotation(ann, pMap) {
+        const p = ann.properties || {};
+        const color  = p.color  || '#e74c3c';
+        const weight = p.weight || 2;
+        const dash   = p.dashArray || null;
+        const fill   = p.fillOpacity != null ? p.fillOpacity : 0.12;
+        try {
+            if (ann.type === 'nato_marker') {
+                if (typeof ms === 'undefined') return null;
+                const sidc = p.sidc || '10031000000000000000';
+                const sym  = new ms.Symbol(sidc, { size: 16, strokeWidth: 3, uniqueDesignation: p.label || '' });
+                const anchor = sym.getAnchor();
+                const size   = sym.getSize();
+                const icon   = L.divIcon({ className: '', html: sym.asSVG(),
+                    iconSize: [size.width, size.height], iconAnchor: [anchor.x, anchor.y] });
+                const [ax, ay] = ann.geometry.coordinates;
+                return L.marker(armaToLL(ax, ay), { icon }).addTo(pMap);
+            } else if (ann.type === 'polyline') {
+                const pts = ann.geometry.coordinates.map(([x, y]) => armaToLL(x, y));
+                return L.polyline(pts, { color, weight, dashArray: dash, opacity: 0.9 }).addTo(pMap);
+            } else if (ann.type === 'polygon' || ann.type === 'rectangle') {
+                const pts = ann.geometry.coordinates[0].map(([x, y]) => armaToLL(x, y));
+                return L.polygon(pts, { color, weight, dashArray: dash, fillOpacity: fill, opacity: 0.9 }).addTo(pMap);
+            } else if (ann.type === 'circle') {
+                const [cx, cy] = ann.geometry.coordinates;
+                return L.circle(armaToLL(cx, cy), { radius: ann.geometry.radius,
+                    color, weight, dashArray: dash, fillOpacity: fill, opacity: 0.9 }).addTo(pMap);
+            } else if (ann.type === 'text') {
+                const [ax, ay] = ann.geometry.coordinates;
+                const icon = L.divIcon({ className: '',
+                    html: `<span style="color:${color};font-size:10px;white-space:nowrap;font-weight:600;
+                                 text-shadow:0 0 4px #000,0 0 4px #000,0 0 2px #000;">${p.label || ''}</span>`,
+                    iconAnchor: [0, 6] });
+                return L.marker(armaToLL(ax, ay), { icon }).addTo(pMap);
+            }
+        } catch (e) { /* skip bad annotation */ }
+        return null;
+    }
+
+    try {
+        const cfgRes = await fetch(base + '/map.json');
+        if (!cfgRes.ok) throw new Error('no map.json');
+        const cfg       = await cfgRes.json();
+        const worldSize = cfg.worldSize || 10240;
+        const maxDeg    = worldSize / MPD;
+        const terrainBounds = L.latLngBounds([0, 0], [maxDeg, maxDeg]);
+
+        if (!window._pmtilesRegistered) {
+            const protocol = new pmtiles.Protocol();
+            maplibregl.addProtocol('pmtiles', (params, ac) => {
+                const rest = params.url.slice('pmtiles://'.length);
+                const url  = (!rest.startsWith('http') && !rest.startsWith('/'))
+                    ? 'pmtiles://' + origin + rest : params.url;
+                return protocol.tile({ ...params, url }, ac);
+            });
+            window._pmtilesRegistered = true;
+        }
+
+        let style;
+        const preferred = localStorage.getItem('map-style') || 'topo.json';
+        try   { style = await patchStyle(base + '/styles/' + preferred); }
+        catch { style = await patchStyle(base + '/styles/topo.json'); }
+
+        const previewMap = L.map('op-map-preview', {
+            zoomControl: false, attributionControl: false,
+            dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+            touchZoom: false, boxZoom: false, keyboard: false,
+        });
+        previewMap.fitBounds(terrainBounds);
+
+        const glLayer = L.maplibreGL({
+            style, interactive: false, renderWorldCopies: false,
+            transformRequest: url => ({ url: makeAbs(url) }),
+        }).addTo(previewMap);
+
+        try {
+            const canvas = glLayer.getMaplibreMap().getCanvas();
+            canvas.style.pointerEvents = 'none';
+            canvas.parentElement.style.pointerEvents = 'none';
+        } catch (_) {}
+
+        const mapData = await fetch('/operations/' + OP_ID + '/map/data').then(r => r.json());
+        if (mapData.success) {
+            const annLayers = [];
+            for (const layer of mapData.layers) {
+                for (const ann of layer.annotations) {
+                    const l = renderAnnotation(ann, previewMap);
+                    if (l) annLayers.push(l);
+                }
+            }
+            // Fit the view to the annotations, or fall back to the full terrain
+            if (annLayers.length > 0) {
+                const annBounds = L.featureGroup(annLayers).getBounds();
+                if (annBounds.isValid()) {
+                    previewMap.fitBounds(annBounds, { padding: [32, 32] });
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('Map preview failed:', err);
+        document.getElementById('op-map-preview-wrap').style.display = 'none';
+    }
+})();
+</script>
+<% } %>
 
 <%- include('../partials/footer') %>

@@ -1,6 +1,7 @@
 const express = require('express');
 const helmet = require('helmet');
 const session = require('express-session');
+const MySQLStore = require('express-mysql-session')(session);
 const fileUpload = require('express-fileupload');
 const path = require('path');
 require('dotenv').config({ quiet: true });
@@ -27,6 +28,7 @@ const rosterRoutes = require('./routes/roster');
 const orbatRoutes = require('./routes/orbat');
 const loaRoutes = require('./routes/loa');
 const operationsRoutes = require('./routes/operations');
+const operationsMapRoutes = require('./routes/operations-map');
 const { discordClient, initializeDiscord } = require('./discord');
 const modpacksRoutes = require('./routes/modpacks');
 
@@ -51,17 +53,31 @@ app.use(fileUpload({
     createParentPath: false
 }));
 
+const sessionStore = new MySQLStore({
+    host:     process.env.DB_HOST || 'localhost',
+    port:     parseInt(process.env.DB_PORT) || 3306,
+    user:     process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    createDatabaseTable: true,
+    clearExpired: true,
+    checkExpirationInterval: 15 * 60 * 1000, // clean up expired sessions every 15 min
+    expiration: 30 * 24 * 60 * 60 * 1000,    // max session lifetime: 30 days
+});
+
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    rolling: true,   // reset expiry on every request while the user is active
+    store: sessionStore,
     proxy: true,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000
+        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     }
 }));
 
@@ -78,6 +94,7 @@ app.use('/tools', toolsRoutes);
 app.use('/gallery', galleryRoutes);
 app.use('/profile', profileRoutes);
 app.use('/admin', adminRoutes);
+app.use('/operations', operationsMapRoutes);
 app.use('/operations', operationsRoutes);
 app.use('/orbat', orbatRoutes);
 app.use('/loa', loaRoutes);

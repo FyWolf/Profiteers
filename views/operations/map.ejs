@@ -1,0 +1,2505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= title %></title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.css">
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pmtiles@4/dist/pmtiles.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/milsymbol@3.0.4/dist/milsymbol.js"></script>
+
+<style>
+/* ─── Design tokens (matches site palette) ───────────────────────── */
+:root {
+    --camo-dark:   #1a2a1a;
+    --camo-mid:    #2e3b2e;
+    --camo-deep:   #111a11;
+    --olive:       #6b8e23;
+    --olive-light: #8ab23a;
+    --khaki:       #b2b27d;
+    --sand:        #f4f3e8;
+    --accent:      #fcb00d;
+    --accent-dim:  rgba(252,176,13,0.15);
+    --border:      #3a4a2a;
+    --border-mid:  rgba(107,142,35,0.35);
+    --shadow:      rgba(0,0,0,0.6);
+    --muted:       #7a8a6a;
+    --panel-bg:    rgba(20,32,20,0.97);
+    --input-bg:    rgba(15,25,15,0.9);
+}
+
+/* ─── Reset & layout ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    height: 100%;
+    background: linear-gradient(135deg, var(--camo-dark) 0%, var(--camo-mid) 100%);
+    color: var(--sand);
+    font-family: 'Roboto Mono', 'Courier New', monospace;
+    font-size: 13px;
+    overflow: hidden;
+}
+
+/* ─── Top bar ────────────────────────────────────────────────────── */
+#topbar {
+    height: 50px;
+    background: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(20,35,20,0.95) 100%);
+    border-bottom: 3px solid var(--accent);
+    box-shadow: 0 4px 16px var(--shadow);
+    display: flex; align-items: center; gap: 10px; padding: 0 14px;
+    flex-shrink: 0; z-index: 1000; position: relative;
+}
+#topbar .back-btn {
+    display: flex; align-items: center; gap: 5px; color: var(--khaki);
+    text-decoration: none; font-size: 0.82em; padding: 5px 10px;
+    border: 1px solid var(--border); border-radius: 5px; transition: all 0.2s;
+    font-weight: 600;
+}
+#topbar .back-btn:hover {
+    color: var(--accent); border-color: var(--accent);
+    background: var(--accent-dim);
+}
+#topbar .op-title {
+    color: var(--accent);
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700; font-size: 0.88em;
+    letter-spacing: 0.08em;
+    text-shadow: 0 0 10px rgba(252,176,13,0.4);
+    flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#topbar .mode-badge {
+    font-size: 0.7em; padding: 3px 9px; border-radius: 4px;
+    font-weight: 700; letter-spacing: 0.1em; font-family: 'Orbitron', sans-serif;
+    background: rgba(107,142,35,0.2); color: var(--khaki); border: 1px solid var(--border);
+}
+#topbar .mode-badge.edit {
+    background: rgba(138,178,58,0.2); color: var(--olive-light);
+    border-color: var(--olive-light);
+}
+#save-status {
+    font-size: 0.7em; color: var(--muted); white-space: nowrap;
+    min-width: 60px; text-align: right;
+}
+#save-status.saving { color: var(--accent); }
+#save-status.saved  { color: var(--olive-light); }
+#save-status.error  { color: #e74c3c; }
+
+/* ─── Page body ──────────────────────────────────────────────────── */
+#page { display: flex; height: calc(100vh - 50px); }
+
+/* ─── Sidebar ────────────────────────────────────────────────────── */
+#sidebar {
+    width: 255px; flex-shrink: 0;
+    background: linear-gradient(180deg, rgba(20,32,20,0.98) 0%, rgba(15,26,15,0.98) 100%);
+    border-right: 2px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.4);
+}
+#sidebar-header {
+    padding: 11px 12px 9px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(0,0,0,0.2);
+}
+#sidebar-header h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.68em; letter-spacing: 0.2em; color: var(--olive-light);
+    text-transform: uppercase;
+}
+#btn-add-layer {
+    font-size: 0.72em; background: var(--border); color: var(--khaki);
+    border: 1px solid var(--olive); border-radius: 4px;
+    padding: 3px 9px; cursor: pointer; transition: all 0.2s;
+    font-family: inherit; font-weight: 700;
+}
+#btn-add-layer:hover {
+    background: var(--olive); color: white;
+    box-shadow: 0 2px 8px rgba(107,142,35,0.4);
+}
+
+#layer-list { flex: 1; overflow-y: auto; padding: 5px 0; }
+#layer-list::-webkit-scrollbar { width: 4px; }
+#layer-list::-webkit-scrollbar-track { background: transparent; }
+#layer-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.layer-item {
+    display: flex; align-items: center; gap: 7px; padding: 7px 10px;
+    cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s;
+    user-select: none;
+}
+.layer-item:hover  { background: rgba(107,142,35,0.12); }
+.layer-item.active {
+    background: rgba(107,142,35,0.18);
+    border-left-color: var(--layer-color, var(--olive));
+}
+.layer-item .swatch { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0; box-shadow: 0 0 3px rgba(0,0,0,0.5); }
+.layer-item .lname  { flex: 1; color: var(--sand); font-size: 0.84em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layer-item.hidden .lname { opacity: 0.38; }
+.layer-item .layer-count { font-size: 0.68em; color: var(--muted); white-space: nowrap; }
+.layer-actions { display: none; gap: 3px; }
+.layer-item:hover .layer-actions { display: flex; }
+.layer-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 0.82em; padding: 1px 4px; border-radius: 3px; transition: all 0.1s;
+}
+.layer-btn:hover { color: var(--sand); background: rgba(255,255,255,0.08); }
+.layer-btn.delete:hover { color: #e74c3c; background: rgba(231,76,60,0.1); }
+.layer-btn.pub.draft    { color: #e6a000; }
+.layer-btn.pub.draft:hover { color: #ffd04a; background: rgba(230,160,0,0.1); }
+.layer-draft-badge {
+    font-size: 0.6em; color: #e6a000; background: rgba(230,160,0,0.15);
+    border: 1px solid rgba(230,160,0,0.3); border-radius: 3px;
+    padding: 1px 5px; white-space: nowrap; letter-spacing: 0.04em; flex-shrink: 0;
+}
+
+/* ─── Map area ───────────────────────────────────────────────────── */
+#map-wrap { flex: 1; position: relative; }
+#map { width: 100%; height: 100%; }
+
+/* ─── Drawing toolbar ────────────────────────────────────────────── */
+#toolbar {
+    position: absolute; top: 10px; left: 10px; z-index: 900;
+    background: linear-gradient(135deg, rgba(20,32,20,0.95) 0%, rgba(15,26,15,0.95) 100%);
+    border: 1px solid var(--border); border-radius: 7px;
+    display: flex; align-items: center;
+    gap: 2px; padding: 5px 7px; backdrop-filter: blur(6px);
+    box-shadow: 0 4px 16px var(--shadow);
+}
+.tb-btn {
+    background: none; border: 1px solid transparent; border-radius: 4px;
+    color: var(--khaki); cursor: pointer; font-size: 0.77em; padding: 4px 10px;
+    transition: all 0.15s; white-space: nowrap; display: flex; align-items: center;
+    gap: 4px; font-family: inherit;
+}
+.tb-btn:hover  { background: rgba(107,142,35,0.2); color: var(--sand); border-color: var(--border); }
+.tb-btn.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+.tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 3px; }
+
+#color-picker-wrap { display: flex; align-items: center; gap: 5px; }
+#color-picker-wrap label { color: var(--muted); font-size: 0.75em; }
+#draw-color { width: 22px; height: 22px; border: none; border-radius: 3px; cursor: pointer; padding: 0; background: none; }
+#draw-weight { width: 60px; accent-color: var(--accent); }
+
+/* ─── Cursor states ──────────────────────────────────────────────── */
+#map.draw-mode         { cursor: crosshair !important; }
+#map.draw-mode.placing { cursor: cell !important; }
+
+/* ─── Coordinates display ────────────────────────────────────────── */
+#coords {
+    position: absolute; bottom: 8px; left: 10px; z-index: 900;
+    background: rgba(20,32,20,0.88); border: 1px solid var(--border);
+    border-radius: 4px; padding: 3px 8px; font-size: 0.7em; color: var(--olive-light);
+    pointer-events: none; letter-spacing: 0.05em;
+}
+
+/* ─── Minimap overview ───────────────────────────────────────────── */
+#minimap-wrap {
+    position: absolute; bottom: 32px; right: 12px; z-index: 800;
+    width: 185px; background: rgba(12,22,12,0.93);
+    border: 1px solid var(--olive); border-radius: 7px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.6);
+    display: none; overflow: hidden;
+    transition: opacity 0.2s;
+}
+#minimap-wrap.collapsed #minimap-img-wrap { display: none; }
+#minimap-header {
+    padding: 4px 8px 4px 10px; display: flex; align-items: center;
+    background: rgba(0,0,0,0.35); border-bottom: 1px solid var(--border);
+    gap: 6px;
+}
+#minimap-label {
+    flex: 1; font-size: 0.66em; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.09em;
+}
+#minimap-toggle {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 1em; padding: 0 2px; line-height: 1; transition: color 0.1s;
+}
+#minimap-toggle:hover { color: var(--sand); }
+#minimap-img-wrap {
+    position: relative; width: 100%; padding-bottom: 100%; cursor: crosshair;
+}
+#minimap-img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; display: block;
+    image-rendering: auto;
+}
+#minimap-viewport {
+    position: absolute; pointer-events: none;
+    border: 2px solid rgba(252,176,13,0.95);
+    background: rgba(252,176,13,0.08);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(0,0,0,0.3);
+    min-width: 3px; min-height: 3px;
+}
+
+/* ─── NATO SIDC Builder Modal ────────────────────────────────────── */
+#nato-modal {
+    display: none; position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(3px);
+    align-items: center; justify-content: center;
+}
+#nato-modal.open { display: flex; }
+#nato-box {
+    background: linear-gradient(135deg, rgba(20,32,20,0.99) 0%, rgba(15,26,15,0.99) 100%);
+    border: 2px solid var(--olive); border-radius: 10px;
+    width: min(860px, 96vw); max-height: 94vh; display: flex; flex-direction: column;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.7); overflow: hidden;
+}
+#nato-box-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(0,0,0,0.2); border-radius: 8px 8px 0 0; flex-shrink: 0;
+}
+#nato-box-header h3 {
+    flex: 1; color: var(--accent);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.95em; letter-spacing: 0.1em;
+    text-shadow: 0 0 8px rgba(252,176,13,0.3);
+}
+#nato-modal-close {
+    background: none; border: none; color: var(--muted); font-size: 1.3em;
+    cursor: pointer; padding: 3px 8px; border-radius: 4px; transition: all 0.15s;
+}
+#nato-modal-close:hover { color: var(--sand); background: rgba(255,255,255,0.08); }
+#nato-body {
+    padding: 16px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; flex: 1;
+}
+.nato-sec-label {
+    font-size: 0.78em; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.08em; margin-bottom: 6px;
+}
+/* SIDC row */
+.nato-sidc-row { display: flex; gap: 14px; align-items: center; }
+#nato-sidc-input {
+    flex: 1; background: var(--input-bg); border: 1px solid var(--border);
+    border-radius: 5px; color: var(--sand); font-family: 'Courier New', monospace;
+    font-size: 1em; padding: 8px 12px; letter-spacing: 0.12em;
+}
+#nato-sidc-input:focus { outline: none; border-color: var(--accent); }
+#nato-preview-box {
+    width: 110px; height: 110px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.07); border: 1px solid var(--border); border-radius: 6px;
+}
+/* Affiliation */
+.nato-affil-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.nato-affil-btn {
+    flex: 1; min-width: 85px; display: flex; flex-direction: column;
+    align-items: center; gap: 6px; padding: 9px 6px;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: rgba(255,255,255,0.03); cursor: pointer;
+    font-size: 0.76em; color: var(--muted); font-family: inherit;
+    transition: all 0.15s; line-height: 1.3;
+}
+.nato-affil-btn:hover { border-color: var(--olive); color: var(--sand); background: rgba(107,142,35,0.08); }
+.nato-affil-btn.active { border-color: var(--accent); background: rgba(252,176,13,0.12); color: var(--accent); }
+/* Row for symset + echelon + modifiers */
+.nato-ctrl-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+.nato-field { display: flex; flex-direction: column; gap: 5px; }
+.nato-field > label { font-size: 0.8em; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.nato-sel {
+    background: var(--input-bg); border: 1px solid var(--border); border-radius: 5px;
+    color: var(--sand); font-size: 0.92em; padding: 7px 10px; font-family: inherit;
+}
+.nato-sel:focus { outline: none; border-color: var(--accent); }
+.nato-checks { display: flex; gap: 14px; align-items: center; padding-bottom: 7px; }
+.nato-checks label {
+    display: flex; align-items: center; gap: 6px; font-size: 0.88em;
+    color: var(--muted); cursor: pointer; user-select: none;
+}
+.nato-checks input[type=checkbox] { accent-color: var(--accent); cursor: pointer; width: 15px; height: 15px; }
+/* Entity search + list */
+#nato-entity-filter {
+    width: 100%; background: var(--input-bg); border: 1px solid var(--border);
+    border-radius: 5px; color: var(--sand); font-size: 0.92em; padding: 7px 11px;
+    font-family: inherit; box-sizing: border-box; margin-bottom: 6px;
+}
+#nato-entity-filter:focus { outline: none; border-color: var(--accent); }
+#nato-entity-select {
+    width: 100%; height: 160px; background: var(--input-bg); border: 1px solid var(--border);
+    border-radius: 5px; color: var(--sand); font-size: 0.92em; padding: 3px; font-family: inherit;
+}
+#nato-entity-select:focus { outline: none; border-color: var(--accent); }
+#nato-entity-select optgroup { color: var(--muted); font-style: normal; font-size: 0.85em; }
+#nato-entity-select option { padding: 3px 6px; }
+/* Label */
+#nato-label {
+    width: 100%; background: var(--input-bg); border: 1px solid var(--border);
+    border-radius: 5px; color: var(--sand); font-size: 0.92em; padding: 7px 11px;
+    font-family: inherit; box-sizing: border-box;
+}
+#nato-label:focus { outline: none; border-color: var(--accent); }
+/* Footer */
+#nato-footer {
+    padding: 12px 20px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; gap: 10px;
+    background: rgba(0,0,0,0.15); flex-shrink: 0;
+}
+.nato-footer-btn {
+    font-size: 0.9em; padding: 8px 22px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--border); background: rgba(15,26,15,0.8);
+    color: var(--khaki); font-family: inherit; transition: all 0.15s; font-weight: 600;
+}
+.nato-footer-btn:hover { border-color: var(--olive); color: var(--sand); background: rgba(107,142,35,0.15); }
+.nato-footer-btn.primary {
+    background: linear-gradient(135deg, var(--accent) 0%, #e6a000 100%);
+    color: #1a2a1a; border-color: var(--accent); font-weight: 700;
+}
+.nato-footer-btn.primary:hover { box-shadow: 0 4px 12px rgba(252,176,13,0.4); }
+
+/* ─── Properties popover ─────────────────────────────────────────── */
+#props-panel {
+    position: absolute; right: 10px; top: 10px; z-index: 900;
+    background: linear-gradient(135deg, rgba(20,32,20,0.97) 0%, rgba(15,26,15,0.97) 100%);
+    border: 1px solid var(--olive); border-radius: 8px; width: 215px; display: none;
+    backdrop-filter: blur(6px); box-shadow: 0 4px 20px var(--shadow);
+}
+#props-panel.open { display: block; }
+#props-header {
+    padding: 8px 11px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(0,0,0,0.2); border-radius: 8px 8px 0 0;
+}
+#props-header span {
+    flex: 1; font-size: 0.72em; color: var(--olive-light);
+    letter-spacing: 0.1em; text-transform: uppercase;
+    font-family: 'Orbitron', sans-serif;
+}
+#props-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1em; border-radius: 3px; transition: all 0.1s; }
+#props-close:hover { color: var(--sand); background: rgba(255,255,255,0.08); }
+#props-body { padding: 10px; display: flex; flex-direction: column; gap: 7px; }
+.prop-row { display: flex; flex-direction: column; gap: 3px; }
+.prop-row label { font-size: 0.68em; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.prop-row input[type=text], .prop-row select {
+    background: var(--input-bg); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--sand); font-size: 0.8em; padding: 5px 7px; font-family: inherit; width: 100%;
+}
+.prop-row input[type=text]:focus, .prop-row select:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 6px rgba(252,176,13,0.2);
+}
+.prop-row select option { background: #1a2a1a; }
+.prop-row input[type=color] { width: 100%; height: 28px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--input-bg); }
+#props-footer { padding: 8px 10px; border-top: 1px solid var(--border); display: flex; gap: 6px; }
+#btn-props-save {
+    flex: 1; background: linear-gradient(135deg, var(--accent) 0%, #e6a000 100%);
+    color: #1a2a1a; border: none; border-radius: 5px; padding: 6px;
+    cursor: pointer; font-weight: 700; font-size: 0.78em; font-family: inherit;
+    transition: all 0.15s;
+}
+#btn-props-save:hover { box-shadow: 0 3px 10px rgba(252,176,13,0.4); }
+#btn-props-delete {
+    background: rgba(40,10,10,0.8); color: #e74c3c;
+    border: 1px solid rgba(231,76,60,0.4); border-radius: 5px;
+    padding: 6px 9px; cursor: pointer; font-size: 0.78em; font-family: inherit; transition: all 0.15s;
+}
+#btn-props-delete:hover { background: #e74c3c; color: #fff; border-color: #e74c3c; }
+
+/* ─── Drawing preview ────────────────────────────────────────────── */
+.preview-line { stroke-dasharray: 6 4; opacity: 0.6; }
+
+/* ─── Layer-edit modal ───────────────────────────────────────────── */
+#layer-modal {
+    display: none; position: fixed; inset: 0; z-index: 3000;
+    background: rgba(0,0,0,0.72); backdrop-filter: blur(3px);
+    align-items: center; justify-content: center;
+}
+#layer-modal.open { display: flex; }
+#layer-box {
+    background: linear-gradient(135deg, rgba(20,32,20,0.99) 0%, rgba(15,26,15,0.99) 100%);
+    border: 2px solid var(--olive); border-radius: 10px;
+    padding: 22px; width: 310px; display: flex; flex-direction: column; gap: 14px;
+    box-shadow: 0 12px 48px var(--shadow);
+}
+#layer-box h3 {
+    color: var(--accent);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.88em; letter-spacing: 0.08em;
+    text-shadow: 0 0 8px rgba(252,176,13,0.3);
+}
+.lmodal-row { display: flex; flex-direction: column; gap: 5px; }
+.lmodal-row label { font-size: 0.7em; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.lmodal-row input[type=text] {
+    background: var(--input-bg); border: 1px solid var(--border); border-radius: 5px;
+    color: var(--sand); font-size: 0.85em; padding: 7px 9px; font-family: inherit;
+}
+.lmodal-row input[type=text]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 6px rgba(252,176,13,0.2); }
+.lmodal-row input[type=color] { width: 100%; height: 34px; border: 1px solid var(--border); border-radius: 5px; background: var(--input-bg); cursor: pointer; }
+.lmodal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+.lmodal-btn {
+    font-size: 0.8em; padding: 7px 16px; border-radius: 5px; cursor: pointer;
+    border: 1px solid var(--border); background: rgba(15,26,15,0.8);
+    color: var(--khaki); font-family: inherit; font-weight: 600; transition: all 0.15s;
+}
+.lmodal-btn:hover { border-color: var(--olive); color: var(--sand); background: rgba(107,142,35,0.15); }
+.lmodal-btn.primary {
+    background: linear-gradient(135deg, var(--accent) 0%, #e6a000 100%);
+    color: #1a2a1a; border-color: var(--accent); font-weight: 700;
+}
+.lmodal-btn.primary:hover { box-shadow: 0 4px 12px rgba(252,176,13,0.4); }
+
+/* ─── Map placeholder ────────────────────────────────────────────── */
+#map-placeholder {
+    position: absolute; inset: 0; z-index: 400;
+    background: rgba(10,18,10,0.92); display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+}
+#map-placeholder > div { text-align: center; }
+#map-placeholder .ph-title {
+    color: var(--border); font-size: 0.95em; letter-spacing: 0.1em; margin-bottom: 6px;
+    font-family: 'Orbitron', sans-serif;
+}
+#map-placeholder .ph-sub { color: rgba(58,74,42,0.8); font-size: 0.75em; }
+
+/* ─── World config panel ─────────────────────────────────────────── */
+#world-panel {
+    border-top: 1px solid var(--border); flex-shrink: 0; padding: 9px 12px 11px;
+    background: rgba(0,0,0,0.15);
+}
+#world-panel h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.62em; letter-spacing: 0.2em; color: var(--olive-light);
+    text-transform: uppercase; margin-bottom: 5px;
+}
+#world-status { font-size: 0.72em; color: var(--muted); min-height: 14px; margin-bottom: 8px; }
+#world-status.ok  { color: var(--olive-light); }
+#world-status.err { color: #e74c3c; }
+
+/* ─── Map style switcher ──────────────────────────────────────────── */
+#style-switcher { display: none; margin-top: 6px; }
+#style-switcher h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.62em; letter-spacing: 0.2em; color: var(--olive-light);
+    text-transform: uppercase; margin-bottom: 5px;
+}
+#style-btns { display: flex; flex-direction: column; gap: 3px; }
+.style-btn {
+    font-size: 0.72em; padding: 5px 9px; border-radius: 4px; cursor: pointer;
+    background: rgba(15,26,15,0.6); border: 1px solid var(--border);
+    color: var(--muted); font-family: inherit; text-align: left; transition: all 0.15s;
+}
+.style-btn:hover  { background: rgba(107,142,35,0.15); color: var(--sand); border-color: var(--olive); }
+.style-btn.active {
+    background: rgba(138,178,58,0.15); color: var(--olive-light);
+    border-color: var(--olive-light); font-weight: 700;
+}
+
+/* ─── MapLibre GL canvas — must not capture Leaflet pointer events ── */
+.maplibregl-canvas-container,
+.maplibregl-canvas { pointer-events: none !important; }
+
+/* ─── Leaflet overrides ──────────────────────────────────────────── */
+.leaflet-control-zoom a {
+    background: rgba(20,32,20,0.95) !important; color: var(--khaki) !important;
+    border-color: var(--border) !important; font-weight: 700 !important;
+}
+.leaflet-control-zoom a:hover {
+    background: rgba(107,142,35,0.25) !important; color: var(--accent) !important;
+    border-color: var(--olive) !important;
+}
+.leaflet-tooltip-dark {
+    background: rgba(20,32,20,0.9); border: 1px solid var(--border);
+    color: var(--sand); font-size: 11px; border-radius: 4px;
+}
+.nato-marker { background: none !important; border: none !important; }
+
+/* ─── Rotation handle ────────────────────────────────────────────── */
+.rot-handle {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--accent); border: 2px solid #1a2a1a;
+    cursor: grab; box-shadow: 0 0 6px rgba(252,176,13,0.6);
+}
+.rot-handle:active { cursor: grabbing; }
+
+/* ─── Export SQF button ──────────────────────────────────────────── */
+#btn-export-sqf {
+    margin-left: auto;
+    padding: 5px 14px; font-size: 0.72em; font-family: 'Orbitron', sans-serif;
+    font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    background: rgba(15,26,15,0.8); border: 1px solid var(--olive);
+    color: var(--olive-light); border-radius: 5px; cursor: pointer;
+    transition: all 0.15s;
+}
+#btn-export-sqf:hover { background: rgba(107,142,35,0.25); color: var(--sand); border-color: var(--accent); }
+
+/* ─── Export modal ───────────────────────────────────────────────── */
+#export-modal {
+    position: fixed; inset: 0; z-index: 3000;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    display: none;
+}
+#export-modal.open { display: flex; }
+#export-box {
+    background: var(--panel-bg); border: 1px solid var(--olive);
+    border-radius: 10px; padding: 22px 24px; width: 620px; max-width: 96vw;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+}
+#export-box h3 {
+    font-family: 'Orbitron', sans-serif; font-size: 0.9em;
+    color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase;
+    margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 10px;
+}
+#export-info { font-size: 0.75em; color: var(--muted); margin-bottom: 10px; }
+#export-info strong { color: var(--olive-light); }
+#export-sqf-text {
+    width: 100%; height: 260px; resize: vertical;
+    background: rgba(0,0,0,0.5); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--sand); font-family: 'Roboto Mono', monospace; font-size: 0.72em;
+    padding: 10px 12px; line-height: 1.5; box-sizing: border-box;
+}
+#export-sqf-text:focus { outline: none; border-color: var(--accent); }
+#export-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
+.export-btn {
+    font-size: 0.78em; padding: 8px 18px; border-radius: 5px; cursor: pointer;
+    font-family: inherit; font-weight: 600; transition: all 0.15s;
+    border: 1px solid var(--border); background: rgba(15,26,15,0.8); color: var(--khaki);
+}
+.export-btn:hover { border-color: var(--olive); color: var(--sand); }
+.export-btn.primary {
+    background: linear-gradient(135deg, var(--accent) 0%, #e6a000 100%);
+    color: #1a2a1a; border-color: var(--accent); font-weight: 700;
+}
+.export-btn.primary:hover { box-shadow: 0 4px 12px rgba(252,176,13,0.4); }
+
+/* ─── Rotation row in properties panel ──────────────────────────── */
+#pr-rotation-row input[type=range] { width: 100%; cursor: pointer; accent-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ─── Top bar ──────────────────────────────────────────────────────── -->
+<div id="topbar">
+    <a href="/operations/<%= operation.id %>" class="back-btn">← Back</a>
+    <div class="op-title"><%= operation.title %> — MISSION MAP</div>
+    <% if (canEdit) { %>
+        <span class="mode-badge edit">EDIT</span>
+    <% } else { %>
+        <span class="mode-badge">VIEW ONLY</span>
+    <% } %>
+    <span id="save-status"></span>
+    <button id="btn-export-sqf" title="Export all markers as Metis Marker SQF script">⬇ Export SQF</button>
+</div>
+
+<!-- ─── Page body ────────────────────────────────────────────────────── -->
+<div id="page">
+
+    <!-- Sidebar -->
+    <div id="sidebar">
+        <div id="sidebar-header">
+            <h2>Layers</h2>
+            <% if (canEdit) { %>
+                <button id="btn-add-layer" title="Add layer">+ New</button>
+            <% } %>
+        </div>
+        <div id="layer-list"></div>
+
+        <!-- Terrain indicator + map style switcher -->
+        <div id="world-panel">
+            <h2>Terrain</h2>
+            <div id="world-status"></div>
+            <div id="style-switcher">
+                <h2>Map Style</h2>
+                <div id="style-btns"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map -->
+    <div id="map-wrap">
+        <!-- Drawing toolbar (edit mode only) -->
+        <% if (canEdit) { %>
+        <div id="toolbar">
+            <button class="tb-btn active" id="tb-select" title="Select / pan (Esc)">✦ Select</button>
+            <button class="tb-btn" id="tb-nato"   title="Place NATO marker (M)">📍 Marker</button>
+            <div class="tb-sep"></div>
+            <button class="tb-btn" id="tb-line"   title="Draw line (L) — click points, right-click to finish">╱ Line</button>
+            <button class="tb-btn" id="tb-poly"   title="Draw polygon (P) — click points, right-click to finish">⬟ Polygon</button>
+            <button class="tb-btn" id="tb-rect"   title="Draw rectangle (R) — two clicks">▭ Rect</button>
+            <button class="tb-btn" id="tb-circle" title="Draw circle (C) — click center then edge">⊙ Circle</button>
+            <button class="tb-btn" id="tb-text"   title="Place text label (T)">T Text</button>
+            <div class="tb-sep"></div>
+            <div id="color-picker-wrap">
+                <label>Color</label>
+                <input type="color" id="draw-color" value="#e74c3c" title="Stroke / fill color">
+            </div>
+            <label style="color:#666;font-size:0.75em;margin-left:4px;">Wt</label>
+            <input type="range" id="draw-weight" min="1" max="8" value="2" title="Line weight">
+            <div class="tb-sep"></div>
+            <button class="tb-btn" id="tb-undo" title="Undo last point (Backspace while drawing)">↩ Undo</button>
+        </div>
+        <% } %>
+
+        <div id="map">
+            <div id="map-placeholder">
+                <div>
+                    <div class="ph-title">NO TERRAIN LOADED</div>
+                    <% if (canEdit) { %>
+                    <div class="ph-sub">Enter a world name in the sidebar to load the Arma terrain</div>
+                    <% } else { %>
+                    <div class="ph-sub">Terrain not configured for this operation</div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+        <div id="coords">—</div>
+
+        <!-- Minimap overview -->
+        <div id="minimap-wrap">
+            <div id="minimap-header">
+                <span id="minimap-label">Overview</span>
+                <button id="minimap-toggle" title="Collapse / expand">−</button>
+            </div>
+            <div id="minimap-img-wrap">
+                <img id="minimap-img" alt="Terrain overview" draggable="false">
+                <div id="minimap-viewport"></div>
+            </div>
+        </div>
+
+        <!-- Properties panel -->
+        <% if (canEdit) { %>
+        <div id="props-panel">
+            <div id="props-header">
+                <span id="props-type-label">ANNOTATION</span>
+                <button id="props-close">✕</button>
+            </div>
+            <div id="props-body">
+                <div class="prop-row" id="pr-label-row">
+                    <label>Label</label>
+                    <input type="text" id="pr-label" placeholder="e.g. 1st Platoon">
+                </div>
+                <div class="prop-row" id="pr-color-row">
+                    <label>Color</label>
+                    <input type="color" id="pr-color">
+                </div>
+                <div class="prop-row" id="pr-weight-row">
+                    <label>Line weight</label>
+                    <select id="pr-weight">
+                        <option value="1">1px — Thin</option>
+                        <option value="2" selected>2px — Normal</option>
+                        <option value="3">3px — Medium</option>
+                        <option value="5">5px — Thick</option>
+                        <option value="8">8px — Heavy</option>
+                    </select>
+                </div>
+                <div class="prop-row" id="pr-dash-row">
+                    <label>Line style</label>
+                    <select id="pr-dash">
+                        <option value="">Solid</option>
+                        <option value="6 4">Dashed</option>
+                        <option value="2 4">Dotted</option>
+                        <option value="10 5 2 5">Dash-dot</option>
+                    </select>
+                </div>
+                <div class="prop-row" id="pr-layer-row">
+                    <label>Layer</label>
+                    <select id="pr-layer"></select>
+                </div>
+                <div class="prop-row" id="pr-rotation-row" style="display:none">
+                    <label>Rotation</label>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <input type="range" id="pr-rotation" min="0" max="359" value="0" style="flex:1">
+                        <span id="pr-rotation-val" style="color:var(--olive-light);font-size:0.8em;min-width:34px;text-align:right">0°</span>
+                    </div>
+                </div>
+            </div>
+            <div id="props-footer">
+                <button id="btn-props-delete">🗑 Delete</button>
+                <button id="btn-props-save">Save</button>
+            </div>
+        </div>
+        <% } %>
+    </div>
+</div>
+
+<!-- ─── NATO Picker Modal ─────────────────────────────────────────────── -->
+<% if (canEdit) { %>
+<div id="nato-modal">
+    <div id="nato-box">
+        <div id="nato-box-header">
+            <h3>NATO MILITARY SYMBOL BUILDER</h3>
+            <button id="nato-modal-close">✕</button>
+        </div>
+        <div id="nato-body">
+
+            <!-- SIDC direct input + live preview -->
+            <div>
+                <div class="nato-sec-label">SIDC Code</div>
+                <div class="nato-sidc-row">
+                    <input type="text" id="nato-sidc-input" maxlength="20" spellcheck="false" value="10031000000000000000">
+                    <div id="nato-preview-box"></div>
+                </div>
+            </div>
+
+            <!-- Affiliation -->
+            <div>
+                <div class="nato-sec-label">Affiliation</div>
+                <div class="nato-affil-row" id="nato-affil-row"></div>
+            </div>
+
+            <!-- Symbol set · Echelon · Modifiers -->
+            <div class="nato-ctrl-row">
+                <div class="nato-field">
+                    <label>Symbol Set</label>
+                    <select id="nato-symset" class="nato-sel">
+                        <option value="10">Land Unit</option>
+                        <option value="11">Land Civilian</option>
+                        <option value="15">Land Equipment</option>
+                        <option value="01">Air</option>
+                        <option value="30">Sea Surface</option>
+                        <option value="40">Activity / Event</option>
+                    </select>
+                </div>
+                <div class="nato-field">
+                    <label>Echelon / Size</label>
+                    <select id="nato-echelon" class="nato-sel">
+                        <option value="00">— None —</option>
+                        <option value="11">Team / Crew</option>
+                        <option value="12">Squad</option>
+                        <option value="13">Section</option>
+                        <option value="14">Platoon</option>
+                        <option value="15">Company</option>
+                        <option value="16">Battalion</option>
+                        <option value="17">Regiment</option>
+                        <option value="18">Brigade</option>
+                        <option value="21">Division</option>
+                        <option value="22">Corps</option>
+                        <option value="23">Army</option>
+                        <option value="24">Army Group</option>
+                    </select>
+                </div>
+                <div class="nato-field">
+                    <label>Modifiers</label>
+                    <div class="nato-checks">
+                        <label><input type="checkbox" id="nato-chk-hq"> HQ</label>
+                        <label><input type="checkbox" id="nato-chk-tf"> Task Force</label>
+                        <label><input type="checkbox" id="nato-chk-fd"> Feint/Dummy</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Entity / Symbol -->
+            <div class="nato-field" style="width:100%">
+                <label>Symbol / Entity</label>
+                <input type="text" id="nato-entity-filter" placeholder="Filter symbols…" autocomplete="off">
+                <select id="nato-entity-select" size="6"></select>
+            </div>
+
+            <!-- Label -->
+            <div class="nato-field" style="width:100%">
+                <label>Designation / Label</label>
+                <input type="text" id="nato-label" placeholder="e.g. 1st PLT, Obj. EAGLE, ALPHA…" maxlength="60">
+            </div>
+
+        </div>
+        <div id="nato-footer">
+            <button class="nato-footer-btn" id="nato-cancel">Cancel</button>
+            <button class="nato-footer-btn primary" id="nato-confirm">Place on Map</button>
+        </div>
+    </div>
+</div>
+
+<!-- Layer edit/add modal -->
+<div id="layer-modal">
+    <div id="layer-box">
+        <h3 id="lmodal-title">New Layer</h3>
+        <div class="lmodal-row">
+            <label>Name</label>
+            <input type="text" id="lmodal-name" placeholder="e.g. Friendly Forces" maxlength="60">
+        </div>
+        <div class="lmodal-row">
+            <label>Color</label>
+            <input type="color" id="lmodal-color" value="#3498DB">
+        </div>
+        <div class="lmodal-btns">
+            <button class="lmodal-btn" id="lmodal-cancel">Cancel</button>
+            <button class="lmodal-btn primary" id="lmodal-save">Save</button>
+        </div>
+    </div>
+</div>
+<% } %>
+
+<!-- ─── Export SQF Modal (visible to all) ────────────────────────────── -->
+<div id="export-modal">
+    <div id="export-box">
+        <h3>Export — Metis Marker SQF</h3>
+        <div id="export-info">
+            Paste this script into the Arma 3 debug console or a mission <code>init.sqf</code>.<br>
+            Requires <strong>Metis Marker</strong> and <strong>CBA_A3</strong>.
+        </div>
+        <textarea id="export-sqf-text" readonly spellcheck="false"></textarea>
+        <div id="export-footer">
+            <button class="export-btn" id="export-close">Close</button>
+            <button class="export-btn primary" id="export-copy">Copy to Clipboard</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   CONSTANTS & CATALOGUE
+   ═══════════════════════════════════════════════════════════════════════ */
+const OP_ID    = <%- operation.id %>;
+const CAN_EDIT = <%- canEdit ? 'true' : 'false' %>;
+
+// SIDC Builder — entity catalog keyed by symbol set (2-char code).
+// Uses 20-char numeric SIDC (APP-6D / MIL-STD-2525D) that milsymbol v3 supports natively.
+// Format: version(2) + context(1) + affil(1) + symSet(2) + status(1) + hqtf(1) + echelon(2) + entity(6) + mod1(2) + mod2(2)
+// Stored SIDCs from previous version (30-char APP-6E) still render correctly as milsymbol
+// reads the same fields at the same positions for both formats.
+const SIDC_ENTITIES = {
+    '10': [ // Land Unit
+        { g:'General',           v:'000000', l:'Unspecified / Generic' },
+        { g:'C2',                v:'110000', l:'Command and Control' },
+        { g:'C2',                v:'110200', l:'Civil Affairs' },
+        { g:'C2',                v:'110500', l:'Liaison' },
+        { g:'C2',                v:'111000', l:'Signal' },
+        { g:'C2',                v:'111001', l:'Signal › Radio' },
+        { g:'C2',                v:'111002', l:'Signal › Radio Relay' },
+        { g:'Manoeuvre',         v:'120000', l:'Manoeuvre (Generic)' },
+        { g:'Manoeuvre',         v:'120300', l:'Amphibious' },
+        { g:'Manoeuvre',         v:'120400', l:'Anti-Tank / Anti-Armour' },
+        { g:'Manoeuvre',         v:'120401', l:'Anti-Tank › Armoured' },
+        { g:'Manoeuvre',         v:'120402', l:'Anti-Tank › Motorized' },
+        { g:'Manoeuvre',         v:'120500', l:'Armour / Tank' },
+        { g:'Manoeuvre',         v:'120501', l:'Armour › Recon / Cavalry' },
+        { g:'Manoeuvre',         v:'120502', l:'Armour › Amphibious' },
+        { g:'Manoeuvre',         v:'120600', l:'Army Aviation (Rotary Wing)' },
+        { g:'Manoeuvre',         v:'120601', l:'Army Aviation › Recon' },
+        { g:'Manoeuvre',         v:'120800', l:'Aviation Fixed Wing' },
+        { g:'Manoeuvre',         v:'121000', l:'Combined Arms' },
+        { g:'Manoeuvre',         v:'121100', l:'Infantry' },
+        { g:'Manoeuvre',         v:'121101', l:'Infantry › Amphibious' },
+        { g:'Manoeuvre',         v:'121102', l:'Infantry › Mechanized / Armoured' },
+        { g:'Manoeuvre',         v:'121104', l:'Infantry › Motorized' },
+        { g:'Manoeuvre',         v:'121105', l:'Infantry › Mech. with Main Gun' },
+        { g:'Manoeuvre',         v:'121200', l:'Observer' },
+        { g:'Manoeuvre',         v:'121300', l:'Recon / Cavalry / Scout' },
+        { g:'Manoeuvre',         v:'121301', l:'Recon › Long Range / RS' },
+        { g:'Manoeuvre',         v:'121303', l:'Recon › Motorized' },
+        { g:'Manoeuvre',         v:'121400', l:'SEAL' },
+        { g:'Manoeuvre',         v:'121500', l:'Sniper' },
+        { g:'Manoeuvre',         v:'121700', l:'Special Forces (SF)' },
+        { g:'Manoeuvre',         v:'121800', l:'SOF' },
+        { g:'Manoeuvre',         v:'121900', l:'UAS / Drone Operator' },
+        { g:'Fires',             v:'130000', l:'Fires (Generic)' },
+        { g:'Fires',             v:'130100', l:'Air Defence' },
+        { g:'Fires',             v:'130101', l:'Air Defence › Main Gun' },
+        { g:'Fires',             v:'130102', l:'Air Defence › Missile' },
+        { g:'Fires',             v:'130300', l:'Field Artillery' },
+        { g:'Fires',             v:'130301', l:'Artillery › Self-Propelled' },
+        { g:'Fires',             v:'130302', l:'Artillery › Target Acquisition' },
+        { g:'Fires',             v:'130400', l:'Artillery Observer / FO' },
+        { g:'Fires',             v:'130500', l:'Joint Fire Support (JTAC/FST)' },
+        { g:'Fires',             v:'130700', l:'Missile' },
+        { g:'Fires',             v:'130800', l:'Mortar' },
+        { g:'Fires',             v:'130801', l:'Mortar › Armoured / Tracked' },
+        { g:'Protection',        v:'140000', l:'Protection (Generic)' },
+        { g:'Protection',        v:'140100', l:'CBRN Defence' },
+        { g:'Protection',        v:'140103', l:'CBRN › Recon' },
+        { g:'Protection',        v:'140700', l:'Engineer' },
+        { g:'Protection',        v:'140701', l:'Engineer › Mechanized' },
+        { g:'Protection',        v:'140800', l:'EOD' },
+        { g:'Protection',        v:'141000', l:'Fire Fighting' },
+        { g:'Protection',        v:'141200', l:'Military Police' },
+        { g:'Protection',        v:'141700', l:'Security' },
+        { g:'Protection',        v:'141800', l:'Search & Rescue (SAR)' },
+        { g:'Intelligence',      v:'150000', l:'Intelligence (Generic)' },
+        { g:'Intelligence',      v:'150200', l:'Counter-Intelligence' },
+        { g:'Intelligence',      v:'150500', l:'Electronic Warfare (EW)' },
+        { g:'Intelligence',      v:'150503', l:'EW › Intercept' },
+        { g:'Intelligence',      v:'150504', l:'EW › Jamming' },
+        { g:'Intelligence',      v:'150600', l:'Intercept / SIGINT' },
+        { g:'Sustainment',       v:'160000', l:'Sustainment (Generic)' },
+        { g:'Sustainment',       v:'160600', l:'Combat Service Support' },
+        { g:'Sustainment',       v:'161100', l:'Maintenance' },
+        { g:'Sustainment',       v:'161300', l:'Medical' },
+        { g:'Sustainment',       v:'161400', l:'Medical Treatment Facility' },
+        { g:'Sustainment',       v:'163400', l:'Supply' },
+        { g:'Sustainment',       v:'163600', l:'Transport' },
+    ],
+    '01': [ // Air
+        { g:'General',    v:'000000', l:'Aircraft (Generic)' },
+        { g:'Fixed Wing', v:'110100', l:'Bomber' },
+        { g:'Fixed Wing', v:'110103', l:'Attack / CAS' },
+        { g:'Fixed Wing', v:'110104', l:'Fighter' },
+        { g:'Fixed Wing', v:'110107', l:'Transport' },
+        { g:'Rotary Wing',v:'110200', l:'Helicopter' },
+        { g:'Unmanned',   v:'110300', l:'UAV / Drone' },
+    ],
+    '15': [ // Land Equipment
+        { g:'General',   v:'000000', l:'Equipment (Generic)' },
+        { g:'Armoured',  v:'120500', l:'Tank / AFV' },
+        { g:'Armoured',  v:'121102', l:'IFV / APC' },
+        { g:'Artillery', v:'130300', l:'Artillery Piece' },
+        { g:'Artillery', v:'130800', l:'Mortar' },
+        { g:'Aircraft',  v:'120600', l:'Helicopter' },
+    ],
+    '11': [ // Land Civilian
+        { g:'General',   v:'000000', l:'Civilian (Generic)' },
+        { g:'Emergency', v:'110000', l:'Emergency Services' },
+        { g:'Government',v:'120000', l:'Government' },
+    ],
+    '30': [ // Sea Surface
+        { g:'General',   v:'000000', l:'Vessel (Generic)' },
+        { g:'Combatant', v:'110100', l:'Destroyer / Frigate' },
+        { g:'Support',   v:'150000', l:'Support Vessel' },
+    ],
+    '40': [ // Activity/Event
+        { g:'General', v:'000000', l:'Activity (Generic)' },
+        { g:'Actions', v:'110000', l:'Attack' },
+        { g:'Actions', v:'120000', l:'Defend' },
+        { g:'Actions', v:'130000', l:'Withdraw' },
+    ],
+};
+
+const SIDC_AFFILS = [
+    { v:'0', l:'Pending',        color:'#f0dc00', shape:'pend' },
+    { v:'1', l:'Unknown',        color:'#f0dc00', shape:'unk'  },
+    { v:'2', l:'Assumed Friend', color:'#80e0ff', shape:'asf'  },
+    { v:'3', l:'Friend',         color:'#80e0ff', shape:'fri'  },
+    { v:'4', l:'Neutral',        color:'#aaffaa', shape:'neu'  },
+    { v:'5', l:'Suspect',        color:'#ff8080', shape:'sus'  },
+    { v:'6', l:'Hostile',        color:'#ff8080', shape:'hos'  },
+];
+
+const DASH_STYLES = {
+    '':          'Solid',
+    '6 4':       'Dashed',
+    '2 4':       'Dotted',
+    '10 5 2 5':  'Dash-dot',
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   STATE
+   ═══════════════════════════════════════════════════════════════════════ */
+let map;
+let layers        = {};   // id → { meta, group, featureMap }
+let activeLayerId = null;
+let drawMode      = null;
+let drawColor     = '#e74c3c';
+let drawWeight    = 2;
+let drawDash      = '';
+
+// World / terrain state
+let worldConfig   = null;  // { worldName, displayName, worldSize, maxZoom, minZoom }
+let maplibreLayer = null;
+const METERS_PER_DEGREE = 111320;
+
+// In-progress drawing
+let drawPoints  = [];
+let previewLine = null;   // L.Polyline shown while drawing
+let rectStart   = null;   // first corner for rectangle
+let circCenter  = null;   // center for circle
+let previewRect = null;
+let previewCirc = null;
+
+// Selected annotation
+let selectedId      = null;
+let selectedLayerId = null;
+
+// Pending NATO placement
+let pendingNATOLatLng = null;
+let pendingSIDC       = null;
+
+// Layer modal state
+let lmodalMode    = 'add';
+let lmodalLayerId = null;
+
+/* ═══════════════════════════════════════════════════════════════════════
+   HELPERS
+   ═══════════════════════════════════════════════════════════════════════ */
+function setSaveStatus(status, text) {
+    const el = document.getElementById('save-status');
+    el.className = status;
+    el.textContent = text;
+    if (status === 'saved') setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 3000);
+}
+
+async function apiFetch(url, method = 'GET', body = null) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    return res.json();
+}
+
+function makeNATOIcon(sidc, label, rotation = 0, size = 35) {
+    const sym = new ms.Symbol(sidc, {
+        size,
+        uniqueDesignation: label || '',
+        strokeWidth: 4,
+    });
+    const anchor  = sym.getAnchor();
+    const symSize = sym.getSize();
+    const svg = sym.asSVG();
+    const html = rotation
+        ? `<div style="transform:rotate(${rotation}deg);transform-origin:${anchor.x}px ${anchor.y}px;display:inline-block">${svg}</div>`
+        : svg;
+    return L.divIcon({
+        className:  'nato-marker',
+        html,
+        iconSize:   [symSize.width, symSize.height],
+        iconAnchor: [anchor.x, anchor.y],
+    });
+}
+
+function makeTextIcon(text, color) {
+    return L.divIcon({
+        className: 'nato-marker',
+        html: `<div style="
+            background:rgba(22,24,24,0.88);border:1px solid ${color};border-radius:3px;
+            color:${color};font-size:12px;font-family:monospace;padding:2px 6px;
+            white-space:nowrap;font-weight:700;letter-spacing:0.05em;
+            text-shadow:0 0 4px rgba(0,0,0,0.8);
+        ">${text || '?'}</div>`,
+        iconSize:   null,
+        iconAnchor: [0, 12],
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MAP INIT
+   ═══════════════════════════════════════════════════════════════════════ */
+function initMap() {
+    map = L.map('map', {
+        center:          [0.14, 0.14],
+        zoom:            11,
+        zoomControl:     false,
+        doubleClickZoom: false,
+    });
+
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    map.on('mousemove', e => {
+        if (!worldConfig) return;
+        const a = latLngToArma(e.latlng);
+        const x = Math.round(Math.max(0, a.x)).toString().padStart(5, '0');
+        const y = Math.round(Math.max(0, a.y)).toString().padStart(5, '0');
+        document.getElementById('coords').textContent = `X: ${x}  Y: ${y}`;
+    });
+
+    map.on('move zoom moveend zoomend', updateMinimap);
+
+    if (CAN_EDIT) {
+        map.on('click',        onMapClick);
+        map.on('dblclick',     onMapDblClick);
+        map.on('mousemove',    onMapMouseMove);
+        map.on('contextmenu',  onMapContextMenu);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ARMA COORDINATE CONVERSION  (MapLibre / EPSG:3857 mode)
+   Arma coords: [0,0] = bottom-left, X increases right, Y increases up.
+   In EPSG:3857 we map armaX → lng and armaY → lat by dividing by
+   METERS_PER_DEGREE (111320). World bounds stay near origin (0,0).
+   ═══════════════════════════════════════════════════════════════════════ */
+function armaToLatLng(armaX, armaY) {
+    return L.latLng(armaY / METERS_PER_DEGREE, armaX / METERS_PER_DEGREE);
+}
+
+function latLngToArma(latlng) {
+    return {
+        x: latlng.lng * METERS_PER_DEGREE,
+        y: latlng.lat * METERS_PER_DEGREE,
+    };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   WORLD / TERRAIN LOADING  (MapLibre GL 5 + PMTiles 4)
+   Mirrors the OCAP leafletRenderer.ts MapLibre init path exactly.
+   Terrain data lives at public/images/maps/{worldName}/:
+     map.json / meta.json — config & display info
+     styles/topo.json     — MapLibre GL style
+     tiles/*.pmtiles      — vector tile archives
+   ═══════════════════════════════════════════════════════════════════════ */
+async function loadWorldConfig(worldName) {
+    setWorldStatus('', `Loading ${worldName}…`);
+    try {
+        const base = `/images/maps/${encodeURIComponent(worldName)}`;
+
+        const [cfgRes, metaRes] = await Promise.all([
+            fetch(`${base}/map.json`),
+            fetch(`${base}/meta.json`).catch(() => null),
+        ]);
+        if (!cfgRes.ok) throw new Error(`map.json not found (HTTP ${cfgRes.status})`);
+
+        const cfg  = await cfgRes.json();
+        const meta = (metaRes && metaRes.ok) ? await metaRes.json() : {};
+
+        worldConfig = {
+            worldName,
+            displayName: meta.displayName || cfg.name || worldName,
+            worldSize:   cfg.worldSize    || meta.worldSize || 10240,
+            maxZoom:     cfg.maxZoom      ?? 18,
+            minZoom:     cfg.minZoom      ?? 8,
+        };
+
+        // absBase: root of the app, used to resolve all relative paths in the
+        // style document. Must end with '/'.
+        const absBase = window.location.origin + '/';
+        const isAbsoluteUrl = u => /^(\w+:)?\/\/|^data:/.test(u);
+        const makeAbsolute  = u => isAbsoluteUrl(u) ? u : absBase + u.replace(/^\//, '');
+
+        // Register PMTiles protocol once — wrap handler to rewrite relative paths.
+        // Style stores "pmtiles://images/maps/altis/tiles/…" (no host) which the
+        // Protocol class cannot open; we prepend absBase to make it absolute.
+        if (!window._pmtilesRegistered) {
+            const protocol = new pmtiles.Protocol();
+            maplibregl.addProtocol('pmtiles', (params, abortController) => {
+                const rest = params.url.slice('pmtiles://'.length);
+                const url  = (!rest.startsWith('http') && !rest.startsWith('/'))
+                    ? 'pmtiles://' + absBase + rest
+                    : params.url;
+                return protocol.tile({ ...params, url }, abortController);
+            });
+            window._pmtilesRegistered = true;
+        }
+
+        // transformRequest: resolves every remaining relative URL MapLibre
+        // fetches (sprites, glyphs, tile template strings, etc.).
+        const transformRequest = url => ({ url: makeAbsolute(url) });
+
+        // patchStyle: fetch a style JSON and fix sprite/glyphs paths.
+        // Preserves sprite variant (sprite vs sprite-dark) from original path.
+        async function patchStyle(url) {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`Style not found: ${url}`);
+            const s = await res.json();
+            const spriteName = typeof s.sprite === 'string'
+                ? s.sprite.split('/').pop()   // keep 'sprite' or 'sprite-dark'
+                : 'sprite';
+            s.sprite = `${window.location.origin}/images/maps/${worldName}/styles/${spriteName}`;
+            if (typeof s.glyphs === 'string') s.glyphs = makeAbsolute(s.glyphs);
+            return s;
+        }
+
+        // Load preferred style (saved in localStorage), falling back to topo.json
+        const savedStyle = localStorage.getItem('map-style') || 'topo.json';
+        let style;
+        try {
+            style = await patchStyle(`${base}/styles/${savedStyle}`);
+            activeStyleFile = savedStyle;
+        } catch {
+            style = await patchStyle(`${base}/styles/topo.json`);
+            activeStyleFile = 'topo.json';
+        }
+
+        // Remove old terrain layer if any
+        if (maplibreLayer) { map.removeLayer(maplibreLayer); maplibreLayer = null; }
+
+        maplibreLayer = L.maplibreGL({
+            style,
+            interactive:       false,
+            renderWorldCopies: false,
+            transformRequest,
+        }).addTo(map);
+
+        // MapLibre GL's canvas sits on top of the Leaflet canvas. Even with
+        // interactive:false the container still has pointer-events by default,
+        // which blocks Leaflet dblclick / mousemove events needed for drawing.
+        // Force pointer-events:none on both the container and canvas.
+        try {
+            const glMap  = maplibreLayer.getMaplibreMap();
+            const canvas = glMap.getCanvas();
+            canvas.style.pointerEvents          = 'none';
+            canvas.parentElement.style.pointerEvents = 'none';
+        } catch (_) { /* layer not ready yet — CSS rule below acts as fallback */ }
+
+        // Fit map to world bounds
+        const maxDeg    = worldConfig.worldSize / METERS_PER_DEGREE;
+        const mapBounds = L.latLngBounds([0, 0], [maxDeg, maxDeg]);
+        map.setMaxBounds(mapBounds.pad(0.05));
+        map.setMinZoom(worldConfig.minZoom);
+        map.setMaxZoom(worldConfig.maxZoom);
+        map.fitBounds(mapBounds);
+
+        document.getElementById('map-placeholder').style.display = 'none';
+        setWorldStatus('ok', worldConfig.displayName);
+        initMinimap(worldName);
+
+        // Probe available style variants and build the style switcher.
+        // patchStyle is captured in closure above.
+        buildStyleSwitcher(base, worldName, patchStyle);
+
+        return true;
+    } catch (err) {
+        console.error('Failed to load world config:', err);
+        worldConfig = null;
+        setWorldStatus('err', `Failed to load terrain: ${err.message}`);
+        return false;
+    }
+}
+
+function setWorldStatus(cls, text) {
+    const el = document.getElementById('world-status');
+    el.className = cls;
+    el.textContent = text;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MINIMAP OVERVIEW
+   ═══════════════════════════════════════════════════════════════════════ */
+function initMinimap(worldName) {
+    const wrap = document.getElementById('minimap-wrap');
+    const img  = document.getElementById('minimap-img');
+    if (!wrap || !img) return;
+    img.onload  = () => { wrap.style.display = ''; updateMinimap(); };
+    img.onerror = () => { wrap.style.display = 'none'; };
+    img.src = `/images/maps/${encodeURIComponent(worldName)}/preview_512.png`;
+}
+
+function updateMinimap() {
+    if (!worldConfig) return;
+    const viewport = document.getElementById('minimap-viewport');
+    const imgWrap  = document.getElementById('minimap-img-wrap');
+    if (!viewport || !imgWrap) return;
+
+    const worldDeg = worldConfig.worldSize / METERS_PER_DEGREE;
+    const bounds   = map.getBounds();
+
+    // Clamp to world extent
+    const south = Math.max(bounds.getSouth(), 0);
+    const north = Math.min(bounds.getNorth(), worldDeg);
+    const west  = Math.max(bounds.getWest(),  0);
+    const east  = Math.min(bounds.getEast(),  worldDeg);
+
+    // Convert to % of image (note: image Y axis is inverted vs lat)
+    const left   = (west  / worldDeg) * 100;
+    const top    = ((worldDeg - north) / worldDeg) * 100;
+    const width  = ((east - west)  / worldDeg) * 100;
+    const height = ((north - south) / worldDeg) * 100;
+
+    viewport.style.left   = left   + '%';
+    viewport.style.top    = top    + '%';
+    viewport.style.width  = Math.max(width,  0.5) + '%';
+    viewport.style.height = Math.max(height, 0.5) + '%';
+}
+
+(function wireMinimapUI() {
+    // Toggle collapse
+    document.getElementById('minimap-toggle')?.addEventListener('click', () => {
+        const wrap = document.getElementById('minimap-wrap');
+        const btn  = document.getElementById('minimap-toggle');
+        const collapsed = wrap.classList.toggle('collapsed');
+        btn.textContent = collapsed ? '+' : '−';
+    });
+
+    // Click on minimap to pan main map
+    document.getElementById('minimap-img-wrap')?.addEventListener('click', e => {
+        if (!worldConfig) return;
+        const rect     = e.currentTarget.getBoundingClientRect();
+        const fx       = (e.clientX - rect.left)  / rect.width;
+        const fy       = (e.clientY - rect.top)   / rect.height;
+        const worldDeg = worldConfig.worldSize / METERS_PER_DEGREE;
+        map.panTo([(1 - fy) * worldDeg, fx * worldDeg]);
+    });
+})();
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MAP STYLE SWITCHER
+   Probes the 4 OCAP style variants via HEAD requests, shows buttons for
+   available ones, and switches the MapLibre GL style on click.
+   ═══════════════════════════════════════════════════════════════════════ */
+const STYLE_VARIANTS = [
+    { file: 'topo.json',          label: 'Topographic' },
+    { file: 'topo-dark.json',     label: 'Topo Dark'   },
+    { file: 'topo-relief.json',   label: 'Topo Relief' },
+    { file: 'color-relief.json',  label: 'Color Relief' },
+];
+
+let activeStyleFile = 'topo.json';
+
+async function buildStyleSwitcher(base, worldName, patchStyle) {
+    const switcher = document.getElementById('style-switcher');
+    const btnWrap  = document.getElementById('style-btns');
+    btnWrap.innerHTML = '';
+
+    // Probe all variants in parallel
+    const probes = await Promise.all(STYLE_VARIANTS.map(async v => {
+        try {
+            const r = await fetch(`${base}/styles/${v.file}`, { method: 'HEAD' });
+            return { ...v, available: r.ok };
+        } catch { return { ...v, available: false }; }
+    }));
+
+    const available = probes.filter(v => v.available);
+    if (available.length <= 1) {
+        switcher.style.display = 'none';
+        return; // nothing to switch between
+    }
+
+    switcher.style.display = 'block';
+
+    // Restore previously saved style preference
+    const saved = localStorage.getItem('map-style') || 'topo.json';
+    if (available.find(v => v.file === saved)) activeStyleFile = saved;
+
+    for (const v of available) {
+        const btn = document.createElement('button');
+        btn.className = 'style-btn' + (v.file === activeStyleFile ? ' active' : '');
+        btn.textContent = v.label;
+        btn.addEventListener('click', async () => {
+            if (v.file === activeStyleFile) return;
+            activeStyleFile = v.file;
+            localStorage.setItem('map-style', v.file);
+            btnWrap.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            try {
+                const glMap = maplibreLayer.getMaplibreMap();
+                const newStyle = await patchStyle(`${base}/styles/${v.file}`);
+                glMap.setStyle(newStyle);
+            } catch (err) {
+                console.error('Style switch error:', err);
+            }
+        });
+        btnWrap.appendChild(btn);
+    }
+}
+
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LOAD DATA
+   ═══════════════════════════════════════════════════════════════════════ */
+async function loadData() {
+    try {
+        const data = await apiFetch(`/operations/${OP_ID}/map/data`);
+        if (!data.success) return;
+
+        // Load terrain tiles before rendering annotations
+        if (data.mapWorld) {
+            await loadWorldConfig(data.mapWorld);
+        }
+
+        for (const layer of data.layers) {
+            createLocalLayer(layer);
+            for (const ann of layer.annotations) {
+                renderAnnotation(ann);
+            }
+        }
+
+        if (data.layers.length > 0) setActiveLayer(data.layers[0].id);
+        renderLayerPanel();
+    } catch (err) {
+        console.error('Failed to load map data:', err);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LAYER MANAGEMENT
+   ═══════════════════════════════════════════════════════════════════════ */
+function createLocalLayer(meta) {
+    const group = L.layerGroup().addTo(map);
+    if (!meta.is_visible) map.removeLayer(group);
+    layers[meta.id] = { meta, group, featureMap: {} };
+}
+
+function setActiveLayer(id) {
+    activeLayerId = id;
+    document.querySelectorAll('.layer-item').forEach(el => {
+        el.classList.toggle('active', parseInt(el.dataset.id) === id);
+    });
+}
+
+async function apiCreateLayer(name, color) {
+    setSaveStatus('saving', 'Saving…');
+    const data = await apiFetch(`/operations/${OP_ID}/map/layers`, 'POST', { name, color });
+    if (data.success) {
+        createLocalLayer(data.layer);
+        setActiveLayer(data.layer.id);
+        renderLayerPanel();
+        setSaveStatus('saved', 'Saved');
+    } else {
+        setSaveStatus('error', 'Error');
+    }
+}
+
+async function apiDeleteLayer(id) {
+    if (!confirm(`Delete layer "${layers[id]?.meta.name}"?\nAll annotations in this layer will be removed.`)) return;
+    setSaveStatus('saving', 'Saving…');
+    const data = await apiFetch(`/operations/${OP_ID}/map/layers/${id}`, 'DELETE');
+    if (data.success) {
+        map.removeLayer(layers[id].group);
+        delete layers[id];
+        if (activeLayerId === id) {
+            const remaining = Object.keys(layers);
+            setActiveLayer(remaining.length ? parseInt(remaining[0]) : null);
+        }
+        renderLayerPanel();
+        setSaveStatus('saved', 'Saved');
+    } else {
+        setSaveStatus('error', 'Error');
+    }
+}
+
+async function apiToggleLayerVisible(id) {
+    const l = layers[id];
+    if (!l) return;
+    const nowVisible = !l.meta.is_visible;
+    l.meta.is_visible = nowVisible;
+    nowVisible ? l.group.addTo(map) : map.removeLayer(l.group);
+
+    await apiFetch(`/operations/${OP_ID}/map/layers/${id}`, 'PATCH', { is_visible: nowVisible });
+    renderLayerPanel();
+}
+
+async function apiToggleLayerPublic(id) {
+    const l = layers[id];
+    if (!l) return;
+    const nowPublic = !l.meta.is_public;
+    l.meta.is_public = nowPublic;
+    await apiFetch(`/operations/${OP_ID}/map/layers/${id}`, 'PATCH', { is_public: nowPublic });
+    renderLayerPanel();
+}
+
+async function apiUpdateLayer(id, name, color) {
+    const l = layers[id];
+    if (!l) return;
+    l.meta.name  = name;
+    l.meta.color = color;
+    setSaveStatus('saving', 'Saving…');
+    const data = await apiFetch(`/operations/${OP_ID}/map/layers/${id}`, 'PATCH', { name, color });
+    if (data.success) { renderLayerPanel(); setSaveStatus('saved', 'Saved'); }
+    else setSaveStatus('error', 'Error');
+}
+
+function renderLayerPanel() {
+    const list = document.getElementById('layer-list');
+    list.innerHTML = '';
+
+    const layerArr = Object.values(layers).sort((a,b) => a.meta.display_order - b.meta.display_order);
+
+    for (const { meta } of layerArr) {
+        const count = Object.keys(layers[meta.id].featureMap).length;
+        const div   = document.createElement('div');
+        div.className = `layer-item${meta.id === activeLayerId ? ' active' : ''}${!meta.is_visible ? ' hidden' : ''}`;
+        div.dataset.id = meta.id;
+        div.style.setProperty('--layer-color', meta.color);
+
+        const isDraft = meta.is_public === 0 || meta.is_public === false;
+        div.innerHTML = `
+            <div class="swatch" style="background:${meta.color}"></div>
+            <span class="lname">${meta.name}</span>
+            ${isDraft ? '<span class="layer-draft-badge">DRAFT</span>' : ''}
+            <span class="layer-count">${count}</span>
+            ${CAN_EDIT ? `
+            <div class="layer-actions">
+                <button class="layer-btn vis"    title="${meta.is_visible ? 'Hide' : 'Show'} layer">${meta.is_visible ? '👁' : '◌'}</button>
+                <button class="layer-btn pub ${isDraft ? 'draft' : ''}" title="${isDraft ? 'Publish layer (make visible to public)' : 'Unpublish layer (hide from public)'}">${isDraft ? '🔒' : '🌐'}</button>
+                <button class="layer-btn edit"   title="Rename / recolour">✏</button>
+                <button class="layer-btn delete" title="Delete layer">🗑</button>
+            </div>` : ''}
+        `;
+
+        div.addEventListener('click', e => {
+            if (e.target.closest('.layer-actions')) return;
+            setActiveLayer(meta.id);
+        });
+
+        if (CAN_EDIT) {
+            div.querySelector('.vis')?.addEventListener('click',    e => { e.stopPropagation(); apiToggleLayerVisible(meta.id); });
+            div.querySelector('.pub')?.addEventListener('click',    e => { e.stopPropagation(); apiToggleLayerPublic(meta.id); });
+            div.querySelector('.edit')?.addEventListener('click',   e => { e.stopPropagation(); openLayerModal('edit', meta.id); });
+            div.querySelector('.delete')?.addEventListener('click', e => { e.stopPropagation(); apiDeleteLayer(meta.id); });
+        }
+
+        list.appendChild(div);
+    }
+
+    if (layerArr.length === 0) {
+        list.innerHTML = '<div style="padding:16px;color:#444;font-size:0.78em;text-align:center;">No layers yet.<br>Click "+ New" to add one.</div>';
+    }
+
+    // Update layer select in properties panel
+    const prLayer = document.getElementById('pr-layer');
+    if (prLayer) {
+        prLayer.innerHTML = '';
+        for (const { meta } of layerArr) {
+            const opt = document.createElement('option');
+            opt.value = meta.id;
+            opt.textContent = meta.name;
+            prLayer.appendChild(opt);
+        }
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ANNOTATION RENDERING
+   ═══════════════════════════════════════════════════════════════════════ */
+function renderAnnotation(ann) {
+    const l = layers[ann.layer_id];
+    if (!l || !worldConfig) return;
+    const p = ann.properties || {};
+
+    let feature;
+
+    // Geometry coordinates are stored as Arma [x, y] meters.
+    if (ann.type === 'nato_marker') {
+        const [ax, ay] = ann.geometry.coordinates;
+        const rotation = p.rotation || 0;
+        feature = L.marker(armaToLatLng(ax, ay), {
+            icon: makeNATOIcon(p.sidc || '130110000000000000000000000000', p.label, rotation),
+            draggable: !!CAN_EDIT,
+        });
+        if (CAN_EDIT) {
+            feature.on('dragend', async () => {
+                const newLl = feature.getLatLng();
+                const a2    = latLngToArma(newLl);
+                const newGeom = { ...ann.geometry, coordinates: [a2.x, a2.y] };
+                setSaveStatus('saving', 'Saving…');
+                const r = await apiFetch(`/operations/${OP_ID}/map/annotations/${ann.id}`, 'PATCH', { geometry: newGeom });
+                if (r.success) {
+                    ann.geometry = newGeom;
+                    setSaveStatus('saved', 'Saved');
+                    // Reposition the rotation handle if this marker is selected
+                    if (selectedId === ann.id) showSelectionOverlay(feature, ann.id, ann.layer_id);
+                } else {
+                    setSaveStatus('error', 'Error saving position');
+                }
+            });
+        }
+    } else if (ann.type === 'text') {
+        const [ax, ay] = ann.geometry.coordinates;
+        feature = L.marker(armaToLatLng(ax, ay), { icon: makeTextIcon(p.label, p.color || '#F5C518') });
+    } else if (ann.type === 'polyline') {
+        const coords = ann.geometry.coordinates.map(([ax, ay]) => armaToLatLng(ax, ay));
+        feature = L.polyline(coords, {
+            color:     p.color     || '#e74c3c',
+            weight:    p.weight    || 2,
+            dashArray: p.dashArray || null,
+        });
+    } else if (ann.type === 'polygon' || ann.type === 'rectangle') {
+        const coords = ann.geometry.coordinates[0].map(([ax, ay]) => armaToLatLng(ax, ay));
+        feature = L.polygon(coords, {
+            color:       p.color     || '#e74c3c',
+            weight:      p.weight    || 2,
+            dashArray:   p.dashArray || null,
+            fillOpacity: 0.12,
+        });
+    } else if (ann.type === 'circle') {
+        const [ax, ay] = ann.geometry.center;
+        feature = L.circle(armaToLatLng(ax, ay), {
+            radius:      p.radius    || 100,   // Arma meters = real meters in EPSG:3857
+            color:       p.color     || '#e74c3c',
+            weight:      p.weight    || 2,
+            dashArray:   p.dashArray || null,
+            fillOpacity: 0.1,
+        });
+    } else {
+        return;
+    }
+
+    if (p.label && ann.type !== 'nato_marker' && ann.type !== 'text') {
+        feature.bindTooltip(p.label, { permanent: true, direction: 'center', className: 'leaflet-tooltip-dark' });
+    }
+
+    if (CAN_EDIT) {
+        feature.on('click', e => { L.DomEvent.stop(e); selectAnnotation(ann.id, ann.layer_id); });
+    }
+
+    feature.addTo(l.group);
+    l.featureMap[ann.id] = { feature, ann };
+}
+
+function removeFeatureFromMap(annId, layerId) {
+    const l = layers[layerId];
+    if (!l || !l.featureMap[annId]) return;
+    l.group.removeLayer(l.featureMap[annId].feature);
+    delete l.featureMap[annId];
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ANNOTATION SELECTION / PROPERTIES
+   ═══════════════════════════════════════════════════════════════════════ */
+function selectAnnotation(annId, layerId) {
+    clearSelectionOverlay();
+    selectedId      = annId;
+    selectedLayerId = layerId;
+
+    const l   = layers[layerId];
+    const rec = l?.featureMap[annId];
+    if (!rec) return;
+
+    const p   = rec.ann.properties || {};
+    const type = rec.ann.type;
+
+    document.getElementById('props-type-label').textContent = type.replace('_', ' ').toUpperCase();
+    document.getElementById('pr-label').value = p.label  || '';
+    document.getElementById('pr-color').value = p.color  || '#e74c3c';
+
+    const prLayer = document.getElementById('pr-layer');
+    if (prLayer) prLayer.value = layerId;
+
+    const showWeight   = ['polyline','polygon','rectangle','circle'].includes(type);
+    const showRotation = type === 'nato_marker';
+    document.getElementById('pr-weight-row').style.display   = showWeight   ? '' : 'none';
+    document.getElementById('pr-dash-row').style.display     = showWeight   ? '' : 'none';
+    document.getElementById('pr-rotation-row').style.display = showRotation ? '' : 'none';
+    if (showWeight) {
+        document.getElementById('pr-weight').value = String(p.weight || 2);
+        document.getElementById('pr-dash').value   = p.dashArray || '';
+    }
+    if (showRotation) {
+        const rot = p.rotation || 0;
+        document.getElementById('pr-rotation').value   = rot;
+        document.getElementById('pr-rotation-val').textContent = rot + '°';
+    }
+
+    document.getElementById('props-panel').classList.add('open');
+
+    // Show rotation handle for NATO markers
+    if (type === 'nato_marker') showSelectionOverlay(rec.feature, annId, layerId);
+}
+
+function deselectAnnotation() {
+    clearSelectionOverlay();
+    selectedId = selectedLayerId = null;
+    document.getElementById('props-panel')?.classList.remove('open');
+}
+
+async function saveAnnotationProps() {
+    if (!selectedId) return;
+    const l   = layers[selectedLayerId];
+    const rec = l?.featureMap[selectedId];
+    if (!rec) return;
+
+    const ann  = rec.ann;
+    const type = ann.type;
+
+    const newProps = {
+        ...ann.properties,
+        label:    document.getElementById('pr-label').value.trim(),
+        color:    document.getElementById('pr-color').value,
+    };
+    if (['polyline','polygon','rectangle','circle'].includes(type)) {
+        newProps.weight    = parseInt(document.getElementById('pr-weight').value);
+        newProps.dashArray = document.getElementById('pr-dash').value || null;
+    }
+    if (type === 'nato_marker') {
+        newProps.rotation = parseInt(document.getElementById('pr-rotation').value) || 0;
+    }
+
+    const newLayerId = parseInt(document.getElementById('pr-layer').value);
+
+    setSaveStatus('saving', 'Saving…');
+    const data = await apiFetch(`/operations/${OP_ID}/map/annotations/${selectedId}`, 'PATCH',
+        { properties: newProps });
+
+    if (data.success) {
+        // Move to different layer if changed
+        if (newLayerId !== selectedLayerId) {
+            removeFeatureFromMap(selectedId, selectedLayerId);
+            const newAnn = { ...ann, layer_id: newLayerId, properties: newProps };
+            await apiFetch(`/operations/${OP_ID}/map/annotations/${selectedId}`, 'PATCH',
+                { properties: newProps });
+            // Re-render in new layer (simplified: reload)
+            renderAnnotation(newAnn);
+            layers[newLayerId].featureMap[selectedId] = { feature: layers[newLayerId].featureMap[selectedId]?.feature, ann: newAnn };
+        } else {
+            // Remove and re-render with new style
+            removeFeatureFromMap(selectedId, selectedLayerId);
+            renderAnnotation({ ...ann, properties: newProps });
+        }
+
+        renderLayerPanel();
+        deselectAnnotation();
+        setSaveStatus('saved', 'Saved');
+    } else {
+        setSaveStatus('error', 'Error saving');
+    }
+}
+
+async function deleteSelectedAnnotation() {
+    if (!selectedId || !confirm('Delete this annotation?')) return;
+    setSaveStatus('saving', 'Saving…');
+    const data = await apiFetch(`/operations/${OP_ID}/map/annotations/${selectedId}`, 'DELETE');
+    if (data.success) {
+        removeFeatureFromMap(selectedId, selectedLayerId);
+        renderLayerPanel();
+        deselectAnnotation();
+        setSaveStatus('saved', 'Saved');
+    } else {
+        setSaveStatus('error', 'Error');
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SELECTION OVERLAY  (rotation handle for NATO markers)
+   ═══════════════════════════════════════════════════════════════════════ */
+let selectionOverlay = { handle: null, line: null };
+
+function showSelectionOverlay(marker, annId, layerId) {
+    clearSelectionOverlay();
+    if (!CAN_EDIT || !marker) return;
+
+    const rec = layers[layerId]?.featureMap[annId];
+    if (!rec) return;
+
+    const rotation = rec.ann.properties?.rotation || 0;
+    const HANDLE_DIST = 52; // pixels from marker centre to handle
+
+    function getHandleLatLng(deg) {
+        const mPx = map.latLngToLayerPoint(marker.getLatLng());
+        const rad  = deg * Math.PI / 180;
+        return map.layerPointToLatLng(L.point(
+            mPx.x + HANDLE_DIST * Math.sin(rad),
+            mPx.y - HANDLE_DIST * Math.cos(rad)
+        ));
+    }
+
+    const handleLatLng = getHandleLatLng(rotation);
+
+    const line = L.polyline([marker.getLatLng(), handleLatLng], {
+        color: 'rgba(252,176,13,0.7)', weight: 1.5, dashArray: '5 4', interactive: false
+    }).addTo(map);
+
+    const handle = L.marker(handleLatLng, {
+        icon: L.divIcon({
+            className: '',
+            html: '<div class="rot-handle"></div>',
+            iconSize:   [12, 12],
+            iconAnchor: [6, 6],
+        }),
+        draggable: true,
+        zIndexOffset: 3000,
+    }).addTo(map);
+
+    handle.on('drag', () => {
+        const hPx = map.latLngToLayerPoint(handle.getLatLng());
+        const mPx = map.latLngToLayerPoint(marker.getLatLng());
+        const deg = Math.round(((Math.atan2(hPx.x - mPx.x, -(hPx.y - mPx.y)) * 180 / Math.PI) + 360) % 360);
+        line.setLatLngs([marker.getLatLng(), handle.getLatLng()]);
+
+        // Live icon update
+        const p = rec.ann.properties || {};
+        marker.setIcon(makeNATOIcon(p.sidc || '130110000000000000000000000000', p.label, deg));
+        marker._pendingRotation = deg;
+
+        // Sync rotation slider
+        const slider = document.getElementById('pr-rotation');
+        if (slider) { slider.value = deg; document.getElementById('pr-rotation-val').textContent = deg + '°'; }
+    });
+
+    handle.on('dragend', async () => {
+        const deg = marker._pendingRotation ?? (rec.ann.properties?.rotation || 0);
+        const newProps = { ...rec.ann.properties, rotation: deg };
+        rec.ann.properties = newProps;
+        delete marker._pendingRotation;
+
+        // Snap handle to exact position
+        handle.setLatLng(getHandleLatLng(deg));
+        line.setLatLngs([marker.getLatLng(), handle.getLatLng()]);
+
+        setSaveStatus('saving', 'Saving…');
+        const r = await apiFetch(`/operations/${OP_ID}/map/annotations/${annId}`, 'PATCH', { properties: newProps });
+        setSaveStatus(r.success ? 'saved' : 'error', r.success ? 'Saved' : 'Error saving rotation');
+    });
+
+    // Also update line when main marker is dragged
+    marker.on('drag', () => {
+        const deg = rec.ann.properties?.rotation || 0;
+        const hll = getHandleLatLng(deg);
+        line.setLatLngs([marker.getLatLng(), hll]);
+        handle.setLatLng(hll);
+    });
+
+    selectionOverlay = { handle, line };
+}
+
+function clearSelectionOverlay() {
+    if (selectionOverlay.handle) { map.removeLayer(selectionOverlay.handle); }
+    if (selectionOverlay.line)   { map.removeLayer(selectionOverlay.line);   }
+    selectionOverlay = { handle: null, line: null };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   METIS MARKER SQF EXPORT
+   ═══════════════════════════════════════════════════════════════════════ */
+
+// milsymbol v3 entity code → Metis icon ID
+const ENTITY_TO_METIS = {
+    '000000': 37, '121100':  1, '121102':  2, '121104':  3,
+    '120500':  4, '120400':  5, '130100':  9, '130101': 10,
+    '110100': 11, '110102': 11, '110103': 11, '110104': 11, '110107': 11,
+    '110200': 12, '110300': 13, '140700': 14, '140701': 15, '140702': 16,
+    '130300': 17, '130301': 18, '130800': 19, '130801': 20,
+    '121300': 21, '120501': 22, '121303': 23, '141200': 27,
+    '111000': 28, '161300': 30, '163400': 31, '163600': 32,
+    '121700': 39, '121800': 40,
+};
+// SIDC echelon (positions 8-9) → Metis size ID
+const ECHELON_TO_SIZE = {
+    '00': 0,'11': 1,'12': 2,'13': 3,'14': 4,'15': 5,
+    '16': 6,'17': 7,'18': 8,'21': 9,'22':10,'23':11,'24':12,
+};
+// Arma color names ordered by approximate hue (for nearest-color lookup)
+const ARMA_COLORS = [
+    { name: 'ColorBlack',       r:   0, g:   0, b:   0 },
+    { name: 'ColorWhite',       r: 255, g: 255, b: 255 },
+    { name: 'ColorRed',         r: 229, g:   0, b:   0 },
+    { name: 'ColorBlue',        r:   0, g:   0, b: 255 },
+    { name: 'ColorGreen',       r:   0, g: 204, b:   0 },
+    { name: 'ColorYellow',      r: 216, g: 216, b:   0 },
+    { name: 'ColorOrange',      r: 216, g: 102, b:   0 },
+    { name: 'ColorBrown',       r: 127, g:  63, b:   0 },
+    { name: 'ColorKhaki',       r: 127, g: 153, b: 102 },
+    { name: 'ColorPink',        r: 255, g:  76, b: 102 },
+    { name: 'ColorGrey',        r: 127, g: 127, b: 127 },
+    { name: 'ColorBlufor',      r:   0, g:  76, b: 153 },
+    { name: 'ColorOpfor',       r: 127, g:   0, b:   0 },
+    { name: 'ColorIndependent', r:   0, g: 127, b:   0 },
+    { name: 'ColorCivilian',    r: 102, g:   0, b: 127 },
+];
+
+function hexToRgb(hex) {
+    const h = hex.replace('#','');
+    if (h.length === 3) return { r: parseInt(h[0]+h[0],16), g: parseInt(h[1]+h[1],16), b: parseInt(h[2]+h[2],16) };
+    return { r: parseInt(h.slice(0,2),16), g: parseInt(h.slice(2,4),16), b: parseInt(h.slice(4,6),16) };
+}
+
+function colorToArma(hex) {
+    if (!hex) return 'ColorBlack';
+    const { r, g, b } = hexToRgb(hex);
+    let best = ARMA_COLORS[0], bestDist = Infinity;
+    for (const c of ARMA_COLORS) {
+        const d = (r-c.r)**2 + (g-c.g)**2 + (b-c.b)**2;
+        if (d < bestDist) { bestDist = d; best = c; }
+    }
+    return best.name;
+}
+
+function sidcToMetis(sidc) {
+    // Null/missing SIDC → unknown generic unit (still renders a visible frame in Metis)
+    if (!sidc || sidc.length < 20) return { sideid: 'unk', dashed: false, icon: 37, mod1: 0, mod2: 0, size: 0 };
+    const affil  = sidc[3];
+    const status = sidc[6];
+    const echelon = sidc.slice(8, 10);
+    const entity  = sidc.slice(10, 16);
+    const m1      = sidc.slice(16, 18);
+    const m2      = sidc.slice(18, 20);
+
+    const sideid = ({ '3':'blu','2':'blu','5':'red','6':'red','4':'neu' })[affil] || 'unk';
+    const dashed = status === '1';  // anticipated/planned
+    const icon   = ENTITY_TO_METIS[entity] ?? 0;
+    const size   = ECHELON_TO_SIZE[echelon] ?? 0;
+    const mod1   = m1 === '98' ? 7 : 0;
+    const mod2   = m2 === '51' ? 7 : 0;
+
+    return { sideid, dashed, icon, mod1, mod2, size };
+}
+
+function toArma(v) {
+    if (v === null || v === undefined) return 'null';
+    if (typeof v === 'string')  return '"' + v.replace(/"/g, '""') + '"';
+    if (typeof v === 'boolean') return v ? 'true' : 'false';
+    if (typeof v === 'number')  return isFinite(v) ? String(Math.round(v * 100) / 100) : '0';
+    if (Array.isArray(v))       return '[' + v.map(toArma).join(',') + ']';
+    return 'null';
+}
+
+function generateSQF() {
+    const icons   = [];
+    const polys   = [];
+    const metis   = [];
+    let   id      = 0;
+
+    for (const layer of Object.values(layers)) {
+        for (const rec of Object.values(layer.featureMap)) {
+            const ann = rec.ann;
+            const p   = ann.properties || {};
+            id++;
+
+            if (ann.type === 'nato_marker') {
+                const [ax, ay] = ann.geometry.coordinates;
+                const ms2 = sidcToMetis(p.sidc);
+                metis.push([String(id), ax, ay, ms2.sideid, ms2.dashed, ms2.icon, ms2.mod1, ms2.mod2, ms2.size, p.label || '', 1]);
+
+            } else if (ann.type === 'polyline') {
+                const flat = ann.geometry.coordinates.flatMap(([x, y]) => [x, y]);
+                polys.push([String(id), flat, colorToArma(p.color)]);
+
+            } else if (ann.type === 'polygon' || ann.type === 'rectangle') {
+                const ring = ann.geometry.coordinates[0];
+                const flat = ring.flatMap(([x, y]) => [x, y]);
+                polys.push([String(id), flat, colorToArma(p.color)]);
+
+            } else if (ann.type === 'circle') {
+                const [cx, cy] = ann.geometry.center;
+                const r = p.radius || 100;
+                const pts = [];
+                for (let i = 0; i <= 32; i++) {
+                    const a = (i / 32) * 2 * Math.PI;
+                    pts.push(cx + r * Math.cos(a), cy + r * Math.sin(a));
+                }
+                polys.push([String(id), pts, colorToArma(p.color)]);
+
+            } else if (ann.type === 'text') {
+                const [ax, ay] = ann.geometry.coordinates;
+                // Export text as a small dot marker with the label text set
+                icons.push([String(id), ax, ay, 'hd_dot', colorToArma(p.color || '#F5C518'), p.label || '', 0, 0.6]);
+            }
+        }
+    }
+
+    if (metis.length === 0 && polys.length === 0 && icons.length === 0) {
+        return '// No exportable annotations found on this map.';
+    }
+
+    const dataStr = toArma([icons, polys, metis]);
+
+    return `private _data = ${dataStr};
+
+_data params ['_icons', '_poly', '_metis'];
+
+if (!isNil 'gtd_map_allMarkers') then {
+  { deleteMarker _x; } forEach gtd_map_allMarkers;
+};
+if (!isNil 'gtd_map_allMetisMarkers') then {
+  { [_x] call mts_markers_fnc_deleteMarker } forEach gtd_map_allMetisMarkers;
+};
+gtd_map_allMarkers = [];
+gtd_map_allMetisMarkers = [];
+
+{
+  _x params ['_id', '_ix', '_iy', '_itype', '_icolor', '_itext', '_idir', ['_iscale', 1]];
+  private _m = createMarker [format ['_USER_DEFINED #%1/profiteers_i%2/0', clientOwner, _id], [_ix, _iy], 0];
+  _m setMarkerShape 'ICON';
+  _m setMarkerDir _idir;
+  _m setMarkerColor _icolor;
+  _m setMarkerText _itext;
+  _m setMarkerType _itype;
+  _m setMarkerSize [_iscale, _iscale];
+  gtd_map_allMarkers pushBack _m;
+} forEach _icons;
+
+{
+  _x params ['_id', '_points', '_color'];
+  _points params ['_px', '_py'];
+  private _m = createMarker [format ['_USER_DEFINED #%1/profiteers_p%2/0', clientOwner, _id], [_px, _py], 0];
+  _m setMarkerShape 'polyline';
+  _m setMarkerPolyline _points;
+  _m setMarkerColor _color;
+  gtd_map_allMarkers pushBack _m;
+} forEach _poly;
+
+{
+  _x params ['_id', '_mx', '_my', '_sideid', '_dashed', '_icon', '_mod1', '_mod2', '_size', '_designation', ['_scale', 1]];
+  private _m = [[_mx,_my], 0, true, [[_sideid, _dashed], [_icon, _mod1, _mod2], [_size, false, false], [], _designation], _scale * 1.3] call mts_markers_fnc_createMarker;
+  gtd_map_allMetisMarkers pushBack _m;
+} forEach _metis;
+
+publicVariable 'gtd_map_allMarkers';
+publicVariable 'gtd_map_allMetisMarkers';`;
+}
+
+function openExportModal() {
+    const sqf = generateSQF();
+    document.getElementById('export-sqf-text').value = sqf;
+    document.getElementById('export-modal').classList.add('open');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DRAWING TOOLS
+   ═══════════════════════════════════════════════════════════════════════ */
+function setDrawMode(mode) {
+    cancelDrawing();
+    drawMode = mode;
+
+    document.querySelectorAll('.tb-btn').forEach(b => b.classList.remove('active'));
+    const id = { select:'tb-select', nato_marker:'tb-nato', polyline:'tb-line',
+                 polygon:'tb-poly', rectangle:'tb-rect', circle:'tb-circle', text:'tb-text' }[mode];
+    document.getElementById(id)?.classList.add('active');
+
+    const mapEl = document.getElementById('map');
+    mapEl.classList.toggle('draw-mode', mode !== 'select');
+
+    if (mode === 'select') {
+        map.dragging.enable();
+    } else {
+        map.dragging.enable(); // still allow panning while in draw mode
+    }
+}
+
+function cancelDrawing() {
+    drawPoints = [];
+    rectStart  = null;
+    circCenter = null;
+    if (previewLine)  { map.removeLayer(previewLine);  previewLine  = null; }
+    if (previewRect)  { map.removeLayer(previewRect);  previewRect  = null; }
+    if (previewCirc)  { map.removeLayer(previewCirc);  previewCirc  = null; }
+}
+
+function onMapClick(e) {
+    if (!worldConfig) {
+        if (CAN_EDIT) setWorldStatus('err', 'Set a world name first');
+        return;
+    }
+    if (!activeLayerId) {
+        alert('Please select or create a layer first.');
+        return;
+    }
+    const ll = e.latlng;
+    const a  = latLngToArma(ll);
+
+    switch (drawMode) {
+        case 'select':
+            deselectAnnotation();
+            break;
+
+        case 'nato_marker':
+            pendingNATOLatLng = ll;
+            openNATOModal(ll);
+            break;
+
+        case 'text': {
+            const label = prompt('Enter label text:');
+            if (!label) return;
+            saveAnnotation('text',
+                { type: 'Point', coordinates: [a.x, a.y] },
+                { label, color: drawColor });
+            break;
+        }
+
+        case 'polyline':
+            drawPoints.push(ll);
+            refreshPreviewLine(ll);
+            break;
+
+        case 'polygon':
+            drawPoints.push(ll);
+            refreshPreviewLine(ll);
+            break;
+
+        case 'rectangle':
+            if (!rectStart) {
+                rectStart = ll;
+            } else {
+                const rs = latLngToArma(rectStart);
+                const re = a;
+                const coords = [
+                    [rs.x, rs.y], [re.x, rs.y],
+                    [re.x, re.y], [rs.x, re.y],
+                    [rs.x, rs.y],
+                ];
+                saveAnnotation('rectangle',
+                    { type: 'Polygon', coordinates: [coords] },
+                    { color: drawColor, weight: drawWeight, dashArray: drawDash || null });
+                cancelDrawing();
+            }
+            break;
+
+        case 'circle':
+            if (!circCenter) {
+                circCenter = ll;
+            } else {
+                const cc = latLngToArma(circCenter);
+                // map.distance() returns real metres in EPSG:3857 = Arma metres
+                const radius = Math.round(map.distance(circCenter, ll));
+                saveAnnotation('circle',
+                    { type: 'Point', center: [cc.x, cc.y] },
+                    { radius, color: drawColor, weight: drawWeight, dashArray: drawDash || null });
+                cancelDrawing();
+            }
+            break;
+    }
+}
+
+function finishDrawing() {
+    if (drawMode === 'polyline' && drawPoints.length >= 2) {
+        const coords = drawPoints.map(p => { const a = latLngToArma(p); return [a.x, a.y]; });
+        saveAnnotation('polyline',
+            { type: 'LineString', coordinates: coords },
+            { color: drawColor, weight: drawWeight, dashArray: drawDash || null });
+        cancelDrawing();
+    } else if (drawMode === 'polygon' && drawPoints.length >= 3) {
+        const ring   = [...drawPoints, drawPoints[0]];
+        const coords = ring.map(p => { const a = latLngToArma(p); return [a.x, a.y]; });
+        saveAnnotation('polygon',
+            { type: 'Polygon', coordinates: [coords] },
+            { color: drawColor, weight: drawWeight, dashArray: drawDash || null, fillOpacity: 0.12 });
+        cancelDrawing();
+    }
+}
+
+function onMapDblClick(e) {
+    L.DomEvent.stop(e);
+    finishDrawing();
+}
+
+function onMapContextMenu(e) {
+    if (drawMode === 'polyline' || drawMode === 'polygon') {
+        L.DomEvent.stop(e);
+        finishDrawing();
+    }
+}
+
+function onMapMouseMove(e) {
+    const ll = e.latlng;
+
+    if ((drawMode === 'polyline' || drawMode === 'polygon') && drawPoints.length > 0) {
+        refreshPreviewLine(ll);
+    }
+
+    if (drawMode === 'rectangle' && rectStart) {
+        if (previewRect) map.removeLayer(previewRect);
+        previewRect = L.rectangle([rectStart, ll], {
+            color: drawColor, weight: drawWeight, dashArray: '4 4', fillOpacity: 0.06
+        }).addTo(map);
+    }
+
+    if (drawMode === 'circle' && circCenter) {
+        if (previewCirc) map.removeLayer(previewCirc);
+        const r = map.distance(circCenter, ll);
+        previewCirc = L.circle(circCenter, {
+            radius: r, color: drawColor, weight: drawWeight, dashArray: '4 4', fillOpacity: 0.06
+        }).addTo(map);
+    }
+}
+
+function refreshPreviewLine(mouseLl) {
+    if (previewLine) map.removeLayer(previewLine);
+    const pts  = [...drawPoints, mouseLl];
+    const opts = { color: drawColor, weight: drawWeight, dashArray: '4 4', opacity: 0.7 };
+    previewLine = (drawMode === 'polygon' && pts.length > 2)
+        ? L.polygon(pts, { ...opts, fillOpacity: 0.05 }).addTo(map)
+        : L.polyline(pts, opts).addTo(map);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SAVE ANNOTATION TO API
+   ═══════════════════════════════════════════════════════════════════════ */
+async function saveAnnotation(type, geometry, properties) {
+    if (!activeLayerId) return;
+    setSaveStatus('saving', 'Saving…');
+    const data = await apiFetch(`/operations/${OP_ID}/map/annotations`, 'POST', {
+        layer_id: activeLayerId, type, geometry, properties
+    });
+    if (data.success) {
+        renderAnnotation({ id: data.id, layer_id: activeLayerId, type, geometry, properties });
+        renderLayerPanel();
+        setSaveStatus('saved', 'Saved');
+    } else {
+        setSaveStatus('error', 'Save error');
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   NATO SIDC BUILDER
+   ═══════════════════════════════════════════════════════════════════════ */
+const natoSt = { affil:'3', symSet:'10', echelon:'00', entity:'000000', hq:false, tf:false, fd:false };
+let natoSelectedSIDC = null;
+
+function natoComputeSIDC() {
+    const hqtf = (natoSt.hq ? 1 : 0) | (natoSt.tf ? 2 : 0) | (natoSt.fd ? 4 : 0);
+    return '10' + '0' + natoSt.affil + natoSt.symSet + '0' + hqtf + natoSt.echelon + natoSt.entity + '0000';
+}
+
+function natoAffilFrameSVG(shape, color) {
+    const s = 'stroke="black" stroke-width="3"';
+    const f = `fill="${color}" fill-opacity="0.92"`;
+    const d = 'stroke-dasharray="6,4"';
+    switch(shape) {
+        case 'fri':  return `<svg width="38" height="27" viewBox="0 0 28 20"><rect x="1" y="1" width="26" height="18" rx="1" ${s} ${f}/></svg>`;
+        case 'asf':  return `<svg width="38" height="27" viewBox="0 0 28 20"><rect x="1" y="1" width="26" height="18" rx="1" stroke="none" fill="${color}" fill-opacity="0.35"/><rect x="1" y="1" width="26" height="18" rx="1" stroke-width="4" ${d} stroke="${color}" fill="none"/><rect x="1" y="1" width="26" height="18" rx="1" ${s} fill="none"/></svg>`;
+        case 'hos':  return `<svg width="34" height="34" viewBox="0 0 26 26"><path d="M13,1 L25,13 13,25 1,13 Z" ${s} ${f}/></svg>`;
+        case 'sus':  return `<svg width="34" height="34" viewBox="0 0 26 26"><path d="M13,1 L25,13 13,25 1,13 Z" stroke="none" fill="${color}" fill-opacity="0.35"/><path d="M13,1 L25,13 13,25 1,13 Z" stroke-width="4" ${d} stroke="${color}" fill="none"/><path d="M13,1 L25,13 13,25 1,13 Z" ${s} fill="none"/></svg>`;
+        case 'neu':  return `<svg width="32" height="32" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" ${s} ${f}/></svg>`;
+        case 'unk':  return `<svg width="32" height="32" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" ${s} ${f}/></svg>`;
+        case 'pend': return `<svg width="32" height="32" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" stroke="none" fill="${color}" fill-opacity="0.35"/><circle cx="12" cy="12" r="11" stroke-width="4" ${d} stroke="${color}" fill="none"/><circle cx="12" cy="12" r="11" ${s} fill="none"/></svg>`;
+    }
+    return '';
+}
+
+function natoUpdatePreview() {
+    const sidc = natoComputeSIDC();
+    document.getElementById('nato-sidc-input').value = sidc;
+    const box = document.getElementById('nato-preview-box');
+    if (!box) return;
+    if (typeof ms === 'undefined') { box.textContent = '?'; return; }
+    try { box.innerHTML = new ms.Symbol(sidc, { size: 55, strokeWidth: 4 }).asSVG(); }
+    catch(e) { box.textContent = '?'; }
+}
+
+function natoPopulateEntities(filter) {
+    const sel = document.getElementById('nato-entity-select');
+    if (!sel) return;
+    const entries = SIDC_ENTITIES[natoSt.symSet] || [];
+    const q = (filter || '').toLowerCase();
+    const filtered = q ? entries.filter(e => e.l.toLowerCase().includes(q) || e.g.toLowerCase().includes(q)) : entries;
+    const groups = {};
+    for (const e of filtered) (groups[e.g] = groups[e.g] || []).push(e);
+    sel.innerHTML = '';
+    for (const [grp, items] of Object.entries(groups)) {
+        const og = document.createElement('optgroup');
+        og.label = grp;
+        for (const item of items) {
+            const opt = document.createElement('option');
+            opt.value = item.v;
+            opt.textContent = item.l;
+            if (item.v === natoSt.entity) opt.selected = true;
+            og.appendChild(opt);
+        }
+        sel.appendChild(og);
+    }
+    if (!filtered.find(e => e.v === natoSt.entity) && filtered.length > 0) {
+        natoSt.entity = filtered[0].v;
+        if (sel.options[0]) sel.options[0].selected = true;
+    }
+}
+
+function natoInitModal() {
+    // Affiliation buttons — build once
+    const afRow = document.getElementById('nato-affil-row');
+    if (afRow && !afRow.dataset.built) {
+        afRow.dataset.built = '1';
+        for (const a of SIDC_AFFILS) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'nato-affil-btn';
+            btn.dataset.affil = a.v;
+            btn.innerHTML = natoAffilFrameSVG(a.shape, a.color) + '<span>' + a.l + '</span>';
+            btn.onclick = () => {
+                natoSt.affil = a.v;
+                document.querySelectorAll('.nato-affil-btn').forEach(b => b.classList.toggle('active', b.dataset.affil === a.v));
+                natoUpdatePreview();
+            };
+            afRow.appendChild(btn);
+        }
+    }
+    // Sync affil active state
+    document.querySelectorAll('.nato-affil-btn').forEach(b => b.classList.toggle('active', b.dataset.affil === natoSt.affil));
+
+    // Symbol set
+    const symSel = document.getElementById('nato-symset');
+    if (symSel) {
+        symSel.value = natoSt.symSet;
+        symSel.onchange = () => { natoSt.symSet = symSel.value; natoSt.entity = '000000'; natoPopulateEntities(); natoUpdatePreview(); };
+    }
+    // Echelon
+    const echelSel = document.getElementById('nato-echelon');
+    if (echelSel) { echelSel.value = natoSt.echelon; echelSel.onchange = () => { natoSt.echelon = echelSel.value; natoUpdatePreview(); }; }
+    // Modifiers
+    const chkHQ = document.getElementById('nato-chk-hq');
+    const chkTF = document.getElementById('nato-chk-tf');
+    const chkFD = document.getElementById('nato-chk-fd');
+    if (chkHQ) { chkHQ.checked = natoSt.hq; chkHQ.onchange = () => { natoSt.hq = chkHQ.checked; natoUpdatePreview(); }; }
+    if (chkTF) { chkTF.checked = natoSt.tf; chkTF.onchange = () => { natoSt.tf = chkTF.checked; natoUpdatePreview(); }; }
+    if (chkFD) { chkFD.checked = natoSt.fd; chkFD.onchange = () => { natoSt.fd = chkFD.checked; natoUpdatePreview(); }; }
+    // Entity select
+    natoPopulateEntities();
+    const entSel = document.getElementById('nato-entity-select');
+    if (entSel) entSel.onchange = () => { natoSt.entity = entSel.value; natoUpdatePreview(); };
+    // Entity filter
+    const entFilter = document.getElementById('nato-entity-filter');
+    if (entFilter) entFilter.oninput = () => natoPopulateEntities(entFilter.value.trim());
+    // SIDC direct edit
+    const sidcIn = document.getElementById('nato-sidc-input');
+    if (sidcIn) sidcIn.oninput = () => {
+        const raw = sidcIn.value.replace(/\D/g, '').slice(0, 20).padEnd(20, '0');
+        if (raw.length >= 20) {
+            natoSt.affil = raw[3]; natoSt.symSet = raw.slice(4, 6);
+            const hqtf = parseInt(raw[7]) || 0;
+            natoSt.hq = !!(hqtf & 1); natoSt.tf = !!(hqtf & 2); natoSt.fd = !!(hqtf & 4);
+            natoSt.echelon = raw.slice(8, 10); natoSt.entity = raw.slice(10, 16);
+            document.querySelectorAll('.nato-affil-btn').forEach(b => b.classList.toggle('active', b.dataset.affil === natoSt.affil));
+            const ss = document.getElementById('nato-symset');  if (ss) ss.value = natoSt.symSet;
+            const es = document.getElementById('nato-echelon'); if (es) es.value = natoSt.echelon;
+            if (chkHQ) chkHQ.checked = natoSt.hq;
+            if (chkTF) chkTF.checked = natoSt.tf;
+            if (chkFD) chkFD.checked = natoSt.fd;
+            natoPopulateEntities();
+            const box = document.getElementById('nato-preview-box');
+            if (box && typeof ms !== 'undefined') {
+                try { box.innerHTML = new ms.Symbol(raw, { size: 55, strokeWidth: 4 }).asSVG(); } catch(e) {}
+            }
+        }
+    };
+}
+
+function openNATOModal(latlng) {
+    pendingNATOLatLng = latlng;
+    natoSelectedSIDC  = null;
+    document.getElementById('nato-label').value = '';
+    natoSt.affil = '3'; natoSt.symSet = '10'; natoSt.echelon = '00';
+    natoSt.entity = '000000'; natoSt.hq = false; natoSt.tf = false; natoSt.fd = false;
+    natoInitModal();
+    natoUpdatePreview();
+    const ef = document.getElementById('nato-entity-filter'); if (ef) ef.value = '';
+    document.getElementById('nato-modal').classList.add('open');
+}
+
+function closeNATOModal() {
+    document.getElementById('nato-modal').classList.remove('open');
+    pendingNATOLatLng = null;
+    natoSelectedSIDC  = null;
+}
+
+async function confirmNATOPlacement() {
+    if (!pendingNATOLatLng) return;
+    const sidc  = natoComputeSIDC();
+    const label = document.getElementById('nato-label').value.trim();
+    const a     = latLngToArma(pendingNATOLatLng);
+    closeNATOModal();
+    await saveAnnotation('nato_marker',
+        { type: 'Point', coordinates: [a.x, a.y] },
+        { sidc, label, color: drawColor });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LAYER MODAL
+   ═══════════════════════════════════════════════════════════════════════ */
+function openLayerModal(mode, layerId = null) {
+    lmodalMode    = mode;
+    lmodalLayerId = layerId;
+    const title = document.getElementById('lmodal-title');
+    const nameInput  = document.getElementById('lmodal-name');
+    const colorInput = document.getElementById('lmodal-color');
+
+    if (mode === 'edit' && layerId) {
+        title.textContent       = 'Edit Layer';
+        nameInput.value         = layers[layerId].meta.name;
+        colorInput.value        = layers[layerId].meta.color;
+    } else {
+        title.textContent = 'New Layer';
+        nameInput.value   = '';
+        colorInput.value  = '#3498DB';
+    }
+    document.getElementById('layer-modal').classList.add('open');
+    nameInput.focus();
+}
+
+function closeLayerModal() {
+    document.getElementById('layer-modal').classList.remove('open');
+}
+
+async function saveLayerModal() {
+    const name  = document.getElementById('lmodal-name').value.trim();
+    const color = document.getElementById('lmodal-color').value;
+    if (!name) return;
+    closeLayerModal();
+    if (lmodalMode === 'add') {
+        await apiCreateLayer(name, color);
+    } else if (lmodalMode === 'edit') {
+        await apiUpdateLayer(lmodalLayerId, name, color);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   KEYBOARD SHORTCUTS
+   ═══════════════════════════════════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+    if (!CAN_EDIT) return;
+    if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+
+    switch (e.key) {
+        case 'Escape':     setDrawMode('select'); closeNATOModal(); break;
+        case 'm': case 'M': setDrawMode('nato_marker'); break;
+        case 'l': case 'L': setDrawMode('polyline'); break;
+        case 'p': case 'P': setDrawMode('polygon'); break;
+        case 'r': case 'R': setDrawMode('rectangle'); break;
+        case 'c': case 'C': setDrawMode('circle'); break;
+        case 't': case 'T': setDrawMode('text'); break;
+        case 'Backspace':
+            if (drawPoints.length > 0) {
+                drawPoints.pop();
+                if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
+            }
+            break;
+    }
+});
+
+/* ═══════════════════════════════════════════════════════════════════════
+   WIRE UP UI EVENTS
+   ═══════════════════════════════════════════════════════════════════════ */
+if (CAN_EDIT) {
+    document.getElementById('btn-add-layer')?.addEventListener('click', () => openLayerModal('add'));
+
+    document.getElementById('tb-select')?.addEventListener('click', () => setDrawMode('select'));
+    document.getElementById('tb-nato')?.addEventListener('click',   () => setDrawMode('nato_marker'));
+    document.getElementById('tb-line')?.addEventListener('click',   () => setDrawMode('polyline'));
+    document.getElementById('tb-poly')?.addEventListener('click',   () => setDrawMode('polygon'));
+    document.getElementById('tb-rect')?.addEventListener('click',   () => setDrawMode('rectangle'));
+    document.getElementById('tb-circle')?.addEventListener('click', () => setDrawMode('circle'));
+    document.getElementById('tb-text')?.addEventListener('click',   () => setDrawMode('text'));
+    document.getElementById('tb-undo')?.addEventListener('click',   () => {
+        if (drawPoints.length > 0) {
+            drawPoints.pop();
+            if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
+        } else if (rectStart) {
+            rectStart = null;
+            if (previewRect) { map.removeLayer(previewRect); previewRect = null; }
+        } else if (circCenter) {
+            circCenter = null;
+            if (previewCirc) { map.removeLayer(previewCirc); previewCirc = null; }
+        }
+    });
+
+    document.getElementById('draw-color')?.addEventListener('input',  e => { drawColor  = e.target.value; });
+    document.getElementById('draw-weight')?.addEventListener('input', e => { drawWeight = parseInt(e.target.value); });
+
+    // NATO modal
+    document.getElementById('nato-modal-close')?.addEventListener('click', closeNATOModal);
+    document.getElementById('nato-cancel')?.addEventListener('click',      closeNATOModal);
+    document.getElementById('nato-confirm')?.addEventListener('click',     confirmNATOPlacement);
+
+    // Properties panel
+    document.getElementById('props-close')?.addEventListener('click',     deselectAnnotation);
+    document.getElementById('btn-props-save')?.addEventListener('click',  saveAnnotationProps);
+    document.getElementById('btn-props-delete')?.addEventListener('click', deleteSelectedAnnotation);
+
+    // Layer modal
+    document.getElementById('lmodal-cancel')?.addEventListener('click', closeLayerModal);
+    document.getElementById('lmodal-save')?.addEventListener('click',   saveLayerModal);
+    document.getElementById('lmodal-name')?.addEventListener('keydown', e => { if (e.key === 'Enter') saveLayerModal(); });
+
+    // Rotation slider live preview
+    document.getElementById('pr-rotation')?.addEventListener('input', e => {
+        const deg = parseInt(e.target.value) || 0;
+        document.getElementById('pr-rotation-val').textContent = deg + '°';
+        if (selectedId && selectedLayerId) {
+            const rec = layers[selectedLayerId]?.featureMap[selectedId];
+            if (rec && rec.ann.type === 'nato_marker') {
+                const p = rec.ann.properties || {};
+                rec.feature.setIcon(makeNATOIcon(p.sidc || '130110000000000000000000000000', p.label, deg));
+            }
+        }
+    });
+
+    // Close modals on backdrop click
+    document.getElementById('nato-modal')?.addEventListener('click', e => {
+        if (e.target === document.getElementById('nato-modal')) closeNATOModal();
+    });
+    document.getElementById('layer-modal')?.addEventListener('click', e => {
+        if (e.target === document.getElementById('layer-modal')) closeLayerModal();
+    });
+    document.getElementById('export-modal')?.addEventListener('click', e => {
+        if (e.target === document.getElementById('export-modal')) document.getElementById('export-modal').classList.remove('open');
+    });
+}
+
+// Export button (available to all users)
+document.getElementById('btn-export-sqf')?.addEventListener('click', openExportModal);
+document.getElementById('export-close')?.addEventListener('click', () => document.getElementById('export-modal').classList.remove('open'));
+document.getElementById('export-copy')?.addEventListener('click', async () => {
+    const text = document.getElementById('export-sqf-text').value;
+    try {
+        await navigator.clipboard.writeText(text);
+        const btn = document.getElementById('export-copy');
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = orig, 1800);
+    } catch { document.getElementById('export-sqf-text').select(); document.execCommand('copy'); }
+});
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BOOT
+   ═══════════════════════════════════════════════════════════════════════ */
+initMap();
+loadData();
+</script>
+</body>
+</html>

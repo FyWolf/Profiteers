@@ -164,6 +164,31 @@ function timestampToDatetimeLocal(timestamp) {
                 </small>
             </div>
 
+            <div class="form-group">
+                <label>🗺 Mission Map Terrain</label>
+                <input type="hidden" id="map_world" name="map_world" value="<%= operation ? (operation.map_world || '') : '' %>">
+
+                <div id="map-selector-display" style="border:1px solid var(--olive); border-radius:4px; padding:12px; background:rgba(0,0,0,0.2); display:flex; align-items:center; gap:12px; min-height:64px;">
+                    <div id="selected-map-thumb" style="width:80px; height:50px; border-radius:3px; background:#1a1a1a; flex-shrink:0; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+                        <% if (operation && operation.map_world) { %>
+                            <img src="/images/maps/<%= operation.map_world %>/preview_512.png" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">
+                        <% } else { %>
+                            <span style="color:#444;font-size:1.4em;">🗺</span>
+                        <% } %>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div id="selected-map-name" style="color:var(--accent);font-weight:700;font-size:0.95em;">
+                            <%= (operation && operation.map_world) ? operation.map_world : 'No terrain selected' %>
+                        </div>
+                        <div style="color:var(--khaki);font-size:0.8em;margin-top:2px;">Leave empty for no mission map</div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-shrink:0;">
+                        <button type="button" id="btn-browse-maps" style="padding:6px 14px;border-radius:4px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:0.85em;white-space:nowrap;">Browse Terrains</button>
+                        <button type="button" id="btn-clear-map" style="padding:6px 10px;border-radius:4px;border:1px solid #555;background:transparent;color:#888;cursor:pointer;font-size:0.85em;display:<%= (operation && operation.map_world) ? 'block' : 'none' %>;">✕</button>
+                    </div>
+                </div>
+            </div>
+
             <% if (action === 'edit') { %>
                 <div class="form-group">
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
@@ -211,6 +236,23 @@ function timestampToDatetimeLocal(timestamp) {
             </div>
         </form>
     </section>
+</div>
+
+<!-- ─── Terrain Picker Modal (outside container to avoid stacking-context issues) ─── -->
+<div id="map-picker-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.75);backdrop-filter:blur(3px);align-items:center;justify-content:center;">
+    <div style="background:var(--camo-dark);border:1px solid var(--olive);border-radius:6px;width:780px;max-width:95vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.7);">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--olive);display:flex;align-items:center;">
+            <h3 style="flex:1;color:var(--accent);margin:0;font-size:1em;letter-spacing:0.06em;">SELECT TERRAIN</h3>
+            <button id="map-picker-close" type="button" style="background:none;border:none;color:#666;font-size:1.2em;cursor:pointer;padding:2px 6px;">✕</button>
+        </div>
+        <div id="map-picker-body" style="flex:1;overflow-y:auto;padding:16px;">
+            <div id="map-picker-loading" style="text-align:center;padding:40px;color:var(--khaki);">Loading terrains…</div>
+            <div id="map-picker-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;display:none;"></div>
+            <div id="map-picker-empty" style="display:none;text-align:center;padding:40px;color:#555;">
+                No terrains found in <code>public/images/maps/</code>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -440,6 +482,82 @@ setInterval(updateUtcTime, 1000);
 <% } else { %>
 console.error('Users data not available for host search - users:', typeof users);
 <% } %>
+
+/* ─── Terrain picker ───────────────────────────────────────────────────── */
+(function () {
+    const modal       = document.getElementById('map-picker-modal');
+    const grid        = document.getElementById('map-picker-grid');
+    const loading     = document.getElementById('map-picker-loading');
+    const empty       = document.getElementById('map-picker-empty');
+    const hiddenInput = document.getElementById('map_world');
+    const nameLabel   = document.getElementById('selected-map-name');
+    const thumb       = document.getElementById('selected-map-thumb');
+    const clearBtn    = document.getElementById('btn-clear-map');
+
+    let mapsFetched = false;
+
+    function openModal() {
+        modal.style.display = 'flex';
+        if (!mapsFetched) fetchMaps();
+    }
+
+    function closeModal() { modal.style.display = 'none'; }
+
+    function setMap(worldName, displayName, previewUrl) {
+        hiddenInput.value = worldName;
+        nameLabel.textContent = displayName;
+        clearBtn.style.display = 'block';
+        thumb.innerHTML = worldName
+            ? `<img src="${previewUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">`
+            : '<span style="color:#444;font-size:1.4em;">🗺</span>';
+        closeModal();
+    }
+
+    async function fetchMaps() {
+        try {
+            const res  = await fetch('/operations/maps');
+            const data = await res.json();
+            loading.style.display = 'none';
+            mapsFetched = true;
+
+            if (!data.success || !data.maps.length) {
+                empty.style.display = 'block';
+                return;
+            }
+
+            grid.style.display = 'grid';
+            grid.innerHTML = data.maps.map(m => `
+                <div data-world="${m.worldName}" data-display="${m.displayName}" data-preview="${m.previewUrl || ''}"
+                     style="border:2px solid var(--olive);border-radius:5px;overflow:hidden;cursor:pointer;transition:border-color .15s;background:rgba(0,0,0,0.3);"
+                     onmouseover="this.style.borderColor='var(--accent)'"
+                     onmouseout="this.style.borderColor='var(--olive)'">
+                    <div style="height:110px;background:#111;overflow:hidden;">
+                        ${m.previewUrl ? `<img src="${m.previewUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='<div style=height:100%;display:flex;align-items:center;justify-content:center;color:#333;font-size:2em>🗺</div>'">` : '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#333;font-size:2em;">🗺</div>'}
+                    </div>
+                    <div style="padding:10px 12px;">
+                        <div style="font-weight:700;color:var(--accent);font-size:0.9em;margin-bottom:3px;">${m.displayName}</div>
+                        ${m.worldSize  ? `<div style="color:var(--khaki);font-size:0.75em;">${(m.worldSize/1000).toFixed(1)} km × ${(m.worldSize/1000).toFixed(1)} km</div>` : ''}
+                        ${m.author     ? `<div style="color:#666;font-size:0.72em;margin-top:2px;">${m.author}</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            grid.querySelectorAll('[data-world]').forEach(card => {
+                card.addEventListener('click', () => {
+                    setMap(card.dataset.world, card.dataset.display, card.dataset.preview);
+                });
+            });
+        } catch (err) {
+            loading.textContent = 'Failed to load terrains.';
+            console.error(err);
+        }
+    }
+
+    document.getElementById('btn-browse-maps').addEventListener('click', openModal);
+    document.getElementById('map-picker-close').addEventListener('click', closeModal);
+    clearBtn.addEventListener('click', () => setMap('', 'No terrain selected', ''));
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+})();
 </script>
 
 <%- include('../partials/footer') %>
