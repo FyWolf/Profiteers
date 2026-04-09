@@ -44,7 +44,7 @@ function renderTemplateRoleCard(role, squad) {
 
     const roleMenuItems = assignment
         ? `<button class="ctrl-menu-item" onclick="showAssignModal(${role.id}, ${escapedRoleName})">Change player</button>
-           <button class="ctrl-menu-item ctrl-menu-danger" onclick="unassignPlayer(${role.id})">Remove player</button>
+           <button class="ctrl-menu-item ctrl-menu-danger" onclick="unassignPlayer(${role.id})">Kill player</button>
            <button class="ctrl-menu-item" onclick="showRoleEdit(${role.id})">Edit slot</button>
            <button class="ctrl-menu-item ctrl-menu-danger" onclick="deleteRole(${role.id})">Delete slot</button>`
         : `<button class="ctrl-menu-item" onclick="showAssignModal(${role.id}, ${escapedRoleName})">Assign player</button>
