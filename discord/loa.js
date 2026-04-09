@@ -5,13 +5,13 @@ async function sendLOANotification(client, loa, user, superior, action = 'submit
     try {
         const channelId = process.env.DISCORD_LOA_CHANNEL_ID;
         if (!channelId) {
-            console.warn('⚠️  DISCORD_LOA_CHANNEL_ID not set');
+            console.warn('DISCORD_LOA_CHANNEL_ID not set');
             return null;
         }
 
         const channel = await client.channels.fetch(channelId);
         if (!channel) {
-            console.error('❌ LOA channel not found');
+            console.error('LOA channel not found');
             return null;
         }
 
@@ -30,14 +30,14 @@ async function sendLOANotification(client, loa, user, superior, action = 'submit
         if (!durationText) durationText = 'Less than 1 hour';
 
         let title = '🛑 Leave of Absence Submitted';
-        let color = 0xE74C3C; // Red
-        
+        let color = 0xE74C3C;
+
         if (action === 'updated') {
             title = '✏️ Leave of Absence Updated';
-            color = 0xF39C12; // Orange
+            color = 0xF39C12;
         } else if (action === 'deleted') {
             title = '🗑️ Leave of Absence Cancelled';
-            color = 0x95A5A6; // Gray
+            color = 0x95A5A6;
         }
 
         const embed = new EmbedBuilder()
@@ -91,11 +91,10 @@ async function sendLOANotification(client, loa, user, superior, action = 'submit
             embeds: [embed]
         });
 
-        console.log(`✅ Sent LOA ${action} notification for: ${user.username}`);
         return message;
 
     } catch (error) {
-        console.error('❌ Error sending LOA notification:', error);
+        console.error('Error sending LOA notification:', error);
         return null;
     }
 }
@@ -113,7 +112,7 @@ async function sendLOAExpiringReminder(client, loa, user) {
         const embed = new EmbedBuilder()
             .setTitle('🔔 Leave of Absence Ending Soon')
             .setDescription(`${user.discord_global_name || user.username}'s leave is ending soon.`)
-            .setColor(0x3498DB) // Blue
+            .setColor(0x3498DB)
             .addFields(
                 {
                     name: '📅 Return Date',
@@ -133,11 +132,10 @@ async function sendLOAExpiringReminder(client, loa, user) {
             embeds: [embed]
         });
 
-        console.log(`✅ Sent LOA expiring reminder for: ${user.username}`);
         return message;
 
     } catch (error) {
-        console.error('❌ Error sending LOA expiring reminder:', error);
+        console.error('Error sending LOA expiring reminder:', error);
         return null;
     }
 }

@@ -15,7 +15,7 @@ router.get('/submit', isAuthenticated, async (req, res) => {
             FROM users
             WHERE id != ?
             ORDER BY discord_global_name ASC, username ASC
-        `, [req.session.userId]); // Exclude self from list
+        `, [req.session.userId]);
 
         res.render('loa/submit', {
             title: 'Submit Leave of Absence - Profiteers PMC',
@@ -68,7 +68,6 @@ router.post('/submit', isAuthenticated, async (req, res) => {
                 );
             } catch (discordError) {
                 console.error('Discord LOA notification error:', discordError);
-                // Don't fail the LOA submission if Discord fails
             }
         }
 
@@ -95,7 +94,7 @@ router.get('/edit/:id', isAuthenticated, async (req, res) => {
             FROM users
             WHERE id != ?
             ORDER BY discord_global_name ASC, username ASC
-        `, [req.session.userId]); // Exclude self from list
+        `, [req.session.userId]);
 
         res.render('loa/edit', {
             title: 'Edit Leave of Absence - Profiteers PMC',
@@ -151,7 +150,6 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
                 }
             } catch (discordError) {
                 console.error('Discord LOA update error:', discordError);
-                // Don't fail the LOA update if Discord fails
             }
         }
 
@@ -164,7 +162,6 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
 
 router.post('/delete/:id', isAuthenticated, async (req, res) => {
     try {
-        // Get LOA and user info BEFORE deleting for Discord notification
         let loaData = null;
         let userData = null;
         
@@ -201,7 +198,6 @@ router.post('/delete/:id', isAuthenticated, async (req, res) => {
                 );
             } catch (discordError) {
                 console.error('Discord LOA deletion error:', discordError);
-                // Don't fail the LOA deletion if Discord fails
             }
         }
 
@@ -286,7 +282,6 @@ router.post('/review/:id', hasPermission('admin.access'), async (req, res) => {
         if (loas.length === 0) return res.redirect('/loa/all?error=LOA not found');
 
         if (loas[0].reviewed_by) {
-            // Already reviewed — un-acknowledge
             await db.query(
                 'UPDATE leave_of_absence SET reviewed_by = NULL, reviewed_at = NULL, review_notes = NULL WHERE id = ?',
                 [req.params.id]

@@ -74,7 +74,6 @@ router.get('/', isAuthenticated, async (req, res) => {
 
 router.get('/:userId', async (req, res) => {
     try {
-        // Get user information by user ID (not Discord ID for privacy)
         const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.params.userId]);
         
         if (users.length === 0) {

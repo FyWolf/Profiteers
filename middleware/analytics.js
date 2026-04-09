@@ -1,7 +1,6 @@
 const db     = require('../config/database');
 const crypto = require('crypto');
 
-// Known bots, crawlers, monitoring tools, and headless HTTP clients
 const BOT_UA_RE = /bot|crawl|spider|slurp|scraper|curl|wget|python[-\/]|node[-\.]|go-http|java\/|libwww|okhttp|httpx|undici|axios|got\/|node-fetch|facebookexternalhit|discordbot|twitterbot|linkedinbot|whatsapp|telegrambot|uptimerobot|pingdom|statuscake|nagios|zabbix|datadog|newrelic|semrush|ahrefs|mj12bot|dotbot|rogerbot|archive\.org/i;
 
 function isBot(ua) {
@@ -15,8 +14,6 @@ function detectDevice(ua) {
     if (/mobile|android|iphone|ipod|blackberry|windows phone/i.test(ua)) return 'mobile';
     return 'desktop';
 }
-
-// ── DB init ──────────────────────────────────────────────────────────────────
 
 (async () => {
     try {
@@ -40,7 +37,6 @@ function detectDevice(ua) {
                 INDEX idx_visited_at (visited_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=uca1400_ai_ci
         `);
-        // Migrations for columns added after initial deploy
         await db.query(`ALTER TABLE page_views ADD COLUMN IF NOT EXISTS user_agent  VARCHAR(500) NULL`);
         await db.query(`ALTER TABLE page_views ADD COLUMN IF NOT EXISTS is_bot      TINYINT(1) NOT NULL DEFAULT 0`);
         await db.query(`ALTER TABLE page_views ADD COLUMN IF NOT EXISTS ip          VARCHAR(45) NULL`);
@@ -67,21 +63,18 @@ function detectDevice(ua) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=uca1400_ai_ci
         `);
     } catch (err) {
-        console.error('❌ Failed to initialise analytics tables:', err);
+        console.error('Failed to initialise analytics tables:', err);
     }
 })();
 
-// ── Session cookie ────────────────────────────────────────────────────────────
-
 const SESSION_COOKIE = '_asid';
-const SESSION_TTL_MS = 30 * 60 * 1000; // 30-minute rolling window
+const SESSION_TTL_MS = 30 * 60 * 1000;
 
 function getOrCreateSession(req, res) {
     let sid = req.cookies?.[SESSION_COOKIE];
     if (!sid) {
         sid = crypto.randomBytes(16).toString('hex');
     }
-    // Refresh TTL on every request (rolling session)
     res.cookie(SESSION_COOKIE, sid, {
         httpOnly: true,
         sameSite: 'lax',
@@ -91,14 +84,10 @@ function getOrCreateSession(req, res) {
     return sid;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function extractIp(req) {
     return (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '')
         .split(',')[0].trim().substring(0, 45) || null;
 }
-
-// ── Middleware ────────────────────────────────────────────────────────────────
 
 const SKIP_EXACT   = new Set(['/login', '/logout']);
 const SKIP_PREFIX  = ['/auth'];
@@ -127,9 +116,6 @@ function trackPageView(req, res, next) {
 
     next();
 }
-
-// ── Event tracking (call from routes) ────────────────────────────────────────
-// Usage: await trackEvent(req, 'op_view', operationId, { title: op.title })
 
 async function trackEvent(req, eventType, entityId = null, metadata = null) {
     const userId    = req.isAuthenticated?.() ? req.user.id : null;

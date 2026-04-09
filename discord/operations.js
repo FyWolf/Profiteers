@@ -18,9 +18,7 @@ function htmlToMarkdown(html) {
     text = text.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
     text = text.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
     
-    // Underline (Discord uses __ for underline)
     text = text.replace(/<u[^>]*>(.*?)<\/u>/gi, '__$1__');
-    
     text = text.replace(/<s[^>]*>(.*?)<\/s>/gi, '~~$1~~');
     text = text.replace(/<strike[^>]*>(.*?)<\/strike>/gi, '~~$1~~');
     text = text.replace(/<del[^>]*>(.*?)<\/del>/gi, '~~$1~~');
@@ -53,7 +51,6 @@ function htmlToMarkdown(html) {
     text = text.replace(/\n{3,}/g, '\n\n');
     text = text.trim();
     
-    // Limit length for Discord (2000 char limit for embed description)
     if (text.length > 1900) {
         text = text.substring(0, 1897) + '...';
     }
@@ -93,13 +90,13 @@ async function createOperationPost(client, operation) {
     try {
         const forumChannelId = process.env.DISCORD_OPERATIONS_FORUM_ID;
         if (!forumChannelId) {
-            console.warn('⚠️  DISCORD_OPERATIONS_FORUM_ID not set');
+            console.warn('DISCORD_OPERATIONS_FORUM_ID not set');
             return null;
         }
 
         const forumChannel = await client.channels.fetch(forumChannelId);
         if (!forumChannel || forumChannel.type !== ChannelType.GuildForum) {
-            console.error('❌ Operations forum channel not found or not a forum');
+            console.error('Operations forum channel not found or not a forum');
             return null;
         }
 
@@ -118,7 +115,7 @@ async function createOperationPost(client, operation) {
         const embed = new EmbedBuilder()
             .setTitle(operation.title)
             .setDescription(cleanDescription)
-            .setColor(0x6B8E23) // Olive green
+            .setColor(0x6B8E23)
             .addFields(
                 {
                     name: '📅 Date & Time',
@@ -145,7 +142,6 @@ async function createOperationPost(client, operation) {
             embed.setImage(`${process.env.WEBSITE_URL}${operation.banner_url}`);
         }
 
-        // Create forum thread with just the title (no initial message content)
         const thread = await forumChannel.threads.create({
             name: operation.title,
             message: {
@@ -153,7 +149,6 @@ async function createOperationPost(client, operation) {
             }
         });
 
-        // Now post the embed with attendance buttons
         const embedMessage = await thread.send({
             embeds: [embed],
             components: [buildAttendanceButtons(operation.id)]
@@ -169,18 +164,16 @@ async function createOperationPost(client, operation) {
             content: `<@&${roleId}> **New ${opType} Posted!**\nMark your attendance with the buttons above, or for the full experience head to the website: <${process.env.WEBSITE_URL}/operations/${operation.id}>`
         });
 
-        // Store both thread ID and the embed message ID
         await db.query(`
             UPDATE operations 
             SET discord_forum_post_id = ?, discord_thread_id = ?, discord_message_id = ?
             WHERE id = ?
         `, [thread.id, thread.id, embedMessage.id, operation.id]);
 
-        console.log(`✅ Created forum post for operation: ${operation.title} (${opType})`);
         return { thread, embedMessage };
 
     } catch (error) {
-        console.error('❌ Error creating operation forum post:', error);
+        console.error('Error creating operation forum post:', error);
         return null;
     }
 }
@@ -188,19 +181,16 @@ async function createOperationPost(client, operation) {
 async function updateOperationPost(client, operation) {
     try {
         if (!operation.discord_message_id) {
-            console.log('ℹ️  Operation has no Discord message ID, creating new post...');
             return await createOperationPost(client, operation);
         }
 
         const thread = await client.channels.fetch(operation.discord_thread_id);
         if (!thread) {
-            console.warn('⚠️  Thread not found, creating new post...');
             return await createOperationPost(client, operation);
         }
 
         const embedMessage = await thread.messages.fetch(operation.discord_message_id);
         if (!embedMessage) {
-            console.warn('⚠️  Embed message not found, creating new post...');
             return await createOperationPost(client, operation);
         }
 
@@ -250,12 +240,11 @@ async function updateOperationPost(client, operation) {
             embeds: [embed],
             components: [buildAttendanceButtons(operation.id)]
         });
-        console.log(`✅ Updated forum post for operation: ${operation.title}`);
 
         return thread;
 
     } catch (error) {
-        console.error('❌ Error updating operation forum post:', error);
+        console.error('Error updating operation forum post:', error);
         return null;
     }
 }
@@ -269,17 +258,15 @@ function safeAttachmentName(filename) {
 async function postOperationNews(client, operation, newsContent, author, ping) {
     try {
         if (!operation.discord_thread_id) {
-            console.warn('⚠️  Operation has no forum thread');
             return null;
         }
 
         const thread = await client.channels.fetch(operation.discord_thread_id);
         if (!thread) {
-            console.warn('⚠️  Thread not found');
             return null;
         }
 
-        // Extract inline images saved via /upload-image (src starts with /images/news/)
+
         const imgRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/gi;
         const discordFiles = [];
         let firstImageAttachName = null;
@@ -296,7 +283,6 @@ async function postOperationNews(client, operation, newsContent, author, ping) {
                         firstImageAttachName = safeName;
                     }
                 } catch (e) {
-                    console.warn(`⚠️  Could not read inline image: ${src}`, e.message);
                 }
             }
         }
@@ -306,7 +292,7 @@ async function postOperationNews(client, operation, newsContent, author, ping) {
         const embed = new EmbedBuilder()
             .setTitle('📰 Operation Update')
             .setDescription(cleanContent)
-            .setColor(0x3498DB) // Blue
+            .setColor(0x3498DB)
             .setTimestamp()
             .setFooter({ text: `Posted by ${author}` });
 
@@ -324,12 +310,10 @@ async function postOperationNews(client, operation, newsContent, author, ping) {
         }
 
         const message = await thread.send(sendPayload);
-        console.log(`✅ Posted news to operation thread: ${operation.title}`);
-
         return message;
 
     } catch (error) {
-        console.error('❌ Error posting operation news:', error);
+        console.error('Error posting operation news:', error);
         return null;
     }
 }
@@ -337,13 +321,11 @@ async function postOperationNews(client, operation, newsContent, author, ping) {
 async function sendOperationReminder(client, operation, timeUntil) {
     try {
         if (!operation.discord_thread_id) {
-            console.warn('⚠️  Operation has no forum thread');
             return null;
         }
 
         const thread = await client.channels.fetch(operation.discord_thread_id);
         if (!thread) {
-            console.warn('⚠️  Thread not found');
             return null;
         }
         const mainOpsRoleId = process.env.DISCORD_MAIN_OPS_ROLE_ID;
@@ -354,7 +336,7 @@ async function sendOperationReminder(client, operation, timeUntil) {
         const embed = new EmbedBuilder()
             .setTitle(`⏰ Operation Starting ${timeUntil}!`)
             .setDescription(`**${operation.title}** is starting soon!`)
-            .setColor(0xF39C12) // Orange
+            .setColor(0xF39C12)
             .addFields(
                 {
                     name: '🕐 Start Time',
@@ -374,11 +356,10 @@ async function sendOperationReminder(client, operation, timeUntil) {
             embeds: [embed]
         });
 
-        console.log(`✅ Sent ${timeUntil} reminder for: ${operation.title}`);
         return message;
 
     } catch (error) {
-        console.error('❌ Error sending operation reminder:', error);
+        console.error('Error sending operation reminder:', error);
         return null;
     }
 }

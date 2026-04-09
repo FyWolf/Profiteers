@@ -13,7 +13,6 @@ function uniqueName(original) {
     return `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
 }
 
-// ── Public terminal ─────────────────────────────────────────────────
 router.get('/', async (req, res) => {
     try {
         const [nodes] = await db.query(
@@ -35,7 +34,6 @@ router.get('/', async (req, res) => {
     }
 });
 
-// ── Admin page ──────────────────────────────────────────────────────
 router.get('/admin', loreAdmin, async (req, res) => {
     try {
         const [nodes] = await db.query(
@@ -56,7 +54,6 @@ router.get('/admin', loreAdmin, async (req, res) => {
     }
 });
 
-// ── API: Find by slug + parent (terminal fallback for hidden nodes) ──
 router.get('/api/find', async (req, res) => {
     const { slug, parent_id } = req.query;
     if (!slug) return res.status(400).json({ error: 'slug required' });
@@ -71,7 +68,6 @@ router.get('/api/find', async (req, res) => {
             params
         );
         if (!rows.length) return res.status(404).json({ error: 'not found' });
-        // Also return files attached to this node
         const [files] = await db.query(
             'SELECT id, stored_name, original_name, mimetype, size FROM lore_files WHERE node_id = ? ORDER BY uploaded_at ASC',
             [rows[0].id]
@@ -83,7 +79,6 @@ router.get('/api/find', async (req, res) => {
     }
 });
 
-// ── API: Get files for a node ────────────────────────────────────────
 router.get('/api/nodes/:id/files', async (req, res) => {
     try {
         const [files] = await db.query(
@@ -97,7 +92,6 @@ router.get('/api/nodes/:id/files', async (req, res) => {
     }
 });
 
-// ── API: Upload file to a node ───────────────────────────────────────
 router.post('/api/nodes/:id/files', loreAdmin, async (req, res) => {
     try {
         if (!req.files || !req.files.file) {
@@ -121,7 +115,6 @@ router.post('/api/nodes/:id/files', loreAdmin, async (req, res) => {
     }
 });
 
-// ── API: Delete a file ───────────────────────────────────────────────
 router.delete('/api/files/:id', loreAdmin, async (req, res) => {
     try {
         const [rows] = await db.query('SELECT stored_name FROM lore_files WHERE id = ?', [req.params.id]);
@@ -138,7 +131,6 @@ router.delete('/api/files/:id', loreAdmin, async (req, res) => {
     }
 });
 
-// ── API: Create node ─────────────────────────────────────────────────
 router.post('/api/nodes', loreAdmin, async (req, res) => {
     try {
         const { parent_id, type, slug, title, hint, content, display_order } = req.body;
@@ -158,7 +150,6 @@ router.post('/api/nodes', loreAdmin, async (req, res) => {
     }
 });
 
-// ── API: Update node ─────────────────────────────────────────────────
 router.patch('/api/nodes/:id', loreAdmin, async (req, res) => {
     try {
         const { slug, title, hint, content, display_order, parent_id, type, visibility } = req.body;
@@ -189,10 +180,8 @@ router.patch('/api/nodes/:id', loreAdmin, async (req, res) => {
     }
 });
 
-// ── API: Delete node ─────────────────────────────────────────────────
 router.delete('/api/nodes/:id', loreAdmin, async (req, res) => {
     try {
-        // Delete physical files first (DB cascade handles lore_files rows)
         const [files] = await db.query('SELECT stored_name FROM lore_files WHERE node_id = ?', [req.params.id]);
         for (const f of files) {
             const p = path.join(UPLOAD_DIR, f.stored_name);

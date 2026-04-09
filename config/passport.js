@@ -22,7 +22,6 @@ passport.deserializeUser(async (id, done) => {
         const [users] = await db.query('SELECT * FROM users WHERE id = ?', [id]);
         if (users.length > 0) {
             const user = users[0];
-            // Load RBAC permissions for this user
             const [perms] = await db.query(`
                 SELECT DISTINCT p.name
                 FROM user_roles ur
@@ -62,13 +61,7 @@ async function checkUserAccess(discordUserId, guildId, requiredRoles, botToken) 
         
         const hasRole = requiredRoles.some(roleId => userRoles.includes(roleId));
         
-        if (!hasRole) {
-            console.log(`User missing required roles`);
-            console.log(`   Has: ${userRoles.join(', ') || 'none'}`);
-            console.log(`   Needs one of: ${requiredRoles.join(', ')}`);
-        }
-        
-        return { 
+        return {
             inGuild: true, 
             hasRole: hasRole,
             roles: userRoles 
@@ -77,7 +70,6 @@ async function checkUserAccess(discordUserId, guildId, requiredRoles, botToken) 
         const status = error.response?.status;
         
         if (status === 404) {
-            console.log(`User ${discordUserId} not in guild ${guildId}`);
             return { inGuild: false, hasRole: false, error: 'Not in guild' };
         } else if (status === 403) {
             console.error('Bot missing SERVER MEMBERS INTENT permission!');
@@ -119,8 +111,6 @@ passport.use(new DiscordStrategy({
     scope: DISCORD_CONFIG.scope
 }, async (accessToken, refreshToken, profile, done) => {
     try {
-        console.log(`\nDiscord login attempt: ${profile.username}#${profile.discriminator} (${profile.id})`);
-        
         const access = await checkUserAccess(
             profile.id, 
             DISCORD_CONFIG.requiredGuildId, 
@@ -129,15 +119,13 @@ passport.use(new DiscordStrategy({
         );
         
         if (!access.inGuild) {
-            console.log(`Access denied: Not in guild\n`);
-            return done(null, false, { 
+            return done(null, false, {
                 message: 'You must be a member of the Profiteers PMC Discord server to register.' 
             });
         }
 
         if (!access.hasRole) {
-            console.log(`Access denied: Missing required role\n`);
-            return done(null, false, { 
+            return done(null, false, {
                 message: 'You must have the required role in the Profiteers PMC Discord server to register.' 
             });
         }
@@ -223,7 +211,6 @@ passport.use(new DiscordStrategy({
                     }
                 }
                 
-                console.log(`Synced ${syncedCount} training(s)`);
             }
         } catch (syncError) {
             console.error('Error syncing trainings:', syncError.message);

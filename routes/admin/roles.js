@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const db = require('../../config/database');
 
-// ── List roles ────────────────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
     try {
         const [roles] = await db.query(`
@@ -38,7 +37,6 @@ router.get('/', async (req, res) => {
     }
 });
 
-// ── Create role form ──────────────────────────────────────────────────────────
 router.get('/create', async (req, res) => {
     try {
         const [permissions] = await db.query(
@@ -57,7 +55,6 @@ router.get('/create', async (req, res) => {
     }
 });
 
-// ── Create role ───────────────────────────────────────────────────────────────
 router.post('/create', async (req, res) => {
     try {
         const { name, description } = req.body;
@@ -88,7 +85,6 @@ router.post('/create', async (req, res) => {
     }
 });
 
-// ── Edit role form ────────────────────────────────────────────────────────────
 router.get('/:id/edit', async (req, res) => {
     try {
         const [roles] = await db.query('SELECT * FROM roles WHERE id = ?', [req.params.id]);
@@ -118,7 +114,6 @@ router.get('/:id/edit', async (req, res) => {
     }
 });
 
-// ── Update role ───────────────────────────────────────────────────────────────
 router.post('/:id/edit', async (req, res) => {
     try {
         const [roles] = await db.query('SELECT * FROM roles WHERE id = ?', [req.params.id]);
@@ -133,7 +128,6 @@ router.post('/:id/edit', async (req, res) => {
             return res.redirect(`/admin/roles/${req.params.id}/edit?error=Role name is required`);
         }
 
-        // System roles: allow updating permissions but not the name
         const newName = roles[0].is_system ? roles[0].name : name.trim();
 
         await db.query(
@@ -141,7 +135,6 @@ router.post('/:id/edit', async (req, res) => {
             [newName, description?.trim() || null, req.params.id]
         );
 
-        // Replace permissions
         await db.query('DELETE FROM role_permissions WHERE role_id = ?', [req.params.id]);
         if (selectedPerms.length > 0) {
             const rows = selectedPerms.map(pid => [parseInt(req.params.id), parseInt(pid)]);
@@ -158,7 +151,6 @@ router.post('/:id/edit', async (req, res) => {
     }
 });
 
-// ── Delete role ───────────────────────────────────────────────────────────────
 router.post('/:id/delete', async (req, res) => {
     try {
         const [roles] = await db.query('SELECT * FROM roles WHERE id = ?', [req.params.id]);

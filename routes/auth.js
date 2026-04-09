@@ -5,14 +5,13 @@ const { rateLimit } = require('express-rate-limit');
 const db = require('../config/database');
 
 const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    windowMs: 15 * 60 * 1000,
     limit: 10,
     message: 'Too many login attempts. Please try again in 15 minutes.',
     standardHeaders: true,
     legacyHeaders: false,
 });
 
-// Only allow relative paths to prevent open redirect attacks
 function sanitizeRedirect(url) {
     if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
         return url;
@@ -84,7 +83,6 @@ router.post('/login', loginLimiter, async (req, res) => {
                 return renderLoginError(res, 'An error occurred during login', redirect);
             }
 
-            // Set basic session props — isAdmin is resolved by attachUser middleware
             req.session.userId = user.id;
             req.session.username = user.username;
 

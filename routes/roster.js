@@ -77,7 +77,7 @@ router.post('/sync', async (req, res) => {
             return res.json({ success: false, error: 'Bot token not configured' });
         }
 
-        console.log('🔄 Starting roster sync...');
+        console.log('Starting roster sync...');
 
         let allMembers = [];
         let after = '0';
@@ -103,7 +103,7 @@ router.post('/sync', async (req, res) => {
             }
         }
 
-        console.log(`📥 Fetched ${allMembers.length} members from Discord`);
+        console.log(`Fetched ${allMembers.length} members from Discord`);
 
         const [rosterRoles] = await db.query(
             'SELECT * FROM roster_roles ORDER BY hierarchy_level ASC'
@@ -138,7 +138,6 @@ router.post('/sync', async (req, res) => {
             }
 
             if (highestRole) {
-                // Convert Discord ISO datetime to MySQL datetime
                 let joinedAtMySQL = null;
                 if (member.joined_at) {
                     const joinedDate = new Date(member.joined_at);
@@ -163,7 +162,7 @@ router.post('/sync', async (req, res) => {
             }
         }
 
-        console.log(`✅ Synced ${syncedCount} members (skipped ${skippedBots} bots)`);
+        console.log(`Synced ${syncedCount} members (skipped ${skippedBots} bots)`);
 
         res.json({
             success: true,
@@ -173,7 +172,7 @@ router.post('/sync', async (req, res) => {
             skipped: skippedBots
         });
     } catch (error) {
-        console.error('❌ Error syncing roster:', error);
+        console.error('Error syncing roster:', error);
         res.json({
             success: false,
             error: error.response?.data?.message || error.message || 'Failed to sync roster'
@@ -217,7 +216,7 @@ router.get('/search', async (req, res) => {
             username: m.discord_username,
             discord_global_name: m.discord_global_name,
             discord_avatar: m.discord_avatar,
-            needs_registration: !m.user_id // Flag if they haven't logged in yet
+            needs_registration: !m.user_id
         }));
         
         res.json(results);

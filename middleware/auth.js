@@ -7,10 +7,6 @@ function isAuthenticated(req, res, next) {
     res.redirect('/login?redirect=' + encodeURIComponent(req.originalUrl));
 }
 
-/**
- * Returns middleware that requires the user to hold a specific permission.
- * Access is granted purely through RBAC roles — no flag bypass.
- */
 function hasPermission(permission) {
     return function (req, res, next) {
         if (!req.isAuthenticated()) {
@@ -30,9 +26,6 @@ function hasPermission(permission) {
     };
 }
 
-/**
- * Gate that requires the admin.access permission.
- */
 function isAdmin(req, res, next) {
     if (!req.isAuthenticated()) {
         return res.redirect('/login?redirect=' + encodeURIComponent(req.originalUrl));
@@ -55,7 +48,6 @@ async function attachUser(req, res, next) {
         const permissions = req.user.permissions || [];
         const isAdminFlag = permissions.includes('admin.access');
 
-        // Keep session props in sync for legacy route handlers that read req.session.isAdmin
         req.session.userId   = req.user.id;
         req.session.username = req.user.username;
         req.session.isAdmin  = isAdminFlag;

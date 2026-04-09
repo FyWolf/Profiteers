@@ -1,3 +1,10 @@
+{ const levels = { log: 'INFO', warn: 'WARN', error: 'ERROR' };
+  ['log', 'warn', 'error'].forEach(level => {
+    const orig = console[level].bind(console);
+    console[level] = (...args) => orig(`[${new Date().toISOString()}] [${levels[level]}]`, ...args);
+  });
+}
+
 const express = require('express');
 const helmet = require('helmet');
 const session = require('express-session');
@@ -41,7 +48,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('trust proxy', 1);
 
 app.use(helmet({
-    contentSecurityPolicy: false, // CSP managed separately due to inline scripts in EJS
+    contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false
 }));
 app.use(express.static('public'));
@@ -61,15 +68,15 @@ const sessionStore = new MySQLStore({
     database: process.env.DB_NAME,
     createDatabaseTable: true,
     clearExpired: true,
-    checkExpirationInterval: 15 * 60 * 1000, // clean up expired sessions every 15 min
-    expiration: 30 * 24 * 60 * 60 * 1000,    // max session lifetime: 30 days
+    checkExpirationInterval: 15 * 60 * 1000,
+    expiration: 30 * 24 * 60 * 60 * 1000,
 });
 
 app.use(session({
     secret: process.env.SESSION_SECRET,
-    resave: true,            // must be true with rolling:true so the store record expiry is updated
+    resave: true,
     saveUninitialized: false,
-    rolling: true,   // reset expiry on every request while the user is active
+    rolling: true,
     store: sessionStore,
     proxy: true,
     cookie: {
@@ -77,7 +84,7 @@ app.use(session({
         sameSite: 'lax',
         path: '/',
         httpOnly: true,
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+        maxAge: 30 * 24 * 60 * 60 * 1000
     }
 }));
 
@@ -130,7 +137,7 @@ app.listen(PORT, () => {
 ║  Server running on: http://localhost:${PORT}         ║
 ║  Environment: ${process.env.NODE_ENV}                        ║
 ║                                                   ║
-║  Ready to deploy! 🎯                               ║
+║  Ready to deploy!                                  ║
 ╚═══════════════════════════════════════════════════╝
 Server running !
     `);

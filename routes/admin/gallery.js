@@ -60,7 +60,6 @@ router.get('/add-folder', async (req, res) => {
 router.post('/add-folder', async (req, res) => {
     const { name, parent_id } = req.body;
 
-    // Reject names with path-traversal characters
     if (!name || /[/\\.]/.test(name)) {
         return res.redirect('/admin/gallery?error=Folder name must not contain / \\ or . characters');
     }
@@ -149,7 +148,6 @@ router.post('/delete-image/:id', async (req, res) => {
             try {
                 await fs.unlink(imagePath);
             } catch (err) {
-                console.log('Could not delete image file:', err);
             }
         }
 
@@ -175,11 +173,9 @@ router.post('/delete-folder/:id', async (req, res) => {
             try {
                 await fs.unlink(imagePath);
             } catch (err) {
-                console.log('Could not delete image file:', err);
             }
         }
 
-        // Database will cascade delete images and subfolders
         await db.query('DELETE FROM gallery_folders WHERE id = ?', [req.params.id]);
 
         res.redirect('/admin/gallery?success=Folder deleted successfully');

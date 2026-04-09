@@ -4,7 +4,6 @@ const axios = require('axios');
 const db = require('../../config/database');
 const { hasPermission } = require('../../middleware/auth');
 
-// ── User list (requires users.view, already gated at router mount) ────────────
 router.get('/', async (req, res) => {
     try {
         const search     = req.query.search || '';
@@ -12,7 +11,6 @@ router.get('/', async (req, res) => {
         const limit      = 50;
         const offset     = (page - 1) * limit;
 
-        // Sorting — whitelist column keys to prevent injection
         const SORT_COLS = {
             username:   'username',
             type:       'auth_type',
@@ -23,10 +21,8 @@ router.get('/', async (req, res) => {
         const order   = req.query.order === 'asc' ? 'ASC' : 'DESC';
         const sortCol = SORT_COLS[sort];
 
-        // Filters
         const filterType = ['discord', 'local'].includes(req.query.type) ? req.query.type : '';
 
-        // Build WHERE
         const conditions = [];
         const params = [];
 
@@ -65,7 +61,6 @@ router.get('/', async (req, res) => {
             LIMIT ? OFFSET ?
         `, [...params, limit, offset]);
 
-        // Fetch RBAC roles for the current page of users
         const userIds = users.map(u => u.id);
         let rolesByUser = {};
         if (userIds.length > 0) {
@@ -119,10 +114,8 @@ router.get('/', async (req, res) => {
     }
 });
 
-// ── Mutating user actions — require users.manage ──────────────────────────────
 router.post('/delete/:id', hasPermission('users.manage'), async (req, res) => {
     try {
-        // Don't allow deleting yourself
         if (parseInt(req.params.id) === req.session.userId) {
             return res.redirect('/admin/users?error=Cannot delete your own account');
         }
@@ -135,7 +128,6 @@ router.post('/delete/:id', hasPermission('users.manage'), async (req, res) => {
     }
 });
 
-// ── Medal management — require users.medals ───────────────────────────────────
 router.get('/:userId/medals', hasPermission('users.medals'), async (req, res) => {
     try {
         const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.params.userId]);
@@ -205,7 +197,6 @@ router.post('/:userId/medals/revoke/:awardId', hasPermission('users.medals'), as
     }
 });
 
-// ── Training management — require users.trainings ─────────────────────────────
 router.post('/:userId/sync-trainings', hasPermission('users.trainings'), async (req, res) => {
     try {
         const userId = req.params.userId;
@@ -305,7 +296,6 @@ router.get('/:userId/trainings', hasPermission('users.trainings'), async (req, r
     }
 });
 
-// ── Role assignment — require users.manage ────────────────────────────────────
 router.get('/:userId/roles', hasPermission('users.manage'), async (req, res) => {
     try {
         const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.params.userId]);

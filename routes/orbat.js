@@ -23,7 +23,6 @@ function buildTree(squads) {
     return roots;
 }
 
-// Check if userId is an editor of squadId OR any of its ancestors
 async function isEditorOfSquadOrAncestor(userId, squadId) {
     if (!userId || !squadId) return false;
     const visited = new Set();
@@ -77,7 +76,6 @@ async function isHostOfRoleOperation(userId, roleId) {
     return rows.length > 0 && parseInt(rows[0].host_id) === parseInt(userId);
 }
 
-// Middleware: check if user is Zeus/Admin or the operation host
 async function canManageOperation(req, res, next) {
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
@@ -217,8 +215,7 @@ router.get('/view/:templateId', async (req, res) => {
                     }
                 });
             });
-            // Expand: editor of a squad = editor of all its descendants
-            const editorSet = new Set(editorSquadIds);
+                const editorSet = new Set(editorSquadIds);
             let changed = true;
             while (changed) {
                 changed = false;
@@ -558,7 +555,6 @@ router.get('/operation/:operationId', async (req, res) => {
 
         const orbatPublished = !!operation.orbat_published;
 
-        // If ORBAT is draft and user can't manage, show placeholder
         if (!orbatPublished && !canManage && operation.orbat_type === 'dynamic') {
             return res.render('orbat/view', {
                 title: `ORBAT - ${operation.title}`,
@@ -651,7 +647,6 @@ router.get('/operation/:operationId', async (req, res) => {
             }
         }
 
-        // Non-managers can only claim if ORBAT is published
         const canClaim = req.session.userId && operation.orbat_type === 'dynamic' && orbatPublished;
 
         const editorSquadIds = [];
@@ -732,7 +727,6 @@ router.post('/claim/:roleId', isAuthenticated, async (req, res) => {
             return res.json({ success: false, error: 'Slot already taken' });
         }
 
-        // Remove any existing assignment this user has in the same operation
         await db.query(`
             DELETE oa FROM orbat_assignments oa
             JOIN orbat_roles orp ON oa.role_id = orp.id
@@ -781,7 +775,6 @@ router.post('/assign/:roleId', isAuthenticated, async (req, res) => {
         
         let finalUserId = userId;
 
-        // If discordId provided without userId, create/find the user account from the roster
         if (!userId && discordId) {
             const [rosterMembers] = await db.query(
                 'SELECT * FROM roster_members WHERE discord_id = ?',
@@ -870,7 +863,6 @@ router.post('/operation/:operationId/create-dynamic', isAuthenticated, canManage
             [squadId, roleName]
         );
 
-        // Flag the operation as dynamic (draft) so the ORBAT view renders the correct mode
         await db.query(
             'UPDATE operations SET orbat_type = ?, orbat_published = 0 WHERE id = ?',
             ['dynamic', req.params.operationId]
@@ -1059,7 +1051,6 @@ router.post('/api/templates/:templateId/squads/add', isAuthenticated, async (req
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
         if (!userIsZeus) {
-            // Squad editors may only add sub-groups under a squad they can edit
             const { parentSquadId } = req.body;
             if (!parentSquadId) return res.status(403).json({ success: false, error: 'Permission denied' });
             const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, parentSquadId);
@@ -1109,7 +1100,6 @@ router.post('/api/squads/:id/delete', isAuthenticated, async (req, res) => {
         if (!userIsZeus) {
             const isHost = await isHostOfSquadOperation(req.session.userId, req.params.id);
             if (!isHost) {
-                // Editors can delete a squad only if they are an editor of its parent
                 const [squadRows] = await db.query('SELECT parent_squad_id FROM orbat_squads WHERE id = ?', [req.params.id]);
                 const parentId = squadRows[0]?.parent_squad_id;
                 if (!parentId) return res.status(403).json({ success: false, error: 'Permission denied' });
@@ -1118,7 +1108,6 @@ router.post('/api/squads/:id/delete', isAuthenticated, async (req, res) => {
             }
         }
 
-        // Recursively collect all descendant IDs so they are also deleted
         async function collectDescendantIds(id) {
             const [children] = await db.query('SELECT id FROM orbat_squads WHERE parent_squad_id = ?', [id]);
             let ids = [id];
@@ -1135,8 +1124,6 @@ router.post('/api/squads/:id/delete', isAuthenticated, async (req, res) => {
         res.json({ success: false, error: 'Failed to delete squad' });
     }
 });
-
-// ── Team management ────────────────────────────────────────────────────────
 
 router.post('/api/squads/:squadId/add-team', isAuthenticated, async (req, res) => {
     try {
@@ -1248,7 +1235,6 @@ router.post('/api/roles/:roleId/set-team', isAuthenticated, async (req, res) => 
 
 router.post('/api/migrate-hierarchy', isAdmin, async (req, res) => {
     try {
-        // For each template with root-level squads, create a default platoon and nest existing squads under it
         const [templateGroups] = await db.query(
             'SELECT DISTINCT orbat_id FROM orbat_squads WHERE orbat_id IS NOT NULL AND parent_squad_id IS NULL'
         );
@@ -1268,7 +1254,6 @@ router.post('/api/migrate-hierarchy', isAdmin, async (req, res) => {
             );
         }
 
-        // Same for dynamic operation squads
         const [opGroups] = await db.query(
             'SELECT DISTINCT operation_id FROM orbat_squads WHERE operation_id IS NOT NULL AND parent_squad_id IS NULL'
         );
@@ -1295,13 +1280,10 @@ router.post('/api/migrate-hierarchy', isAdmin, async (req, res) => {
     }
 });
 
-// ── ORBAT publish / unpublish ──────────────────────────────────────────────
-
 router.post('/operation/:operationId/publish-orbat', isAuthenticated, canManageOperation, async (req, res) => {
     try {
         await db.query('UPDATE operations SET orbat_published = 1 WHERE id = ?', [req.params.operationId]);
 
-        // Optionally notify via Discord
         const { notify } = req.body;
         if (notify && process.env.DISCORD_BOT_TOKEN) {
             try {
@@ -1345,8 +1327,6 @@ router.post('/operation/:operationId/unpublish-orbat', isAuthenticated, canManag
         res.json({ success: false, error: 'Failed to unpublish ORBAT' });
     }
 });
-
-// ── Radio Frequency management ─────────────────────────────────────────────
 
 router.post('/api/squads/:squadId/set-frequencies', isAuthenticated, async (req, res) => {
     try {

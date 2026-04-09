@@ -10,17 +10,14 @@ function startReminderScheduler(client) {
         try {
             await checkUpcomingOperations(client);
         } catch (error) {
-            console.error('❌ Error in reminder scheduler:', error);
+            console.error('Error in reminder scheduler:', error);
         }
     });
-
-    console.log('✅ Operation reminder scheduler started (runs every 5 minutes)');
 }
 
 function stopReminderScheduler() {
     if (reminderTask) {
         reminderTask.stop();
-        console.log('⏹️  Operation reminder scheduler stopped');
     }
 }
 
@@ -48,9 +45,7 @@ async function checkUpcomingOperations(client) {
                     await sendOperationReminder(client, operation, 'in 1 hour');
                     sentReminders.add(reminderKey);
                     
-                    if (sentReminders.size > 1000) {
-                        sentReminders.clear();
-                    }
+                    if (sentReminders.size > 1000) sentReminders.clear();
                 }
             }
 
@@ -64,13 +59,12 @@ async function checkUpcomingOperations(client) {
         }
 
     } catch (error) {
-        console.error('❌ Error checking upcoming operations:', error);
+        console.error('Error checking upcoming operations:', error);
     }
 }
 
 function clearReminderCache() {
     sentReminders.clear();
-    console.log('🗑️  Reminder cache cleared');
 }
 
 module.exports = {

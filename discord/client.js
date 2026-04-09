@@ -9,7 +9,7 @@ const client = new Client({
 });
 
 client.once('ready', () => {
-    console.log(`✅ Discord bot logged in as ${client.user.tag}`);
+    console.log(`Discord bot logged in as ${client.user.tag}`);
 });
 
 client.on('error', error => {
@@ -19,10 +19,10 @@ client.on('error', error => {
 if (process.env.DISCORD_BOT_TOKEN) {
     client.login(process.env.DISCORD_BOT_TOKEN)
         .catch(error => {
-            console.error('❌ Failed to login to Discord:', error);
+            console.error('Failed to login to Discord:', error);
         });
 } else {
-    console.warn('⚠️  DISCORD_BOT_TOKEN not set - Discord notifications disabled');
+    console.warn('DISCORD_BOT_TOKEN not set - Discord notifications disabled');
 }
 
 module.exports = client;

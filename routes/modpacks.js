@@ -1,11 +1,3 @@
-/**
- * Modpack Routes
- * 
- * Handles modpack management: listing, viewing, uploading, downloading, and deletion.
- * Parses Arma 3 Launcher HTML preset files to extract mod info.
- * Triggers background Steam API indexing after upload.
- */
-
 const express = require('express');
 const router = express.Router();
 const path = require('path');
@@ -19,11 +11,6 @@ const canDeleteModpacks = hasPermission('modpacks.delete');
 
 const indexer = new ModpackIndexer(db);
 
-/**
- * Parse an Arma 3 Launcher HTML preset file and extract mod information.
- * @param {string} htmlContent - The raw HTML content of the preset file
- * @returns {Object} { name: string, mods: Array<{displayName, workshopId, steamUrl}> }
- */
 function parseArmaPreset(htmlContent) {
     const mods = [];
     let presetName = 'Unnamed Modpack';
@@ -33,7 +20,6 @@ function parseArmaPreset(htmlContent) {
         presetName = nameMatch[1];
     }
 
-    // Pattern: <tr data-type="ModContainer"> ... <td data-type="DisplayName">NAME</td> ... <a href="URL" data-type="Link">
     const modRegex = /<tr[^>]*data-type="ModContainer"[^>]*>[\s\S]*?<td[^>]*data-type="DisplayName"[^>]*>([\s\S]*?)<\/td>[\s\S]*?<a\s+href="([^"]+)"[^>]*data-type="Link"/gi;
 
     let match;
@@ -241,9 +227,6 @@ router.post('/upload', canManageModpacks, async (req, res) => {
             conn.release();
         }
 
-        console.log(`[Modpacks] Uploaded "${modpackName}" with ${parsed.mods.length} mods. Starting background indexing...`);
-
-        // Start background indexing (non-blocking)
         indexer.startIndexing(modpackId).catch(err => {
             console.error('[Modpacks] Background indexing error:', err);
         });
@@ -279,8 +262,6 @@ router.post('/:id/reindex', canManageModpacks, async (req, res) => {
             return res.redirect('/modpacks?error=Modpack not found');
         }
 
-        console.log(`[Modpacks] Re-indexing "${modpacks[0].name}"...`);
-
         indexer.reindex(req.params.id).catch(err => {
             console.error('[Modpacks] Re-index error:', err);
         });
@@ -306,7 +287,6 @@ router.post('/:id/delete', canDeleteModpacks, async (req, res) => {
             fs.unlinkSync(filePath);
         }
 
-        // Delete from database (CASCADE will remove modpack_mods)
         await db.query('DELETE FROM modpacks WHERE id = ?', [req.params.id]);
 
         res.redirect('/modpacks?success=Modpack deleted');

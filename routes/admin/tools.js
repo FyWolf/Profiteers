@@ -102,7 +102,6 @@ router.post('/edit/:id', async (req, res) => {
                 try {
                     await fs.unlink(path.join(__dirname, '..', '..', 'public', imageUrl));
                 } catch (err) {
-                    console.log('Could not delete old image:', err);
                 }
             }
             imageUrl = await saveToolImage(req.files.image);
@@ -139,7 +138,6 @@ router.post('/delete/:id', async (req, res) => {
             try {
                 await fs.unlink(imagePath);
             } catch (err) {
-                console.log('Could not delete image:', err);
             }
         }
 

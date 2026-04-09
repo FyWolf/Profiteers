@@ -6,9 +6,6 @@ const db = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
 const { checkZeusStatus } = require('../middleware/zeus');
 
-// ─── GET /operations/maps ──────────────────────────────────────────────────
-// List all available terrain maps (reads public/images/maps/).
-
 router.get('/maps', async (req, res) => {
     try {
         const mapsDir = path.join(__dirname, '..', 'public', 'images', 'maps');
@@ -45,8 +42,6 @@ router.get('/maps', async (req, res) => {
     }
 });
 
-// ─── Auth helpers ──────────────────────────────────────────────────────────
-
 async function canEdit(userId, operationId) {
     if (!userId) return false;
     const [rows] = await db.query(
@@ -63,7 +58,6 @@ async function canEdit(userId, operationId) {
 async function requireEdit(req, res, next) {
     if (!req.isAuthenticated()) return res.status(401).json({ success: false, error: 'Not authenticated' });
     try {
-        // map.editor permission grants edit access to any operation's map
         const hasMapEditor = req.user.is_admin ||
             (Array.isArray(req.user.permissions) && req.user.permissions.includes('map.editor'));
         if (hasMapEditor || await canEdit(req.session.userId, req.params.id)) return next();
@@ -72,9 +66,6 @@ async function requireEdit(req, res, next) {
         next(err);
     }
 }
-
-// ─── GET /operations/:id/map ───────────────────────────────────────────────
-// Render the full-screen tactical map page.
 
 router.get('/:id/map', async (req, res) => {
     try {
@@ -110,9 +101,6 @@ router.get('/:id/map', async (req, res) => {
     }
 });
 
-// ─── GET /operations/:id/map/data ─────────────────────────────────────────
-// Return all layers + annotations as JSON.
-
 router.get('/:id/map/data', async (req, res) => {
     try {
         const [ops] = await db.query(
@@ -125,7 +113,6 @@ router.get('/:id/map/data', async (req, res) => {
             ? await canEdit(req.session.userId, req.params.id)
             : false;
 
-        // Non-editors only see published (is_public = 1) layers
         const [layers] = await db.query(
             `SELECT id, name, color, is_visible, is_public, display_order
                FROM operation_map_layers
@@ -142,7 +129,6 @@ router.get('/:id/map/data', async (req, res) => {
             [req.params.id]
         );
 
-        // Attach annotations to their layer
         const layerMap = {};
         layers.forEach(l => { layerMap[l.id] = { ...l, annotations: [] }; });
         annotations.forEach(a => {
@@ -161,8 +147,6 @@ router.get('/:id/map/data', async (req, res) => {
     }
 });
 
-// ─── Set map world ─────────────────────────────────────────────────────────
-
 router.patch('/:id/map/world', requireEdit, async (req, res) => {
     try {
         const { map_world } = req.body;
@@ -179,8 +163,6 @@ router.patch('/:id/map/world', requireEdit, async (req, res) => {
         res.json({ success: false, error: 'Failed to update map world' });
     }
 });
-
-// ─── Layers CRUD ───────────────────────────────────────────────────────────
 
 router.post('/:id/map/layers', requireEdit, async (req, res) => {
     try {
@@ -253,8 +235,6 @@ router.delete('/:id/map/layers/:layerId', requireEdit, async (req, res) => {
     }
 });
 
-// ─── Annotations CRUD ──────────────────────────────────────────────────────
-
 router.post('/:id/map/annotations', requireEdit, async (req, res) => {
     try {
         const { layer_id, type, geometry, properties } = req.body;
@@ -263,7 +243,6 @@ router.post('/:id/map/annotations', requireEdit, async (req, res) => {
         if (!VALID_TYPES.includes(type)) return res.json({ success: false, error: 'Invalid type' });
         if (!layer_id || !geometry)      return res.json({ success: false, error: 'layer_id and geometry required' });
 
-        // Verify layer belongs to this operation
         const [layerCheck] = await db.query(
             'SELECT id FROM operation_map_layers WHERE id = ? AND operation_id = ?',
             [layer_id, req.params.id]

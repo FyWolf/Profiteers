@@ -6,13 +6,11 @@ const db = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
 const { isZeus, checkZeusStatus } = require('../middleware/zeus');
 
-// Allows deleting operations: operations.delete permission, or Discord Zeus role.
 function canDeleteOp(req, res, next) {
     if (!req.isAuthenticated()) {
         return res.redirect('/login?redirect=' + encodeURIComponent(req.originalUrl));
     }
     if (Array.isArray(req.user.permissions) && req.user.permissions.includes('operations.delete')) return next();
-    // Fall through to the full Zeus check (covers Discord Zeus role)
     return isZeus(req, res, next);
 }
 
@@ -43,9 +41,6 @@ function sanitizeNewsContent(raw) {
     });
 }
 
-// Helper function to convert datetime-local input to unix timestamp
-// Input: "2024-02-26T14:00" (user enters this as UTC)
-// Output: Unix timestamp (seconds since epoch)
 function toUnixTimestamp(datetimeLocal) {
     if (!datetimeLocal) return null;
     const date = new Date(datetimeLocal + ':00Z');
@@ -302,7 +297,6 @@ router.post('/:id/attendance', isAuthenticated, async (req, res) => {
                 }
             } catch (discordError) {
                 console.error('Discord attendance update error:', discordError);
-                // Don't fail the attendance update if Discord fails
             }
         }
         
@@ -403,7 +397,7 @@ router.post('/manage/create', isZeus, async (req, res) => {
         const finalOperationType = operation_type || 'main';
         const finalModpackId = modpack_id ? parseInt(modpack_id) : null;
         const finalMapWorld = (map_world && /^[a-zA-Z0-9_-]+$/.test(map_world.trim())) ? map_world.trim() : null;
-        const published = true; // New operations are published by default
+        const published = true;
 
         const [result] = await db.query(`
             INSERT INTO operations
@@ -429,7 +423,6 @@ router.post('/manage/create', isZeus, async (req, res) => {
                 });
             } catch (discordError) {
                 console.error('Discord post error:', discordError);
-                // Don't fail the operation creation if Discord fails
             }
         }
 
@@ -531,7 +524,6 @@ router.post('/manage/edit/:id', isAuthenticated, async (req, res) => {
                 }
             } catch (discordError) {
                 console.error('Discord update error:', discordError);
-                // Don't fail the operation update if Discord fails
             }
         }
 
@@ -562,7 +554,6 @@ router.post('/:id/news', isAuthenticated, async (req, res) => {
         }
 
         const { ping } = req.body;
-        // Sanitize HTML from rich text editor — strips dangerous tags/attributes and data: URIs
         const content = sanitizeNewsContent(req.body.content || '');
 
         await db.query(`
@@ -587,7 +578,6 @@ router.post('/:id/news', isAuthenticated, async (req, res) => {
                 }
             } catch (discordError) {
                 console.error('Discord news post error:', discordError);
-                // Don't fail the news post if Discord fails
             }
         }
         

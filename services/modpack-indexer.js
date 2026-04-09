@@ -1,11 +1,3 @@
-/**
- * Modpack Indexer Service
- * 
- * Background service that fetches mod details from the Steam Web API.
- * Uses IPublishedFileService/GetDetails to get name, file_size, and preview image.
- * Processes mods in batches of 20 with delays to avoid rate limiting.
- */
-
 const https = require('https');
 
 class ModpackIndexer {
@@ -13,7 +5,7 @@ class ModpackIndexer {
         this.db = db;
         this.apiKey = process.env.STEAM_API_KEY;
         this.batchSize = 20;
-        this.delayBetweenBatches = 1500; // ms
+        this.delayBetweenBatches = 1500;
     }
 
     async startIndexing(modpackId) {

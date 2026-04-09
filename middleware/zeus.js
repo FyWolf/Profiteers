@@ -10,7 +10,6 @@ async function isZeus(req, res, next) {
     }
 
     try {
-        // RBAC: operations.create permission grants Zeus-level access
         if (Array.isArray(req.user.permissions) && req.user.permissions.includes('operations.create')) {
             return next();
         }
@@ -33,17 +32,16 @@ async function isZeus(req, res, next) {
             [req.user.id]
         );
 
-        // If cached and recent (less than 1 hour old), use cache
         if (cachedPerms.length > 0) {
             const cacheAge = Date.now() - new Date(cachedPerms[0].last_synced).getTime();
-            if (cacheAge < 3600000 && cachedPerms[0].has_zeus_role) { // 1 hour
+            if (cacheAge < 3600000 && cachedPerms[0].has_zeus_role) {
                 return next();
             }
         }
 
         const botToken = process.env.DISCORD_BOT_TOKEN;
         if (!botToken) {
-            console.error('❌ DISCORD_BOT_TOKEN not set');
+            console.error('DISCORD_BOT_TOKEN not set');
             return res.status(500).render('error', {
                 title: 'Configuration Error',
                 message: 'Bot Token Not Configured',
@@ -98,7 +96,6 @@ async function checkZeusStatus(userId) {
 
         if (users.length === 0) return false;
 
-        // RBAC check: operations.create permission (grants Zeus-level ops access)
         const [perms] = await db.query(`
             SELECT 1
             FROM user_roles ur

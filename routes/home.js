@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 
-// Session keep-alive — clients ping this periodically so rolling sessions stay active
 router.get('/ping', (req, res) => res.sendStatus(204));
 
 router.get('/', (req, res) => {
