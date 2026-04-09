@@ -100,6 +100,8 @@ app.use('/orbat', orbatRoutes);
 app.use('/loa', loaRoutes);
 app.use('/roster', rosterRoutes);
 app.use('/modpacks', modpacksRoutes);
+const loreRoutes = require('./routes/lore');
+app.use('/lore', loreRoutes);
 
 app.use((req, res) => {
     res.status(404).render('error', {

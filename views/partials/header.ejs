@@ -22,46 +22,58 @@
     </script>
 </head>
 <body>
-    <nav>
+    <nav id="main-nav">
         <div class="nav-container">
             <a href="/" class="logo">PROFITEERS PMC</a>
-            <button class="menu-toggle" onclick="toggleMenu()">☰ Menu</button>
+
+            <button class="menu-toggle" id="menu-toggle" aria-label="Toggle navigation" aria-expanded="false">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
             <ul class="nav-links" id="navLinks">
                 <li><a href="/">Home</a></li>
-                <li><a href="/about">About & Lore</a></li>
+                <li><a href="/about">About us</a></li>
+
                 <li class="dropdown">
-                    <a href="#" class="dropbtn">Roster ▼</a>
+                    <a href="#" class="dropbtn" data-dropdown>Roster <span class="chevron">▾</span></a>
                     <div class="dropdown-content">
                         <a href="/roster">Member Roster</a>
                         <a href="/loa/all">Leave of Absence</a>
                     </div>
                 </li>
+
                 <li class="dropdown">
-                    <a href="#" class="dropbtn">Operations ▼</a>
+                    <a href="#" class="dropbtn" data-dropdown>Operations <span class="chevron">▾</span></a>
                     <div class="dropdown-content">
                         <a href="/operations/upcoming">Upcoming Operations</a>
                         <a href="/operations/all">All Operations</a>
+                        <a href="/orbat/view/2">Main ORBAT</a>
                         <a href="/orbat/view-all">ORBAT Templates</a>
                         <a href="/modpacks">Modpacks</a>
                         <% if (user && (user.isAdmin || user.isZeus)) { %>
-                            <a href="/operations/manage/list" style="border-top: 1px solid var(--olive); padding-top: 8px; margin-top: 8px;">Manage Operations</a>
+                            <a href="/operations/manage/list" class="dropdown-divider">Manage Operations</a>
                             <a href="/modpacks/upload/new">Upload Modpack</a>
                         <% } %>
                     </div>
                 </li>
+
+                <!-- <li><a href="/lore">Lore</a> -->
                 <li><a href="/join">Join Us</a></li>
                 <li><a href="/gallery">Gallery</a></li>
-                <li><a href="/tools" class="btn" style="background: linear-gradient(135deg, var(--accent) 0%, #e6a600 100%); color: var(--camo-dark); padding: 8px 16px; font-size: 0.9em;">Internal Tools</a></li>
+                <li><a href="/tools" class="btn nav-tools-btn">Internal Tools</a></li>
+
                 <% if (user) { %>
                     <li class="dropdown">
-                        <a href="#" class="dropbtn"><%= user.username %> ▼</a>
-                        <div class="dropdown-content">
+                        <a href="#" class="dropbtn" data-dropdown><%= user.username %> <span class="chevron">▾</span></a>
+                        <div class="dropdown-content dropdown-right">
                             <a href="/profile">My Profile</a>
                             <a href="/loa/all">Leave of Absence</a>
                             <% if (user.isAdmin) { %>
                                 <a href="/admin">Admin Panel</a>
                             <% } %>
-                            <a href="/logout" style="border-top: 1px solid var(--olive); padding-top: 8px; margin-top: 8px; color: #e74c3c;">Logout</a>
+                            <a href="/logout" class="dropdown-divider dropdown-danger">Logout</a>
                         </div>
                     </li>
                 <% } else { %>
@@ -71,9 +83,52 @@
         </div>
     </nav>
 
+    <div class="nav-overlay" id="nav-overlay"></div>
+
     <script>
-        function toggleMenu() {
-            const navLinks = document.getElementById('navLinks');
-            navLinks.classList.toggle('active');
+    (function () {
+        const toggle   = document.getElementById('menu-toggle');
+        const navLinks = document.getElementById('navLinks');
+        const overlay  = document.getElementById('nav-overlay');
+
+        function openMenu() {
+            navLinks.classList.add('active');
+            overlay.classList.add('active');
+            toggle.classList.add('open');
+            toggle.setAttribute('aria-expanded', 'true');
         }
+
+        function closeMenu() {
+            navLinks.classList.remove('active');
+            overlay.classList.remove('active');
+            toggle.classList.remove('open');
+            toggle.setAttribute('aria-expanded', 'false');
+            /* Collapse all open dropdowns */
+            document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+        }
+
+        toggle.addEventListener('click', () => {
+            navLinks.classList.contains('active') ? closeMenu() : openMenu();
+        });
+
+        overlay.addEventListener('click', closeMenu);
+
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+
+        /* Dropdown toggles — on mobile tap the dropbtn, on desktop hover works via CSS */
+        document.querySelectorAll('.dropbtn[data-dropdown]').forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                /* Only intercept on mobile (menu-toggle is visible) */
+                if (getComputedStyle(toggle).display === 'none') return;
+                e.preventDefault();
+                const li = this.closest('.dropdown');
+                const wasOpen = li.classList.contains('open');
+                /* Close all, then open this one if it wasn't open */
+                document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+                if (!wasOpen) li.classList.add('open');
+            });
+        });
+    })();
     </script>
+</body>
+<!-- body closed in footer -->

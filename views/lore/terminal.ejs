@@ -1,0 +1,911 @@
+<%- include('../partials/header') %>
+
+<style>
+/* ── Page — locks to viewport, no scroll ───────────────────────────── */
+body { overflow: hidden; }
+.lore-page {
+    height: calc(100vh - var(--nav-h, 62px));
+    background: #080808;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* ── Minitel Device Frame ───────────────────────────────────────────── */
+.minitel-device {
+    width: min(1200px, 100%);
+    height: 100%;
+    background: linear-gradient(160deg, #cfc0a0 0%, #b8a878 45%, #cabb97 100%);
+    border-radius: 10px 10px 6px 6px;
+    padding: 10px 10px 14px;
+    box-shadow:
+        0 24px 70px rgba(0,0,0,0.85),
+        0 8px 24px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.45),
+        inset 0 -2px 3px rgba(0,0,0,0.25);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+/* ── Device Top Bar ─────────────────────────────────────────────────── */
+.mt-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px 2px;
+}
+.mt-brand {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.6em;
+    font-weight: 900;
+    color: #7a6840;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.3);
+}
+.mt-leds {
+    display: flex;
+    gap: 7px;
+    align-items: center;
+}
+.mt-led {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: #3a2800;
+    border: 1px solid rgba(0,0,0,0.4);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.mt-led.pwr {
+    background: #cc8800;
+    box-shadow: 0 0 5px #cc8800, 0 0 10px rgba(204,136,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+    animation: led-steady 4s ease-in-out infinite;
+}
+.mt-led.act { transition: background 0.1s, box-shadow 0.1s; }
+.mt-led.act.on {
+    background: #00cc66;
+    box-shadow: 0 0 5px #00cc66, 0 0 10px rgba(0,204,102,0.4);
+}
+@keyframes led-steady {
+    0%,85%,100% { opacity: 1; }
+    92% { opacity: 0.5; }
+}
+
+/* ── Screen Bezel ───────────────────────────────────────────────────── */
+.mt-bezel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: #111;
+    border-radius: 6px;
+    padding: 8px;
+    box-shadow:
+        inset 0 4px 12px rgba(0,0,0,0.9),
+        inset 0 0 0 1px #0a0a0a,
+        0 1px 0 rgba(255,255,255,0.15);
+    overflow: hidden;
+}
+
+/* ── CRT Screen ─────────────────────────────────────────────────────── */
+.mt-screen {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    background: #020802;
+    border-radius: 3px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Roboto Mono', 'Courier New', monospace;
+    font-size: 0.82em;
+    line-height: 1.45;
+    cursor: text;
+}
+/* Scanlines */
+.mt-screen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px, transparent 3px,
+        rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 4px
+    );
+    pointer-events: none;
+    z-index: 20;
+}
+/* Phosphor glow overlay */
+.mt-screen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 70% at 50% 45%, rgba(255,176,0,0.035) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 21;
+}
+
+/* ── Terminal Output ────────────────────────────────────────────────── */
+.term-out {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 14px 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #2a2a2a #020802;
+    text-shadow: 0 0 7px rgba(255,176,0,0.25);
+}
+.term-out::-webkit-scrollbar { width: 5px; }
+.term-out::-webkit-scrollbar-track { background: #020802; }
+.term-out::-webkit-scrollbar-thumb { background: #252525; border-radius: 3px; }
+.term-out > div { white-space: pre-wrap; word-break: break-word; }
+
+/* ── Input Line ─────────────────────────────────────────────────────── */
+.term-inputline {
+    display: flex;
+    align-items: center;
+    padding: 2px 14px 10px;
+    flex-shrink: 0;
+    text-shadow: 0 0 7px rgba(255,176,0,0.25);
+}
+.term-prompt-span { color: #00cc66; white-space: pre; flex-shrink: 0; }
+.term-typed-span  { color: #ffb000; white-space: pre; }
+.term-cursor-span {
+    display: inline-block;
+    width: 0.55em; height: 1em;
+    background: #ffb000;
+    vertical-align: text-bottom;
+    margin-left: 1px;
+    animation: cur-blink 1.05s step-end infinite;
+    flex-shrink: 0;
+}
+@keyframes cur-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.term-real-input {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    color: transparent;
+    caret-color: transparent;
+    font-size: 16px; /* prevents iOS auto-zoom on focus */
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* ── File attachments ───────────────────────────────────────────────── */
+.term-files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 4px 14px 8px;
+}
+.term-file {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid #2a4a2a;
+    border-radius: 4px;
+    background: rgba(0,80,0,0.12);
+    color: #00cc66;
+    font-size: 0.82em;
+    font-family: 'Roboto Mono', monospace;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s, border-color 0.15s;
+}
+.term-file:hover { background: rgba(0,100,0,0.25); border-color: #00cc66; }
+.term-file-icon { font-size: 1em; }
+
+/* ── Media modal ────────────────────────────────────────────────────── */
+#lore-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    z-index: 9000;
+    align-items: center;
+    justify-content: center;
+}
+#lore-modal-overlay.open { display: flex; }
+#lore-modal-box {
+    position: relative;
+    max-width: 92vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+#lore-modal-box img,
+#lore-modal-box video {
+    max-width: 88vw;
+    max-height: 82vh;
+    border: 2px solid #2a4a2a;
+    border-radius: 4px;
+    object-fit: contain;
+    display: block;
+}
+#lore-modal-caption {
+    color: #4a8a4a;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.8em;
+}
+#lore-modal-close {
+    position: absolute;
+    top: -36px;
+    right: 0;
+    background: none;
+    border: 1px solid #4a6a4a;
+    color: #aaffaa;
+    font-size: 1.1em;
+    padding: 2px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+#lore-modal-close:hover { background: rgba(255,255,255,0.08); }
+
+/* ── Colour tokens ───────────────────────────────────────────────────── */
+.t-amber  { color: #ffb000; }
+.t-green  { color: #00cc66; }
+.t-cyan   { color: #00ccee; }
+.t-red    { color: #ff4444; }
+.t-white  { color: #dddddd; }
+.t-orange { color: #ff8800; }
+.t-dim    { color: #4a5a4a; }
+.t-dir    { color: #00ccee; font-weight: 700; }
+.t-page   { color: #ffb000; }
+.t-cmd    { color: #aaffaa; }
+
+/* ── Device Bottom Bar ──────────────────────────────────────────────── */
+.mt-bottombar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px;
+}
+.mt-hints {
+    display: flex;
+    gap: 14px;
+    font-size: 0.58em;
+    color: #7a6840;
+    font-family: 'Roboto Mono', monospace;
+    flex-wrap: wrap;
+}
+.mt-hints b { color: #9a8a60; }
+.mt-admin-link {
+    font-size: 0.58em;
+    font-family: 'Roboto Mono', monospace;
+    color: #7a6840;
+    text-decoration: none;
+    border: 1px solid #9a8860;
+    border-radius: 3px;
+    padding: 1px 6px;
+    transition: color 0.15s, border-color 0.15s;
+}
+.mt-admin-link:hover { color: #c47a2b; border-color: #c47a2b; }
+</style>
+
+<div class="lore-page">
+    <div class="minitel-device">
+        <div class="mt-topbar">
+            <span class="mt-brand">Profiteers PMC · Data Archive Terminal</span>
+            <div class="mt-leds">
+                <div class="mt-led pwr" title="POWER"></div>
+                <div class="mt-led act" id="led-act" title="ACTIVITY"></div>
+            </div>
+        </div>
+
+        <div class="mt-bezel">
+            <div class="mt-screen" id="mt-screen">
+                <div class="term-out"  id="term-out"></div>
+                <div class="term-inputline" id="term-inputline">
+                    <span class="term-prompt-span" id="term-prompt">pmc@profiteers:~$&nbsp;</span>
+                    <span class="term-typed-span"  id="term-typed"></span>
+                    <span class="term-cursor-span" id="term-cursor"></span>
+                </div>
+                <input type="text" id="term-input" class="term-real-input"
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            </div>
+        </div>
+
+        <div class="mt-bottombar">
+            <div class="mt-hints">
+                <span><b>HELP</b> list commands</span>
+                <span><b>LS</b> browse</span>
+                <span><b>CD &lt;dir&gt;</b> enter</span>
+                <span><b>CAT &lt;page&gt;</b> read</span>
+                <span><b>CD ..</b> go back</span>
+                <span><b>TAB</b> autocomplete</span>
+                <span><b>↑↓</b> history</span>
+            </div>
+            <% if (locals.user && locals.user.isAdmin) { %>
+                <a href="/lore/admin" class="mt-admin-link">⚙ Admin</a>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<!-- Media modal -->
+<div id="lore-modal-overlay">
+    <div id="lore-modal-box">
+        <button id="lore-modal-close" onclick="closeModal()">✕ Close</button>
+        <div id="lore-modal-content"></div>
+        <div id="lore-modal-caption"></div>
+    </div>
+</div>
+
+<script>
+(function () {
+
+/* ══════════════════════════════════════════════════════════════════════
+   DATA
+══════════════════════════════════════════════════════════════════════ */
+const FLAT  = <%- nodes %>;
+const USER  = <%- JSON.stringify(locals.user || null) %>;
+
+/* Build in-memory tree */
+function buildTree(flat) {
+    const map = {};
+    flat.forEach(n => map[n.id] = { ...n, children: [] });
+    flat.forEach(n => {
+        if (n.parent_id !== null && map[n.parent_id]) {
+            map[n.parent_id].children.push(map[n.id]);
+        }
+    });
+    const sort = arr => arr.sort((a, b) => a.display_order - b.display_order || a.id - b.id);
+    Object.values(map).forEach(n => sort(n.children));
+    const roots = sort(flat.filter(n => n.parent_id === null).map(n => map[n.id]));
+    return { id: null, slug: '', title: 'root', type: 'dir', hint: 'Root archive', children: roots };
+}
+
+const ROOT = buildTree(FLAT);
+
+/* ══════════════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════════════ */
+let cwd      = ROOT;    // current directory node
+let cwdStack = [];      // [{node, slug}] — breadcrumb
+let history  = [];      // command history
+let histIdx  = -1;
+
+/* ══════════════════════════════════════════════════════════════════════
+   DOM REFS
+══════════════════════════════════════════════════════════════════════ */
+const outEl    = document.getElementById('term-out');
+const inputEl  = document.getElementById('term-input');
+const typedEl  = document.getElementById('term-typed');
+const promptEl = document.getElementById('term-prompt');
+const actLed   = document.getElementById('led-act');
+
+/* ══════════════════════════════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════════════════════════════ */
+function esc(s) {
+    return String(s ?? '')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function getPath() {
+    return cwdStack.length === 0 ? '~' : '~/' + cwdStack.map(s => s.slug).join('/');
+}
+
+function updatePrompt() {
+    promptEl.textContent = `pmc@profiteers:${getPath()}$ `;
+}
+
+function flash() {
+    actLed.classList.add('on');
+    setTimeout(() => actLed.classList.remove('on'), 180);
+}
+
+function print(html) {
+    const d = document.createElement('div');
+    d.innerHTML = html;
+    outEl.appendChild(d);
+    outEl.scrollTop = outEl.scrollHeight;
+}
+
+function pl(text, cls = 't-amber') {
+    print(`<span class="${cls}">${esc(text)}</span>`);
+}
+
+function pb() { print('<span>&nbsp;</span>'); }
+
+/* Append an empty div and return it so the caller can update it in place */
+function printLive() {
+    const d = document.createElement('div');
+    outEl.appendChild(d);
+    outEl.scrollTop = outEl.scrollHeight;
+    return d;
+}
+
+function ruler(char = '─', cls = 't-dim') {
+    print(`<span class="${cls}">${char.repeat(72)}</span>`);
+}
+
+/* Server-side node lookup — fallback when the local tree is stale */
+async function serverFind(slug, parentId) {
+    try {
+        const q = parentId !== null && parentId !== undefined
+            ? `slug=${encodeURIComponent(slug)}&parent_id=${parentId}`
+            : `slug=${encodeURIComponent(slug)}`;
+        const r = await fetch(`/lore/api/find?${q}`);
+        if (!r.ok) return null;
+        const { node } = await r.json();
+        node.children = [];   // placeholder; populated on demand
+        return node;
+    } catch (_) { return null; }
+}
+
+/* Fetch file attachments for a node and render them */
+async function fetchFiles(nodeId) {
+    try {
+        const r = await fetch(`/lore/api/nodes/${nodeId}/files`);
+        if (!r.ok) return;
+        const { files } = await r.json();
+        renderFiles(files);
+    } catch (_) {}
+}
+
+/* ── Modal ──────────────────────────────────────────────────────────── */
+function openModal(src, caption, isVideo) {
+    const box = document.getElementById('lore-modal-content');
+    box.innerHTML = '';
+    if (isVideo) {
+        const v = document.createElement('video');
+        v.src = src; v.controls = true; v.autoplay = false;
+        box.appendChild(v);
+    } else {
+        const img = document.createElement('img');
+        img.src = src; img.alt = caption;
+        box.appendChild(img);
+    }
+    document.getElementById('lore-modal-caption').textContent = caption;
+    document.getElementById('lore-modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+    document.getElementById('lore-modal-overlay').classList.remove('open');
+    document.getElementById('lore-modal-content').innerHTML = '';
+}
+window.closeModal = closeModal;
+
+document.getElementById('lore-modal-overlay').addEventListener('click', function (e) {
+    if (e.target === this) closeModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+/* ── File rendering ─────────────────────────────────────────────────── */
+function fileIcon(mime) {
+    if (/^image\//.test(mime))  return '🖼';
+    if (/^video\//.test(mime))  return '🎬';
+    if (/^audio\//.test(mime))  return '🎵';
+    if (/pdf/.test(mime))       return '📕';
+    if (/zip|rar|7z|tar/.test(mime)) return '🗜';
+    return '📎';
+}
+
+function renderFiles(files) {
+    if (!files || !files.length) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'term-files';
+    files.forEach(f => {
+        const url  = `/uploads/lore/${encodeURIComponent(f.stored_name)}`;
+        const mime = f.mimetype || '';
+        const isImage = /^image\//.test(mime);
+        const isVideo = /^video\//.test(mime);
+        const isMedia = isImage || isVideo;
+
+        const btn = document.createElement(isMedia ? 'button' : 'a');
+        btn.className = 'term-file';
+
+        if (isMedia) {
+            btn.type = 'button';
+            btn.onclick = () => openModal(url, f.original_name, isVideo);
+        } else {
+            btn.href = url;
+            btn.download = f.original_name;
+        }
+
+        const kb = f.size > 1048576
+            ? (f.size / 1048576).toFixed(1) + ' MB'
+            : Math.ceil(f.size / 1024) + ' KB';
+
+        btn.innerHTML = `<span class="term-file-icon">${fileIcon(mime)}</span>${f.original_name} <span style="opacity:0.55;font-size:0.88em">(${kb})</span>`;
+        wrap.appendChild(btn);
+    });
+    outEl.appendChild(wrap);
+    outEl.scrollTop = outEl.scrollHeight;
+}
+
+/* Parse [color]…[/color] markup in page content */
+function parseContent(raw) {
+    let s = esc(raw);
+    const tags = ['amber','green','cyan','red','white','orange','dim'];
+    tags.forEach(t => {
+        const re = new RegExp(`\\[${t}\\]([\\s\\S]*?)\\[\\/${t}\\]`, 'g');
+        s = s.replace(re, `<span class="t-${t}">$1</span>`);
+    });
+    s = s.replace(/\[b\]([\s\S]*?)\[\/b\]/g, '<strong>$1</strong>');
+    return s;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   COMMANDS
+══════════════════════════════════════════════════════════════════════ */
+const CMDS = {
+
+    help() {
+        pb();
+        print(`<span class="t-cyan">┌─ Available commands ────────────────────────────────────────────┐</span>`);
+        const items = [
+            ['help',         'Show this message'],
+            ['ls  /  dir',   'List contents of the current directory'],
+            ['cd &lt;name&gt;',    'Enter a sub-directory'],
+            ['cd ..',        'Go up one level'],
+            ['cat &lt;name&gt;',   'Read a page  (alias: read)'],
+            ['pwd',          'Print current path'],
+            ['whoami',       'Display session information'],
+            ['date',         'Display current date and time'],
+            ['clear',        'Clear the screen  (alias: cls)'],
+        ];
+        items.forEach(([cmd, desc]) => {
+            print(`<span class="t-cyan">│</span>  <span class="t-cmd">${cmd.padEnd(16)}</span><span class="t-dim"> — </span><span class="t-white">${desc}</span>`);
+        });
+        print(`<span class="t-cyan">└────────────────────────────────────────────────────────────────┘</span>`);
+
+        if (cwd.children && cwd.children.length) {
+            pb();
+            pl(`Current location: ${getPath()}`, 't-dim');
+            CMDS.ls();
+        }
+        pb();
+    },
+
+    ls() {
+        const kids = (cwd.children || []).filter(n => n.visibility !== 'hidden');
+        if (!kids.length) { pl('  (empty directory)', 't-dim'); return; }
+        kids.forEach(n => {
+            const icon = n.type === 'dir' ? '📁' : '📄';
+            const cls  = n.type === 'dir' ? 't-dir'  : 't-page';
+            const slug = n.slug.padEnd(22);
+            const hint = n.hint ? `<span class="t-dim"> — ${esc(n.hint)}</span>` : '';
+            print(`  ${icon} <span class="${cls}">${esc(slug)}</span>${hint}`);
+        });
+    },
+
+    dir() { CMDS.ls(); },
+
+    async cd(args) {
+        if (!args || args === '~') {
+            cwd = ROOT; cwdStack = []; updatePrompt(); return;
+        }
+        if (args === '..' || args === 'back') {
+            if (!cwdStack.length) { pl('Already at root.', 't-dim'); return; }
+            cwdStack.pop();
+            cwd = cwdStack.length ? cwdStack[cwdStack.length - 1].node : ROOT;
+            updatePrompt();
+            CMDS.ls();
+            return;
+        }
+        let target = (cwd.children || []).find(n => n.slug === args);
+        if (!target) {
+            /* Not in local tree — ask the server (handles nodes created/changed since page load) */
+            target = await serverFind(args, cwd.id);
+            if (target) {
+                /* Graft into local tree so ls / cat work within it */
+                if (!cwd.children) cwd.children = [];
+                cwd.children.push(target);
+            }
+        }
+        if (!target)               { pl(`cd: '${args}': no such directory`, 't-red'); return; }
+        if (target.type !== 'dir') { pl(`cd: '${args}' is a page — use 'cat ${args}' to read it`, 't-orange'); return; }
+        cwdStack.push({ node: target, slug: target.slug });
+        cwd = target;
+        updatePrompt();
+        CMDS.ls();
+    },
+
+    back() { CMDS.cd('..'); },
+
+    async cat(args) {
+        if (!args) { pl('cat: missing filename', 't-red'); return; }
+        let node = (cwd.children || []).find(n => n.slug === args);
+        if (!node) {
+            node = await serverFind(args, cwd.id);
+            if (node) {
+                if (!cwd.children) cwd.children = [];
+                cwd.children.push(node);
+            }
+        }
+        if (!node) {
+            pl(`cat: '${args}': no such file`, 't-red');
+            return;
+        }
+        if (node.type === 'dir') {
+            pl(`'${args}' is a directory. Use 'cd ${args}' to enter it.`, 't-orange');
+            return;
+        }
+        pb();
+        print(`<span class="t-cyan">╔══ ${esc(node.title)} ${'═'.repeat(Math.max(0, 62 - node.title.length))}╗</span>`);
+        pb();
+        if (node.content) {
+            node.content.split('\n').forEach(line => {
+                print(`<span class="t-white">  ${parseContent(line) || '&nbsp;'}</span>`);
+            });
+        } else {
+            pl('  (no content)', 't-dim');
+        }
+        pb();
+        print(`<span class="t-cyan">╚${'═'.repeat(68)}╝</span>`);
+        pb();
+        /* Load and render attachments */
+        fetchFiles(node.id);
+    },
+
+    read(args) { CMDS.cat(args); },
+
+    pwd() {
+        const full = cwdStack.length ? '/root/' + cwdStack.map(s => s.slug).join('/') : '/root';
+        pl(full, 't-amber');
+    },
+
+    whoami() {
+        pb();
+        if (USER) {
+            print(`<span class="t-green">Authenticated session:</span>`);
+            print(`  <span class="t-cyan">Username  </span>  <span class="t-white">${esc(USER.username)}</span>`);
+            if (USER.isAdmin) print(`  <span class="t-cyan">Clearance  </span>  <span class="t-orange">ADMINISTRATOR</span>`);
+        } else {
+            pl('  Guest — not authenticated.', 't-dim');
+        }
+        pb();
+    },
+
+    date() {
+        pl(new Date().toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'long' }), 't-cyan');
+    },
+
+    clear() { outEl.innerHTML = ''; },
+    cls()   { CMDS.clear(); },
+};
+
+/* ══════════════════════════════════════════════════════════════════════
+   EXECUTE
+══════════════════════════════════════════════════════════════════════ */
+function execute(raw) {
+    const line = raw.trim();
+    if (!line) return;
+
+    /* echo the command */
+    print(`<span class="t-green">${esc(promptEl.textContent)}</span><span class="t-amber">${esc(line)}</span>`);
+
+    /* history */
+    if (history[history.length - 1] !== line) history.push(line);
+    histIdx = history.length;
+
+    flash();
+
+    const parts = line.split(/\s+/);
+    const cmd   = parts[0].toLowerCase();
+    const args  = parts.slice(1).join(' ') || null;
+
+    if (CMDS[cmd]) {
+        CMDS[cmd](args);
+    } else {
+        /* Try implicit cd/cat if slug matches a child (or server lookup) */
+        const child = (cwd.children || []).find(n => n.slug === cmd);
+        if (child) {
+            child.type === 'dir' ? CMDS.cd(cmd) : CMDS.cat(cmd);
+        } else {
+            /* Unknown command — could still be a hidden slug; let cd/cat try the server */
+            serverFind(cmd, cwd.id).then(node => {
+                if (node) {
+                    node.type === 'dir' ? CMDS.cd(cmd) : CMDS.cat(cmd);
+                } else {
+                    pl(`command not found: ${cmd}   (type 'help' for commands)`, 't-red');
+                }
+            });
+        }
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   INPUT HANDLING
+══════════════════════════════════════════════════════════════════════ */
+inputEl.addEventListener('input', () => {
+    typedEl.textContent = inputEl.value;
+});
+
+inputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+        const v = inputEl.value;
+        inputEl.value = '';
+        typedEl.textContent = '';
+        execute(v);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (histIdx > 0) { histIdx--; inputEl.value = history[histIdx]; typedEl.textContent = inputEl.value; }
+    } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (histIdx < history.length - 1) { histIdx++; inputEl.value = history[histIdx]; }
+        else { histIdx = history.length; inputEl.value = ''; }
+        typedEl.textContent = inputEl.value;
+    } else if (e.key === 'Tab') {
+        e.preventDefault();
+        const parts   = inputEl.value.split(/\s+/);
+        const partial = parts[parts.length - 1];
+        const matches = (cwd.children || []).filter(n => n.slug.startsWith(partial) && n.visibility !== 'hidden');
+        if (matches.length === 1) {
+            parts[parts.length - 1] = matches[0].slug;
+            inputEl.value = parts.join(' ');
+            typedEl.textContent = inputEl.value;
+        } else if (matches.length > 1) {
+            pl(matches.map(m => m.slug).join('   '), 't-dim');
+        }
+    }
+});
+
+/* Click anywhere on screen → focus input */
+document.getElementById('mt-screen').addEventListener('click', () => inputEl.focus());
+
+/* ══════════════════════════════════════════════════════════════════════
+   BOOT SEQUENCE
+══════════════════════════════════════════════════════════════════════ */
+async function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function boot() {
+    const inputLine = document.getElementById('term-inputline');
+    inputLine.style.visibility = 'hidden';
+    inputEl.disabled = true;
+
+    // ── Phase 1: Header ────────────────────────────────────────────
+    await delay(200);
+    print(`<span class="t-amber">████████████████████████████████████████████████████████████████████████</span>`);
+    await delay(55);
+    print(`<span class="t-amber">█</span><span class="t-white">            PROFITEERS PMC — CLASSIFIED INFORMATION ARCHIVE            </span><span class="t-amber">█</span>`);
+    await delay(40);
+    print(`<span class="t-amber">█</span><span class="t-dim">                     AUTHORISED PERSONNEL ONLY                        </span><span class="t-amber">█</span>`);
+    await delay(40);
+    print(`<span class="t-amber">████████████████████████████████████████████████████████████████████████</span>`);
+    await delay(180);
+    pb();
+
+    // ── Phase 2: BIOS header ───────────────────────────────────────
+    print(`<span class="t-dim">PMC-BIOS v2.3.1  Copyright (c) Profiteers PMC  Build: SECURE-ALPHA-7</span>`);
+    await delay(60);
+    print(`<span class="t-dim">Checksum: A4F2-9C3B-FF01  [VERIFIED]</span>`);
+    await delay(160);
+    pb();
+
+    // ── Phase 3: Memory test (animated bar) ────────────────────────
+    const BAR_W  = 28;
+    const memEl  = printLive();
+    for (let i = 0; i <= BAR_W; i++) {
+        const kb = Math.round((i / BAR_W) * 65536);
+        memEl.innerHTML =
+            `<span class="t-dim">Memory check:  [</span>` +
+            `<span class="t-green">${'█'.repeat(i)}</span>` +
+            `<span class="t-dim">${'░'.repeat(BAR_W - i)}]</span>` +
+            `  <span class="t-amber">${kb.toLocaleString()} K</span>`;
+        outEl.scrollTop = outEl.scrollHeight;
+        await delay(44);
+    }
+    memEl.innerHTML =
+        `<span class="t-dim">Memory check:  [</span>` +
+        `<span class="t-green">${'█'.repeat(BAR_W)}</span>` +
+        `<span class="t-dim">]</span>` +
+        `  <span class="t-green">65,536 K  OK</span>`;
+    await delay(160);
+    pb();
+
+    // ── Phase 4: Hardware detection ────────────────────────────────
+    print(`<span class="t-dim">Detecting hardware...</span>`);
+    await delay(80);
+    const hw = [
+        [`  CPU: PMC-PROC/X86  2.40 GHz  ×8`, `[OK]`,      't-green'],
+        [`  NET: SECURE-ETH0   Link detected`, `[OK]`,      't-green'],
+        [`  STO: RAID-ARCHIVE  12.4 TB       `, `[OK]`,      't-green'],
+        [`  ENC: AES-256 coprocessor         `, `[LOADED]`,  't-green'],
+    ];
+    for (const [label, status, sc] of hw) {
+        const el = printLive();
+        el.innerHTML = `<span class="t-dim">${label}  ···</span>`;
+        outEl.scrollTop = outEl.scrollHeight;
+        await delay(110 + Math.random() * 120);
+        el.innerHTML = `<span class="t-dim">${label}  </span><span class="${sc}">${status}</span>`;
+    }
+    await delay(120);
+    pb();
+
+    // ── Phase 5: Kernel modules ────────────────────────────────────
+    print(`<span class="t-dim">Loading kernel modules...</span>`);
+    await delay(60);
+    for (const m of ['security.ko', 'crypto.ko', 'archive_fs.ko', 'auth_layer.ko']) {
+        const el = printLive();
+        el.innerHTML = `<span class="t-dim">  [ ·· ]  ${m}</span>`;
+        outEl.scrollTop = outEl.scrollHeight;
+        await delay(85 + Math.random() * 90);
+        el.innerHTML = `<span class="t-green">  [OK]</span>  <span class="t-dim">${m}</span>`;
+    }
+    await delay(120);
+    pb();
+
+    // ── Phase 6: Mounting partitions ───────────────────────────────
+    print(`<span class="t-dim">Mounting secure partitions...</span>`);
+    await delay(60);
+    for (const [path, status, sc] of [
+        [`/dev/sda1  →  /boot       `, `[OK]`,        't-green'],
+        [`/dev/sda2  →  /archive    `, `[OK]`,        't-green'],
+        [`/dev/sda3  →  /classified `, `[ENCRYPTED]`, 't-orange'],
+    ]) {
+        await delay(95 + Math.random() * 90);
+        print(`<span class="t-dim">  ${path}  </span><span class="${sc}">${status}</span>`);
+    }
+    await delay(140);
+    pb();
+
+    // ── Phase 7: Auth + connect + decrypt ─────────────────────────
+    const authEl = printLive();
+    authEl.innerHTML = `<span class="t-dim">Verifying operator clearance  ···</span>`;
+    await delay(700 + Math.random() * 250);
+    authEl.innerHTML = `<span class="t-dim">Verifying operator clearance  </span><span class="t-green">[ GRANTED ]</span>`;
+
+    await delay(220);
+    const connEl = printLive();
+    connEl.innerHTML = `<span class="t-dim">Connecting to secure archive  ···</span>`;
+    await delay(450 + Math.random() * 200);
+    connEl.innerHTML = `<span class="t-dim">Connecting to secure archive  </span><span class="t-green">[OK]</span>`;
+
+    await delay(220);
+    const decEl = printLive();
+    decEl.innerHTML = `<span class="t-dim">Decrypting archive index  ···</span>`;
+    await delay(550 + Math.random() * 300);
+    decEl.innerHTML =
+        `<span class="t-dim">Decrypting archive index  </span>` +
+        `<span class="t-amber">${FLAT.length} record${FLAT.length !== 1 ? 's' : ''}  </span>` +
+        `<span class="t-green">[DONE]</span>`;
+    await delay(260);
+    pb();
+
+    // ── Phase 8: Ready banner ──────────────────────────────────────
+    print(`<span class="t-cyan">${'═'.repeat(72)}</span>`);
+    await delay(55);
+    print(`<span class="t-cyan">║</span><span class="t-green">          SECURE ARCHIVE TERMINAL ONLINE — READY FOR INPUT           </span><span class="t-cyan">║</span>`);
+    await delay(55);
+    print(`<span class="t-cyan">${'═'.repeat(72)}</span>`);
+    await delay(240);
+    pb();
+    print(`<span class="t-white">Type <span class="t-cmd">help</span> for available commands.  Type <span class="t-cmd">ls</span> to browse the archive.</span>`);
+    pb();
+    await delay(160);
+
+    // ── Done: restore input ────────────────────────────────────────
+    inputLine.style.visibility = '';
+    inputEl.disabled = false;
+    inputEl.focus();
+}
+
+/* Set exact nav height so the page fills the viewport without scrolling */
+(function setNavHeight() {
+    const nav = document.querySelector('nav');
+    if (nav) document.documentElement.style.setProperty('--nav-h', nav.offsetHeight + 'px');
+})();
+
+boot();
+
+})();
+</script>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,520 @@
+<%- include('../partials/header') %>
+
+<style>
+.lore-admin-wrap {
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 24px 20px 40px;
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 24px;
+    align-items: start;
+}
+/* ── Tree Panel ───────────────────────────────────────────────────── */
+.la-tree-panel h2 { margin-bottom: 14px; }
+.la-tree-actions { display: flex; gap: 8px; margin-bottom: 16px; }
+
+.la-tree { display: flex; flex-direction: column; gap: 2px; }
+.la-node {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 4px;
+    background: var(--camo-medium);
+    border: 1px solid transparent;
+    transition: border-color 0.15s;
+}
+.la-node:hover { border-color: var(--olive); }
+.la-node.selected { border-color: var(--accent); background: rgba(var(--accent-rgb, 204,162,0),0.08); }
+.la-node-icon  { font-size: 1em; flex-shrink: 0; }
+.la-node-slug  { font-family: 'Roboto Mono', monospace; font-size: 0.85em; color: var(--accent); font-weight: 700; flex-shrink: 0; }
+.la-node-title { font-size: 0.85em; color: var(--khaki); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.la-node-btns  { display: flex; gap: 4px; flex-shrink: 0; }
+.la-btn { padding: 2px 8px; font-size: 0.75em; border-radius: 3px; cursor: pointer; border: 1px solid; background: transparent; transition: background 0.1s; }
+.la-btn-add  { color: var(--accent); border-color: var(--accent); }
+.la-btn-add:hover { background: rgba(204,162,0,0.15); }
+.la-btn-edit { color: #5bc0de; border-color: #5bc0de; }
+.la-btn-edit:hover { background: rgba(91,192,222,0.12); }
+.la-btn-del  { color: #e74c3c; border-color: #e74c3c; }
+.la-btn-del:hover  { background: rgba(231,76,60,0.12); }
+.la-btn-vis-visible { color: #2ecc71; border-color: #2ecc71; }
+.la-btn-vis-visible:hover { background: rgba(46,204,113,0.1); }
+.la-btn-vis-hidden  { color: #f39c12; border-color: #f39c12; }
+.la-btn-vis-hidden:hover  { background: rgba(243,156,18,0.1); }
+.la-btn-vis-draft   { color: #e74c3c; border-color: #e74c3c; }
+.la-btn-vis-draft:hover   { background: rgba(231,76,60,0.1); }
+
+/* Hidden: dimmed, italic — accessible but not listed */
+.la-node.vis-hidden .la-node-slug,
+.la-node.vis-hidden .la-node-title { opacity: 0.55; font-style: italic; }
+/* Draft: strikethrough + red — completely blocked */
+.la-node.vis-draft .la-node-slug,
+.la-node.vis-draft .la-node-title { opacity: 0.4; text-decoration: line-through; color: #e74c3c; }
+
+/* ── Form Panel ───────────────────────────────────────────────────── */
+.la-form-panel {
+    position: sticky;
+    top: 20px;
+}
+.la-form-panel h2 { margin-bottom: 14px; }
+.la-form-panel .section { margin-bottom: 0; }
+
+.la-form { display: flex; flex-direction: column; gap: 14px; }
+.la-field { display: flex; flex-direction: column; gap: 5px; }
+.la-field label { font-size: 0.82em; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; }
+.la-field input, .la-field select, .la-field textarea {
+    background: var(--camo-dark);
+    border: 1px solid var(--olive);
+    border-radius: 4px;
+    color: var(--sand);
+    padding: 8px 10px;
+    font-size: 0.9em;
+    font-family: inherit;
+    transition: border-color 0.15s;
+}
+.la-field input:focus, .la-field select:focus, .la-field textarea:focus {
+    outline: none; border-color: var(--accent);
+}
+.la-field textarea {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.82em;
+    resize: vertical;
+    min-height: 200px;
+}
+.la-field .hint-text {
+    font-size: 0.74em; color: var(--khaki); opacity: 0.7; line-height: 1.4;
+}
+.la-form-btns { display: flex; gap: 8px; margin-top: 4px; }
+.la-form-btns button { flex: 1; }
+
+#la-error { color: #e74c3c; font-size: 0.85em; display: none; }
+#la-success { color: #2ecc71; font-size: 0.85em; display: none; }
+
+/* ── File list ────────────────────────────────────────────────────── */
+.la-file-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
+.la-file-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 8px; border-radius: 4px;
+    background: var(--camo-dark); border: 1px solid var(--olive);
+    font-size: 0.82em;
+}
+.la-file-row .la-file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.la-file-row .la-file-size { color: var(--khaki); opacity: 0.6; flex-shrink: 0; font-size: 0.9em; }
+.la-file-del { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 1em; padding: 0 2px; line-height: 1; }
+.la-file-del:hover { color: #ff6b6b; }
+.la-upload-btn {
+    display: inline-block; cursor: pointer;
+    padding: 6px 12px; border: 1px dashed var(--olive);
+    border-radius: 4px; font-size: 0.82em; color: var(--accent);
+    transition: background 0.15s;
+}
+.la-upload-btn:hover { background: rgba(204,162,0,0.08); }
+
+/* ── Responsive ───────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+    .lore-admin-wrap { grid-template-columns: 1fr; }
+    .la-form-panel { position: static; }
+}
+</style>
+
+<div class="container">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:24px 0 8px;">
+        <h1>Lore Admin</h1>
+        <a href="/lore" class="btn" target="_blank">↗ View Terminal</a>
+    </div>
+</div>
+
+<div class="lore-admin-wrap">
+
+    <!-- ── Tree panel ─────────────────────────────────────────────── -->
+    <div class="la-tree-panel">
+        <h2>Content Tree</h2>
+        <div class="la-tree-actions">
+            <button class="btn btn-primary" onclick="openForm(null, null)">+ Add Root Node</button>
+        </div>
+        <div class="la-tree" id="la-tree">
+            <p style="color:var(--khaki);opacity:0.6;">Loading…</p>
+        </div>
+    </div>
+
+    <!-- ── Form panel ─────────────────────────────────────────────── -->
+    <div class="la-form-panel">
+        <h2 id="la-form-title">Select a node to edit</h2>
+        <div class="card">
+            <form class="la-form" id="la-form" onsubmit="submitForm(event)">
+                <input type="hidden" id="f-id">
+
+                <div class="la-field">
+                    <label>Parent directory</label>
+                    <select id="f-parent"></select>
+                </div>
+                <div class="la-field">
+                    <label>Type</label>
+                    <select id="f-type" onchange="onTypeChange()">
+                        <option value="dir">📁 Directory</option>
+                        <option value="page">📄 Page</option>
+                    </select>
+                </div>
+                <div class="la-field">
+                    <label>Slug <span style="font-weight:400;text-transform:none;">(URL-safe name, e.g. <code>unit-history</code>)</span></label>
+                    <input type="text" id="f-slug" placeholder="my-entry" required pattern="[a-z0-9_-]+" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_-]/g,'-')">
+                </div>
+                <div class="la-field">
+                    <label>Title</label>
+                    <input type="text" id="f-title" placeholder="Display title" required>
+                </div>
+                <div class="la-field">
+                    <label>Hint <span style="font-weight:400;text-transform:none;">(short description shown in ls)</span></label>
+                    <input type="text" id="f-hint" placeholder="Optional one-line description">
+                </div>
+                <div class="la-field">
+                    <label>Display order</label>
+                    <input type="number" id="f-order" value="0" min="0">
+                </div>
+                <div class="la-field" id="f-content-wrap">
+                    <label>Content</label>
+                    <textarea id="f-content" placeholder="Page content…"></textarea>
+                    <span class="hint-text">
+                        Colour markup: <code>[amber]…[/amber]</code> <code>[green]…[/green]</code>
+                        <code>[cyan]…[/cyan]</code> <code>[red]…[/red]</code>
+                        <code>[white]…[/white]</code> <code>[orange]…[/orange]</code>
+                        <code>[dim]…[/dim]</code> <code>[b]…[/b]</code>
+                    </span>
+                </div>
+
+                <!-- File attachments (only shown when editing an existing page node) -->
+                <div class="la-field" id="f-files-wrap" style="display:none;">
+                    <label>Attachments</label>
+                    <div id="f-file-list" class="la-file-list"></div>
+                    <label class="la-upload-btn">
+                        <input type="file" id="f-file-input" multiple style="display:none" onchange="uploadFiles(this)">
+                        + Upload files
+                    </label>
+                    <span class="hint-text">Images &amp; videos open in a modal. Other files are downloaded.</span>
+                </div>
+
+                <div id="la-error"></div>
+                <div id="la-success"></div>
+
+                <div class="la-form-btns">
+                    <button type="submit" class="btn btn-primary" id="la-save-btn">Save</button>
+                    <button type="button" class="btn" onclick="resetForm()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<script>
+let ALL_NODES = <%- nodesJson %>;
+
+/* ── Build tree display ─────────────────────────────────────────── */
+function sortNodes(arr) {
+    return [...arr].sort((a,b) => a.display_order - b.display_order || a.id - b.id);
+}
+
+function renderTree() {
+    const container = document.getElementById('la-tree');
+    container.innerHTML = '';
+    if (!ALL_NODES.length) {
+        container.innerHTML = '<p style="color:var(--khaki);opacity:0.6;">No nodes yet — add one above.</p>';
+        return;
+    }
+    renderLevel(container, null, 0);
+}
+
+const VIS_CYCLE = { visible: 'hidden', hidden: 'draft', draft: 'visible' };
+const VIS_LABEL = {
+    visible: { icon: '👁',  text: 'Visible', cls: 'la-btn-vis-visible', tip: 'Visible — click to make hidden (ARG)' },
+    hidden:  { icon: '🔍', text: 'Hidden',  cls: 'la-btn-vis-hidden',  tip: 'Hidden (ARG) — click to make draft'  },
+    draft:   { icon: '🔒', text: 'Draft',   cls: 'la-btn-vis-draft',   tip: 'Draft (blocked) — click to make visible' },
+};
+
+function renderLevel(container, parentId, depth) {
+    const children = sortNodes(ALL_NODES.filter(n => n.parent_id === parentId));
+    children.forEach(node => {
+        const vis = node.visibility || 'visible';
+        const el = document.createElement('div');
+        el.className = 'la-node vis-' + vis;
+        el.dataset.id = node.id;
+        el.style.marginLeft = (depth * 22) + 'px';
+
+        const icon   = node.type === 'dir' ? '📁' : '📄';
+        const addBtn = node.type === 'dir'
+            ? `<button class="la-btn la-btn-add" onclick="openForm(null,${node.id})" title="Add child node">+ Child</button>`
+            : '';
+        const vl = VIS_LABEL[vis];
+        const visBtn = `<button class="la-btn ${vl.cls}" onclick="cycleVisibility(${node.id})" title="${vl.tip}">${vl.icon} ${vl.text}</button>`;
+
+        el.innerHTML = `
+            <span class="la-node-icon">${icon}</span>
+            <span class="la-node-slug">${esc(node.slug)}</span>
+            <span class="la-node-title">${esc(node.title)}</span>
+            <div class="la-node-btns">
+                ${addBtn}
+                ${visBtn}
+                <button class="la-btn la-btn-edit" onclick="openForm(${node.id})" title="Edit">✏</button>
+                <button class="la-btn la-btn-del"  onclick="deleteNode(${node.id})" title="Delete">🗑</button>
+            </div>
+        `;
+        container.appendChild(el);
+
+        if (node.type === 'dir') renderLevel(container, node.id, depth + 1);
+    });
+}
+
+function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Parent select population ───────────────────────────────────── */
+function populateParentSelect(excludeId = null) {
+    const sel = document.getElementById('f-parent');
+    sel.innerHTML = '<option value="">— Root level —</option>';
+    const dirs = ALL_NODES.filter(n => n.type === 'dir' && n.id !== excludeId);
+    sortNodes(dirs).forEach(n => {
+        const opt = document.createElement('option');
+        opt.value = n.id;
+        opt.textContent = `📁 ${n.slug} — ${n.title}`;
+        sel.appendChild(opt);
+    });
+}
+
+/* ── Form open / reset ──────────────────────────────────────────── */
+function openForm(id, presetParentId = null) {
+    clearMessages();
+    populateParentSelect(id);
+
+    if (id) {
+        /* edit */
+        const node = ALL_NODES.find(n => n.id === id);
+        if (!node) return;
+        document.getElementById('la-form-title').textContent = 'Edit Node';
+        document.getElementById('f-id').value      = node.id;
+        document.getElementById('f-parent').value  = node.parent_id ?? '';
+        document.getElementById('f-type').value    = node.type;
+        document.getElementById('f-slug').value    = node.slug;
+        document.getElementById('f-title').value   = node.title;
+        document.getElementById('f-hint').value    = node.hint ?? '';
+        document.getElementById('f-order').value   = node.display_order;
+        document.getElementById('f-content').value = node.content ?? '';
+    } else {
+        /* add */
+        document.getElementById('la-form-title').textContent = 'Add Node';
+        document.getElementById('f-id').value      = '';
+        document.getElementById('f-parent').value  = presetParentId ?? '';
+        document.getElementById('f-type').value    = 'page';
+        document.getElementById('f-slug').value    = '';
+        document.getElementById('f-title').value   = '';
+        document.getElementById('f-hint').value    = '';
+        document.getElementById('f-order').value   = 0;
+        document.getElementById('f-content').value = '';
+    }
+    onTypeChange();
+    if (id && document.getElementById('f-type').value === 'page') loadFiles(id);
+    document.querySelector('.la-form-panel').scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('f-slug').focus();
+
+    /* highlight selected */
+    document.querySelectorAll('.la-node').forEach(el => el.classList.remove('selected'));
+    if (id) document.querySelector(`.la-node[data-id="${id}"]`)?.classList.add('selected');
+}
+
+function resetForm() {
+    document.getElementById('la-form-title').textContent = 'Select a node to edit';
+    document.getElementById('f-id').value = '';
+    document.querySelectorAll('.la-node').forEach(el => el.classList.remove('selected'));
+    clearMessages();
+}
+
+function onTypeChange() {
+    const isPage = document.getElementById('f-type').value === 'page';
+    document.getElementById('f-content-wrap').style.display = isPage ? '' : 'none';
+    /* Files only make sense on existing page nodes */
+    const id = document.getElementById('f-id').value;
+    document.getElementById('f-files-wrap').style.display = (isPage && id) ? '' : 'none';
+}
+
+/* ── Submit ──────────────────────────────────────────────────────── */
+async function submitForm(e) {
+    e.preventDefault();
+    clearMessages();
+
+    const id    = document.getElementById('f-id').value;
+    const body  = {
+        parent_id:     document.getElementById('f-parent').value  || null,
+        type:          document.getElementById('f-type').value,
+        slug:          document.getElementById('f-slug').value.trim(),
+        title:         document.getElementById('f-title').value.trim(),
+        hint:          document.getElementById('f-hint').value.trim()    || null,
+        display_order: parseInt(document.getElementById('f-order').value) || 0,
+        content:       document.getElementById('f-content').value || null,
+    };
+
+    const btn = document.getElementById('la-save-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
+    try {
+        const url    = id ? `/lore/api/nodes/${id}` : '/lore/api/nodes';
+        const method = id ? 'PATCH' : 'POST';
+        const res    = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Request failed');
+
+        /* Patch local state */
+        if (id) {
+            const idx = ALL_NODES.findIndex(n => n.id === parseInt(id));
+            if (idx !== -1) ALL_NODES[idx] = data.node;
+        } else {
+            ALL_NODES.push(data.node);
+        }
+        renderTree();
+        showSuccess(id ? 'Node updated.' : 'Node created.');
+        if (!id) resetForm();
+    } catch (err) {
+        showError(err.message);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Save';
+    }
+}
+
+/* ── Cycle visibility  visible → hidden → draft → visible ────────── */
+async function cycleVisibility(id) {
+    const node = ALL_NODES.find(n => n.id === id);
+    if (!node) return;
+    const next = VIS_CYCLE[node.visibility || 'visible'];
+    try {
+        const res = await fetch(`/lore/api/nodes/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ visibility: next }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Request failed');
+        const idx = ALL_NODES.findIndex(n => n.id === id);
+        if (idx !== -1) ALL_NODES[idx] = data.node;
+        renderTree();
+    } catch (err) {
+        alert('Visibility change failed: ' + err.message);
+    }
+}
+
+/* ── Delete ──────────────────────────────────────────────────────── */
+async function deleteNode(id) {
+    const node = ALL_NODES.find(n => n.id === id);
+    const children = ALL_NODES.filter(n => n.parent_id === id);
+    const warning = children.length ? `\n⚠ This will also delete ${children.length} child node(s).` : '';
+    if (!confirm(`Delete "${node?.title}" (${node?.slug})?${warning}`)) return;
+
+    try {
+        const res = await fetch(`/lore/api/nodes/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error((await res.json()).error);
+        /* Remove node + descendants from local state */
+        const toRemove = new Set();
+        function collectDescendants(pid) {
+            ALL_NODES.filter(n => n.parent_id === pid).forEach(n => { toRemove.add(n.id); collectDescendants(n.id); });
+        }
+        toRemove.add(id);
+        collectDescendants(id);
+        ALL_NODES = ALL_NODES.filter(n => !toRemove.has(n.id));
+        renderTree();
+        resetForm();
+    } catch (err) {
+        alert('Delete failed: ' + err.message);
+    }
+}
+
+/* ── Files ───────────────────────────────────────────────────────── */
+function fileIcon(mime) {
+    if (/^image\//.test(mime))  return '🖼';
+    if (/^video\//.test(mime))  return '🎬';
+    if (/^audio\//.test(mime))  return '🎵';
+    if (/pdf/.test(mime))       return '📕';
+    if (/zip|rar|7z|tar/.test(mime)) return '🗜';
+    return '📎';
+}
+
+async function loadFiles(nodeId) {
+    const list = document.getElementById('f-file-list');
+    list.innerHTML = '<span style="opacity:0.5;font-size:0.8em">Loading…</span>';
+    try {
+        const r = await fetch(`/lore/api/nodes/${nodeId}/files`);
+        const { files } = await r.json();
+        renderFileList(files, nodeId);
+    } catch (_) {
+        list.innerHTML = '';
+    }
+}
+
+function renderFileList(files, nodeId) {
+    const list = document.getElementById('f-file-list');
+    list.innerHTML = '';
+    if (!files.length) {
+        list.innerHTML = '<span style="opacity:0.5;font-size:0.8em">No attachments yet.</span>';
+        return;
+    }
+    files.forEach(f => {
+        const kb = f.size > 1048576
+            ? (f.size / 1048576).toFixed(1) + ' MB'
+            : Math.ceil(f.size / 1024) + ' KB';
+        const row = document.createElement('div');
+        row.className = 'la-file-row';
+        row.dataset.fileId = f.id;
+        row.innerHTML =
+            `<span>${fileIcon(f.mimetype)}</span>` +
+            `<span class="la-file-name" title="${esc(f.original_name)}">${esc(f.original_name)}</span>` +
+            `<span class="la-file-size">${kb}</span>` +
+            `<button class="la-file-del" onclick="deleteFile(${f.id}, ${nodeId})" title="Delete">✕</button>`;
+        list.appendChild(row);
+    });
+}
+
+async function uploadFiles(input) {
+    const nodeId = document.getElementById('f-id').value;
+    if (!nodeId || !input.files.length) return;
+    const list = document.getElementById('f-file-list');
+    list.innerHTML = '<span style="opacity:0.5;font-size:0.8em">Uploading…</span>';
+    try {
+        for (const file of Array.from(input.files)) {
+            const fd = new FormData();
+            fd.append('file', file);
+            const r = await fetch(`/lore/api/nodes/${nodeId}/files`, { method: 'POST', body: fd });
+            if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
+        }
+        input.value = '';
+        await loadFiles(nodeId);
+        showSuccess('File(s) uploaded.');
+    } catch (err) {
+        showError('Upload failed: ' + err.message);
+        await loadFiles(nodeId);
+    }
+}
+
+async function deleteFile(fileId, nodeId) {
+    if (!confirm('Delete this file?')) return;
+    try {
+        const r = await fetch(`/lore/api/files/${fileId}`, { method: 'DELETE' });
+        if (!r.ok) throw new Error((await r.json()).error);
+        await loadFiles(nodeId);
+    } catch (err) {
+        showError('Delete failed: ' + err.message);
+    }
+}
+
+/* ── Messages ────────────────────────────────────────────────────── */
+function showError(msg)   { const el = document.getElementById('la-error');   el.textContent = msg; el.style.display = 'block'; }
+function showSuccess(msg) { const el = document.getElementById('la-success'); el.textContent = msg; el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 3000); }
+function clearMessages()  { document.getElementById('la-error').style.display = 'none'; document.getElementById('la-success').style.display = 'none'; }
+
+/* ── Init ────────────────────────────────────────────────────────── */
+renderTree();
+onTypeChange();
+</script>
+
+<%- include('../partials/footer') %>
