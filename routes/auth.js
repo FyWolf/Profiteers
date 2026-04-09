@@ -84,10 +84,9 @@ router.post('/login', loginLimiter, async (req, res) => {
                 return renderLoginError(res, 'An error occurred during login', redirect);
             }
 
-            // Set session props for backward compatibility with route handlers
+            // Set basic session props — isAdmin is resolved by attachUser middleware
             req.session.userId = user.id;
             req.session.username = user.username;
-            req.session.isAdmin = Boolean(user.is_admin);
 
             res.redirect(redirect);
         });

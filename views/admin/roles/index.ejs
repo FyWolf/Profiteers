@@ -1,0 +1,185 @@
+<%- include('../../partials/header') %>
+
+<style>
+.roles-table { width: 100%; border-collapse: collapse; }
+.roles-table th {
+    padding: 10px 12px;
+    font-size: 0.7em;
+    color: var(--khaki);
+    border-bottom: 2px solid rgba(107,142,35,0.35);
+    font-family: var(--heading-font);
+    letter-spacing: 1px;
+    text-align: left;
+    opacity: 0.85;
+}
+.roles-table td {
+    padding: 11px 12px;
+    border-bottom: 1px solid rgba(107,142,35,0.1);
+    vertical-align: middle;
+}
+.roles-table tbody tr:hover td { background: rgba(107,142,35,0.05); }
+
+.role-name { font-weight: 700; font-size: 0.95em; }
+.role-desc { font-size: 0.78em; color: var(--khaki); margin-top: 2px; opacity: 0.75; }
+
+.system-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 7px;
+    background: rgba(252,176,13,0.12);
+    border: 1px solid rgba(252,176,13,0.35);
+    border-radius: 10px;
+    font-size: 0.65em;
+    color: var(--accent);
+    font-family: var(--heading-font);
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+}
+
+.count-chip {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.78em;
+    font-weight: 600;
+    background: rgba(107,142,35,0.12);
+    border: 1px solid rgba(107,142,35,0.3);
+    color: var(--olive-light);
+}
+
+.action-row { display: flex; gap: 6px; align-items: center; }
+.action-btn {
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 0.76em;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    font-family: var(--body-font);
+}
+.action-edit   { background: rgba(107,142,35,0.12); border-color: rgba(107,142,35,0.4); color: var(--olive-light); }
+.action-edit:hover   { background: rgba(107,142,35,0.25); }
+.action-delete { background: rgba(231,76,60,0.1); border-color: rgba(231,76,60,0.35); color: #ff7b7b; }
+.action-delete:hover { background: rgba(231,76,60,0.22); }
+
+.create-btn {
+    padding: 9px 18px;
+    background: linear-gradient(135deg, var(--olive) 0%, var(--olive-light) 100%);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 0.88em;
+    font-weight: 700;
+    transition: filter 0.2s;
+    display: inline-block;
+}
+.create-btn:hover { filter: brightness(1.15); }
+
+.page-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.perm-category {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7em;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-right: 4px;
+    font-family: var(--heading-font);
+}
+.cat-admin      { background: rgba(252,176,13,0.12); color: var(--accent); }
+.cat-users      { background: rgba(52,152,219,0.12); color: #6bb8f7; }
+.cat-content    { background: rgba(107,142,35,0.12); color: var(--olive-light); }
+.cat-operations { background: rgba(231,76,60,0.12);  color: #ff7b7b; }
+</style>
+
+<div class="container">
+    <header>
+        <h1>MANAGE ROLES</h1>
+        <div class="subtitle">Role-Based Permission Management</div>
+    </header>
+
+    <section class="section">
+        <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+        <% if (error)   { %><div class="alert alert-error"><%= error %></div><% } %>
+
+        <div class="page-header-row">
+            <h2 style="margin:0; font-size:1.05em; color:var(--khaki); letter-spacing:2px;">
+                ALL ROLES (<%= roles.length %>)
+            </h2>
+            <a href="/admin/roles/create" class="create-btn">+ Create Role</a>
+        </div>
+
+        <% if (roles.length === 0) { %>
+            <div style="text-align:center; padding:48px 20px; color:var(--khaki); opacity:0.6;">
+                <div style="font-size:3em; margin-bottom:12px;">🔐</div>
+                <strong>No roles yet</strong>
+                <p style="font-size:0.9em; margin-top:6px;">
+                    <a href="/admin/roles/create" style="color:var(--accent); text-decoration:none;">Create a role</a>
+                    to start assigning permissions.
+                </p>
+            </div>
+        <% } else { %>
+        <table class="roles-table">
+            <thead>
+                <tr>
+                    <th>Role</th>
+                    <th>Permissions</th>
+                    <th>Users</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% roles.forEach(role => { %>
+                <tr>
+                    <td>
+                        <div class="role-name">
+                            <%= role.name %>
+                            <% if (role.is_system) { %><span class="system-badge">SYSTEM</span><% } %>
+                        </div>
+                        <% if (role.description) { %>
+                            <div class="role-desc"><%= role.description %></div>
+                        <% } %>
+                    </td>
+                    <td>
+                        <span class="count-chip"><%= role.permission_count %> permission<%= role.permission_count !== 1 ? 's' : '' %></span>
+                    </td>
+                    <td>
+                        <span class="count-chip"><%= role.user_count %> user<%= role.user_count !== 1 ? 's' : '' %></span>
+                    </td>
+                    <td>
+                        <div class="action-row">
+                            <a href="/admin/roles/<%= role.id %>/edit" class="action-btn action-edit">Edit</a>
+                            <% if (!role.is_system) { %>
+                            <form method="POST" action="/admin/roles/<%= role.id %>/delete" style="display:inline"
+                                  onsubmit="return confirm('Delete role <%= role.name %>? Users will lose these permissions.')">
+                                <button type="submit" class="action-btn action-delete">Delete</button>
+                            </form>
+                            <% } %>
+                        </div>
+                    </td>
+                </tr>
+                <% }) %>
+            </tbody>
+        </table>
+        <% } %>
+    </section>
+
+    <div style="margin-bottom:30px;">
+        <a href="/admin" class="btn">← Back to Dashboard</a>
+    </div>
+</div>
+
+<%- include('../../partials/footer') %>

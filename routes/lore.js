@@ -3,7 +3,8 @@ const router  = express.Router();
 const db      = require('../config/database');
 const path    = require('path');
 const fs      = require('fs');
-const { isAdmin } = require('../middleware/auth');
+const { hasPermission } = require('../middleware/auth');
+const loreAdmin = hasPermission('lore.manage');
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'public', 'uploads', 'lore');
 
@@ -35,7 +36,7 @@ router.get('/', async (req, res) => {
 });
 
 // ── Admin page ──────────────────────────────────────────────────────
-router.get('/admin', isAdmin, async (req, res) => {
+router.get('/admin', loreAdmin, async (req, res) => {
     try {
         const [nodes] = await db.query(
             `SELECT id, parent_id, type, slug, title, hint, content, display_order, visibility
@@ -97,7 +98,7 @@ router.get('/api/nodes/:id/files', async (req, res) => {
 });
 
 // ── API: Upload file to a node ───────────────────────────────────────
-router.post('/api/nodes/:id/files', isAdmin, async (req, res) => {
+router.post('/api/nodes/:id/files', loreAdmin, async (req, res) => {
     try {
         if (!req.files || !req.files.file) {
             return res.status(400).json({ error: 'No file uploaded' });
@@ -121,7 +122,7 @@ router.post('/api/nodes/:id/files', isAdmin, async (req, res) => {
 });
 
 // ── API: Delete a file ───────────────────────────────────────────────
-router.delete('/api/files/:id', isAdmin, async (req, res) => {
+router.delete('/api/files/:id', loreAdmin, async (req, res) => {
     try {
         const [rows] = await db.query('SELECT stored_name FROM lore_files WHERE id = ?', [req.params.id]);
         if (!rows.length) return res.status(404).json({ error: 'File not found' });
@@ -138,7 +139,7 @@ router.delete('/api/files/:id', isAdmin, async (req, res) => {
 });
 
 // ── API: Create node ─────────────────────────────────────────────────
-router.post('/api/nodes', isAdmin, async (req, res) => {
+router.post('/api/nodes', loreAdmin, async (req, res) => {
     try {
         const { parent_id, type, slug, title, hint, content, display_order } = req.body;
         if (!slug || !title || !type) return res.status(400).json({ error: 'slug, title and type are required' });
@@ -158,7 +159,7 @@ router.post('/api/nodes', isAdmin, async (req, res) => {
 });
 
 // ── API: Update node ─────────────────────────────────────────────────
-router.patch('/api/nodes/:id', isAdmin, async (req, res) => {
+router.patch('/api/nodes/:id', loreAdmin, async (req, res) => {
     try {
         const { slug, title, hint, content, display_order, parent_id, type, visibility } = req.body;
         const fields = [];
@@ -189,7 +190,7 @@ router.patch('/api/nodes/:id', isAdmin, async (req, res) => {
 });
 
 // ── API: Delete node ─────────────────────────────────────────────────
-router.delete('/api/nodes/:id', isAdmin, async (req, res) => {
+router.delete('/api/nodes/:id', loreAdmin, async (req, res) => {
     try {
         // Delete physical files first (DB cascade handles lore_files rows)
         const [files] = await db.query('SELECT stored_name FROM lore_files WHERE node_id = ?', [req.params.id]);

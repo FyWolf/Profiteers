@@ -133,32 +133,29 @@
 .auth-discord { background: rgba(88,101,242,0.15); border: 1px solid rgba(88,101,242,0.5); color: #8b97ff; }
 .auth-local   { background: rgba(107,142,35,0.15); border: 1px solid rgba(107,142,35,0.5); color: var(--olive-light); }
 
-/* ── Admin toggle ────────────────────────────────────────────── */
-.admin-toggle {
-    padding: 4px 12px;
+/* ── Role badges ─────────────────────────────────────────────── */
+.role-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.role-badge {
+    display: inline-block;
+    padding: 2px 9px;
     border-radius: 20px;
-    font-size: 0.78em;
-    font-weight: 700;
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition: all 0.2s;
-    font-family: var(--heading-font);
-    letter-spacing: 0.5px;
-}
-.admin-toggle.is-admin {
-    background: rgba(107,142,35,0.25);
-    border-color: var(--olive);
+    font-size: 0.73em;
+    font-weight: 600;
+    background: rgba(107,142,35,0.12);
+    border: 1px solid rgba(107,142,35,0.35);
     color: var(--olive-light);
+    white-space: nowrap;
 }
-.admin-toggle.is-admin:hover  { background: rgba(107,142,35,0.45); }
-.admin-toggle.not-admin {
-    background: rgba(255,255,255,0.04);
-    border-color: rgba(255,255,255,0.12);
+.role-badge.role-superadmin {
+    background: rgba(252,176,13,0.12);
+    border-color: rgba(252,176,13,0.4);
+    color: var(--accent);
+}
+.role-none {
+    font-size: 0.75em;
     color: var(--khaki);
-    opacity: 0.7;
+    opacity: 0.35;
 }
-.admin-toggle.not-admin:hover { border-color: var(--olive); color: var(--olive-light); opacity: 1; }
-.admin-toggle:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
 
 /* ── Date cell ───────────────────────────────────────────────── */
 .date-cell { font-size: 0.82em; color: var(--khaki); white-space: nowrap; }
@@ -183,6 +180,8 @@
 .action-medals:hover    { background: rgba(252,176,13,0.22); }
 .action-trainings { background: rgba(52,152,219,0.1);   border-color: rgba(52,152,219,0.35); color: #6bb8f7; }
 .action-trainings:hover { background: rgba(52,152,219,0.22); }
+.action-roles     { background: rgba(107,142,35,0.1);   border-color: rgba(107,142,35,0.35); color: var(--olive-light); }
+.action-roles:hover     { background: rgba(107,142,35,0.22); }
 .action-delete    { background: rgba(231,76,60,0.1);    border-color: rgba(231,76,60,0.35);  color: #ff7b7b; }
 .action-delete:hover    { background: rgba(231,76,60,0.22); }
 
@@ -281,8 +280,8 @@
                 <span class="users-stat-lbl">Discord Members</span>
             </div>
             <div class="users-stat">
-                <span class="users-stat-val"><%= globalStats.admins %></span>
-                <span class="users-stat-lbl">Admins</span>
+                <span class="users-stat-val"><%= globalStats.super_admins %></span>
+                <span class="users-stat-lbl">Super Admins</span>
             </div>
         </div>
     </header>
@@ -297,7 +296,6 @@
             const p = { sort, order };
             if (search)     p.search = search;
             if (filterType) p.type   = filterType;
-            if (filterRole) p.role   = filterRole;
             Object.assign(p, overrides);
             return Object.entries(p)
                 .filter(([, v]) => v !== '' && v != null)
@@ -315,11 +313,6 @@
             if (sort !== col) return '<span class="sort-icon">⇅</span>';
             return `<span class="sort-icon">${order === 'asc' ? '↑' : '↓'}</span>`;
         }
-        function filterHref(key, val) {
-            const cur    = key === 'type' ? filterType : filterRole;
-            const newVal = cur === val ? '' : val;
-            return '/admin/users?' + qs({ [key]: newVal, page: '' });
-        }
         %>
 
         <div class="search-row">
@@ -328,7 +321,6 @@
                 <% if (sort !== 'joined') { %><input type="hidden" name="sort" value="<%= sort %>"><% } %>
                 <% if (order !== 'desc') { %><input type="hidden" name="order" value="<%= order %>"><% } %>
                 <% if (filterType) { %><input type="hidden" name="type" value="<%= filterType %>"><% } %>
-                <% if (filterRole) { %><input type="hidden" name="role" value="<%= filterRole %>"><% } %>
                 <input type="text"
                        name="search"
                        value="<%= search %>"
@@ -346,19 +338,10 @@
                 <span class="filter-label">Type:</span>
                 <a href="/admin/users?<%= qs({ type: '', page: '' }) %>"
                    class="filter-pill <%= !filterType ? 'active' : '' %>">All</a>
-                <a href="<%= filterHref('type', 'discord') %>"
+                <a href="/admin/users?<%= qs({ type: 'discord', page: '' }) %>"
                    class="filter-pill <%= filterType === 'discord' ? 'active' : '' %>">Discord</a>
-                <a href="<%= filterHref('type', 'local') %>"
+                <a href="/admin/users?<%= qs({ type: 'local', page: '' }) %>"
                    class="filter-pill <%= filterType === 'local' ? 'active' : '' %>">Local</a>
-            </div>
-            <div class="filter-group">
-                <span class="filter-label">Role:</span>
-                <a href="/admin/users?<%= qs({ role: '', page: '' }) %>"
-                   class="filter-pill <%= !filterRole ? 'active' : '' %>">All</a>
-                <a href="<%= filterHref('role', 'admin') %>"
-                   class="filter-pill <%= filterRole === 'admin' ? 'active' : '' %>">Admin</a>
-                <a href="<%= filterHref('role', 'user') %>"
-                   class="filter-pill <%= filterRole === 'user' ? 'active' : '' %>">User</a>
             </div>
         </div>
 
@@ -383,9 +366,7 @@
                         <th class="sort-th <%= sort==='type' ? 'active' : '' %>">
                             <a href="<%= sortHref('type') %>">Type <%- sortIcon('type') %></a>
                         </th>
-                        <th class="sort-th <%= sort==='role' ? 'active' : '' %>">
-                            <a href="<%= sortHref('role') %>">Role <%- sortIcon('role') %></a>
-                        </th>
+                        <th>Roles</th>
                         <th class="sort-th <%= sort==='joined' ? 'active' : '' %>">
                             <a href="<%= sortHref('joined') %>">Joined <%- sortIcon('joined') %></a>
                         </th>
@@ -434,13 +415,18 @@
                             </span>
                         </td>
 
-                        <%# Admin toggle %>
+                        <%# RBAC Roles %>
                         <td>
-                            <button class="admin-toggle <%= u.is_admin ? 'is-admin' : 'not-admin' %>"
-                                    onclick="toggleAdmin(<%= u.id %>)"
-                                    <%= isSelf ? 'disabled' : '' %>>
-                                <%= u.is_admin ? '★ Admin' : 'User' %>
-                            </button>
+                            <div class="role-badges">
+                                <% u.roles.forEach(role => { %>
+                                    <span class="role-badge <%= role.name === 'Super Admin' ? 'role-superadmin' : '' %>">
+                                        <%= role.name === 'Super Admin' ? '★ ' : '' %><%= role.name %>
+                                    </span>
+                                <% }) %>
+                                <% if (u.roles.length === 0) { %>
+                                    <span class="role-none">No roles</span>
+                                <% } %>
+                            </div>
                         </td>
 
                         <%# Joined %>
@@ -458,13 +444,20 @@
                         <%# Actions %>
                         <td>
                             <div class="action-row">
+                                <% if (locals.user.permissions.includes('users.medals') || locals.user.isAdmin) { %>
                                 <a href="/admin/users/<%= u.id %>/medals" class="action-btn action-medals">🏅 Medals</a>
+                                <% } %>
+                                <% if (locals.user.permissions.includes('users.trainings') || locals.user.isAdmin) { %>
                                 <a href="/admin/users/<%= u.id %>/trainings" class="action-btn action-trainings">🎓 Trainings</a>
+                                <% } %>
+                                <% if (locals.user.permissions.includes('users.manage') || locals.user.isAdmin) { %>
+                                <a href="/admin/users/<%= u.id %>/roles" class="action-btn action-roles">🔐 Roles</a>
                                 <% if (!isSelf) { %>
                                 <form method="POST" action="/admin/users/delete/<%= u.id %>" style="display:inline"
                                       onsubmit="return confirm('Delete <%= u.username %>? This cannot be undone.')">
                                     <button type="submit" class="action-btn action-delete">Delete</button>
                                 </form>
+                                <% } %>
                                 <% } %>
                             </div>
                         </td>
@@ -518,21 +511,5 @@
     </div>
 </div>
 
-<script>
-async function toggleAdmin(id) {
-    if (!confirm('Toggle admin status for this user?')) return;
-    try {
-        const res  = await fetch(`/admin/users/toggle-admin/${id}`, { method: 'POST' });
-        const data = await res.json();
-        if (data.success) {
-            location.reload();
-        } else {
-            alert(data.error || 'Failed to toggle admin status');
-        }
-    } catch {
-        alert('Error toggling admin status');
-    }
-}
-</script>
 
 <%- include('../partials/footer') %>

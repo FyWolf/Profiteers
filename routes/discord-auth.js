@@ -17,9 +17,9 @@ router.get('/discord/callback',
         failureMessage: true
     }),
     (req, res) => {
+        // Set basic session props — isAdmin is resolved by attachUser middleware
         req.session.userId = req.user.id;
         req.session.username = req.user.username;
-        req.session.isAdmin = Boolean(req.user.is_admin);
         
         const redirect = sanitizeRedirect(req.session.redirectTo);
         delete req.session.redirectTo;

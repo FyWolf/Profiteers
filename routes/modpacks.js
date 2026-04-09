@@ -12,8 +12,10 @@ const path = require('path');
 const fs = require('fs');
 const db = require('../config/database');
 const ModpackIndexer = require('../services/modpack-indexer');
-const { isAuthenticated, isAdmin } = require('../middleware/auth');
-const { isZeus } = require('../middleware/zeus');
+const { isAuthenticated, hasPermission } = require('../middleware/auth');
+
+const canManageModpacks = hasPermission('modpacks.manage');
+const canDeleteModpacks = hasPermission('modpacks.delete');
 
 const indexer = new ModpackIndexer(db);
 
@@ -171,13 +173,13 @@ router.get('/:id/status', async (req, res) => {
     }
 });
 
-router.get('/upload/new', isZeus, async (req, res) => {
+router.get('/upload/new', canManageModpacks, async (req, res) => {
     res.render('modpacks/upload', {
         title: 'Upload Modpack - Profiteers PMC'
     });
 });
 
-router.post('/upload', isZeus, async (req, res) => {
+router.post('/upload', canManageModpacks, async (req, res) => {
     try {
         if (!req.files || !req.files.modpack_file) {
             return res.redirect('/modpacks/upload/new?error=Please select an HTML preset file');
@@ -254,7 +256,7 @@ router.post('/upload', isZeus, async (req, res) => {
     }
 });
 
-router.post('/:id/pin', isAdmin, async (req, res) => {
+router.post('/:id/pin', canManageModpacks, async (req, res) => {
     try {
         const [modpacks] = await db.query('SELECT id, is_pinned FROM modpacks WHERE id = ?', [req.params.id]);
         if (modpacks.length === 0) return res.redirect('/modpacks?error=Modpack not found');
@@ -269,7 +271,7 @@ router.post('/:id/pin', isAdmin, async (req, res) => {
     }
 });
 
-router.post('/:id/reindex', isZeus, async (req, res) => {
+router.post('/:id/reindex', canManageModpacks, async (req, res) => {
     try {
         const [modpacks] = await db.query('SELECT id, name FROM modpacks WHERE id = ?', [req.params.id]);
         
@@ -291,7 +293,7 @@ router.post('/:id/reindex', isZeus, async (req, res) => {
     }
 });
 
-router.post('/:id/delete', isZeus, async (req, res) => {
+router.post('/:id/delete', canDeleteModpacks, async (req, res) => {
     try {
         const [modpacks] = await db.query('SELECT file_path FROM modpacks WHERE id = ?', [req.params.id]);
         

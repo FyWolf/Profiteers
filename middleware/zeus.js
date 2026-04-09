@@ -10,7 +10,8 @@ async function isZeus(req, res, next) {
     }
 
     try {
-        if (req.user.is_admin) {
+        // RBAC: operations.create permission grants Zeus-level access
+        if (Array.isArray(req.user.permissions) && req.user.permissions.includes('operations.create')) {
             return next();
         }
 
@@ -93,10 +94,21 @@ async function isZeus(req, res, next) {
 
 async function checkZeusStatus(userId) {
     try {
-        const [users] = await db.query('SELECT is_admin, discord_id FROM users WHERE id = ?', [userId]);
-        
+        const [users] = await db.query('SELECT discord_id FROM users WHERE id = ?', [userId]);
+
         if (users.length === 0) return false;
-        if (users[0].is_admin) return true;
+
+        // RBAC check: operations.create permission (grants Zeus-level ops access)
+        const [perms] = await db.query(`
+            SELECT 1
+            FROM user_roles ur
+            JOIN role_permissions rp ON ur.role_id = rp.role_id
+            JOIN permissions p ON rp.permission_id = p.id
+            WHERE ur.user_id = ? AND p.name = 'operations.create'
+            LIMIT 1
+        `, [userId]);
+        if (perms.length > 0) return true;
+
         if (!users[0].discord_id) return false;
 
         const [cachedPerms] = await db.query(

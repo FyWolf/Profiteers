@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const db = require('../../config/database');
+const { hasPermission } = require('../../middleware/auth');
 
+// ── User list (requires users.view, already gated at router mount) ────────────
 router.get('/', async (req, res) => {
     try {
         const search     = req.query.search || '';
@@ -14,17 +16,15 @@ router.get('/', async (req, res) => {
         const SORT_COLS = {
             username:   'username',
             type:       'auth_type',
-            role:       'is_admin',
             joined:     'created_at',
             last_login: 'last_login'
         };
-        const sort     = SORT_COLS[req.query.sort] ? req.query.sort : 'joined';
-        const order    = req.query.order === 'asc' ? 'ASC' : 'DESC';
-        const sortCol  = SORT_COLS[sort];
+        const sort    = SORT_COLS[req.query.sort] ? req.query.sort : 'joined';
+        const order   = req.query.order === 'asc' ? 'ASC' : 'DESC';
+        const sortCol = SORT_COLS[sort];
 
         // Filters
         const filterType = ['discord', 'local'].includes(req.query.type) ? req.query.type : '';
-        const filterRole = ['admin', 'user'].includes(req.query.role) ? req.query.role : '';
 
         // Build WHERE
         const conditions = [];
@@ -38,8 +38,6 @@ router.get('/', async (req, res) => {
             conditions.push('auth_type = ?');
             params.push(filterType);
         }
-        if (filterRole === 'admin') conditions.push('is_admin = 1');
-        if (filterRole === 'user')  conditions.push('is_admin = 0');
 
         const whereClause = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
@@ -54,7 +52,6 @@ router.get('/', async (req, res) => {
             SELECT
                 id,
                 username,
-                is_admin,
                 auth_type,
                 discord_username,
                 discord_global_name,
@@ -68,11 +65,32 @@ router.get('/', async (req, res) => {
             LIMIT ? OFFSET ?
         `, [...params, limit, offset]);
 
+        // Fetch RBAC roles for the current page of users
+        const userIds = users.map(u => u.id);
+        let rolesByUser = {};
+        if (userIds.length > 0) {
+            const [roleRows] = await db.query(`
+                SELECT ur.user_id, r.id as role_id, r.name as role_name
+                FROM user_roles ur
+                JOIN roles r ON ur.role_id = r.id
+                WHERE ur.user_id IN (?)
+                ORDER BY r.name ASC
+            `, [userIds]);
+            roleRows.forEach(row => {
+                if (!rolesByUser[row.user_id]) rolesByUser[row.user_id] = [];
+                rolesByUser[row.user_id].push({ id: row.role_id, name: row.role_name });
+            });
+        }
+        users.forEach(u => { u.roles = rolesByUser[u.id] || []; });
+
         const [[globalStats]] = await db.query(`
             SELECT
                 COUNT(*) as total,
-                SUM(is_admin) as admins,
-                SUM(auth_type = 'discord') as discord_users
+                SUM(auth_type = 'discord') as discord_users,
+                (SELECT COUNT(DISTINCT ur.user_id)
+                 FROM user_roles ur
+                 JOIN roles r ON ur.role_id = r.id
+                 WHERE r.name = 'Super Admin') as super_admins
             FROM users
         `);
 
@@ -83,7 +101,6 @@ router.get('/', async (req, res) => {
             sort,
             order: order.toLowerCase(),
             filterType,
-            filterRole,
             currentPage: page,
             totalPages,
             totalUsers,
@@ -102,22 +119,8 @@ router.get('/', async (req, res) => {
     }
 });
 
-router.post('/toggle-admin/:id', async (req, res) => {
-    try {
-        // Don't allow demoting yourself
-        if (parseInt(req.params.id) === req.session.userId) {
-            return res.json({ success: false, error: 'Cannot modify your own admin status' });
-        }
-
-        await db.query('UPDATE users SET is_admin = NOT is_admin WHERE id = ?', [req.params.id]);
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Error toggling admin:', error);
-        res.json({ success: false, error: 'Failed to toggle admin status' });
-    }
-});
-
-router.post('/delete/:id', async (req, res) => {
+// ── Mutating user actions — require users.manage ──────────────────────────────
+router.post('/delete/:id', hasPermission('users.manage'), async (req, res) => {
     try {
         // Don't allow deleting yourself
         if (parseInt(req.params.id) === req.session.userId) {
@@ -132,7 +135,8 @@ router.post('/delete/:id', async (req, res) => {
     }
 });
 
-router.get('/:userId/medals', async (req, res) => {
+// ── Medal management — require users.medals ───────────────────────────────────
+router.get('/:userId/medals', hasPermission('users.medals'), async (req, res) => {
     try {
         const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.params.userId]);
 
@@ -175,7 +179,7 @@ router.get('/:userId/medals', async (req, res) => {
     }
 });
 
-router.post('/:userId/medals/award', async (req, res) => {
+router.post('/:userId/medals/award', hasPermission('users.medals'), async (req, res) => {
     try {
         const { medalId, notes } = req.body;
 
@@ -191,7 +195,7 @@ router.post('/:userId/medals/award', async (req, res) => {
     }
 });
 
-router.post('/:userId/medals/revoke/:awardId', async (req, res) => {
+router.post('/:userId/medals/revoke/:awardId', hasPermission('users.medals'), async (req, res) => {
     try {
         await db.query('DELETE FROM user_medals WHERE id = ?', [req.params.awardId]);
         res.redirect(`/admin/users/${req.params.userId}/medals?success=Medal revoked successfully`);
@@ -201,7 +205,8 @@ router.post('/:userId/medals/revoke/:awardId', async (req, res) => {
     }
 });
 
-router.post('/:userId/sync-trainings', async (req, res) => {
+// ── Training management — require users.trainings ─────────────────────────────
+router.post('/:userId/sync-trainings', hasPermission('users.trainings'), async (req, res) => {
     try {
         const userId = req.params.userId;
 
@@ -263,7 +268,7 @@ router.post('/:userId/sync-trainings', async (req, res) => {
     }
 });
 
-router.get('/:userId/trainings', async (req, res) => {
+router.get('/:userId/trainings', hasPermission('users.trainings'), async (req, res) => {
     try {
         const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.params.userId]);
 
@@ -297,6 +302,70 @@ router.get('/:userId/trainings', async (req, res) => {
     } catch (error) {
         console.error('Error loading user trainings:', error);
         res.redirect('/admin/users?error=Failed to load user trainings');
+    }
+});
+
+// ── Role assignment — require users.manage ────────────────────────────────────
+router.get('/:userId/roles', hasPermission('users.manage'), async (req, res) => {
+    try {
+        const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.params.userId]);
+
+        if (users.length === 0) {
+            return res.redirect('/admin/users?error=User not found');
+        }
+
+        const targetUser = users[0];
+
+        const [userRoles] = await db.query(`
+            SELECT r.id, r.name, r.description, r.is_system, ur.assigned_at
+            FROM user_roles ur
+            JOIN roles r ON ur.role_id = r.id
+            WHERE ur.user_id = ?
+            ORDER BY r.name ASC
+        `, [req.params.userId]);
+
+        const [allRoles] = await db.query('SELECT id, name, description FROM roles ORDER BY name ASC');
+        const userRoleIds = userRoles.map(r => r.id);
+        const availableRoles = allRoles.filter(r => !userRoleIds.includes(r.id));
+
+        res.render('admin/user-roles', {
+            title: `Roles - ${targetUser.username}`,
+            targetUser,
+            userRoles,
+            availableRoles,
+            success: req.query.success,
+            error: req.query.error
+        });
+    } catch (error) {
+        console.error('Error loading user roles:', error);
+        res.redirect('/admin/users?error=Failed to load user roles');
+    }
+});
+
+router.post('/:userId/roles/assign', hasPermission('users.manage'), async (req, res) => {
+    try {
+        const { roleId } = req.body;
+        await db.query(
+            'INSERT IGNORE INTO user_roles (user_id, role_id, assigned_by) VALUES (?, ?, ?)',
+            [req.params.userId, roleId, req.session.userId]
+        );
+        res.redirect(`/admin/users/${req.params.userId}/roles?success=Role assigned successfully`);
+    } catch (error) {
+        console.error('Error assigning role:', error);
+        res.redirect(`/admin/users/${req.params.userId}/roles?error=Failed to assign role`);
+    }
+});
+
+router.post('/:userId/roles/revoke/:roleId', hasPermission('users.manage'), async (req, res) => {
+    try {
+        await db.query(
+            'DELETE FROM user_roles WHERE user_id = ? AND role_id = ?',
+            [req.params.userId, req.params.roleId]
+        );
+        res.redirect(`/admin/users/${req.params.userId}/roles?success=Role revoked successfully`);
+    } catch (error) {
+        console.error('Error revoking role:', error);
+        res.redirect(`/admin/users/${req.params.userId}/roles?error=Failed to revoke role`);
     }
 });
 

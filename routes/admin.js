@@ -1,14 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const { isAdmin } = require('../middleware/auth');
+const { isAuthenticated, hasPermission } = require('../middleware/auth');
 
-router.use(isAdmin);
+// All admin routes require authentication
+router.use(isAuthenticated);
 
-router.use('/', require('./admin/dashboard'));
-router.use('/tools', require('./admin/tools'));
-router.use('/gallery', require('./admin/gallery'));
-router.use('/users', require('./admin/users'));
-router.use('/medals', require('./admin/medals'));
-router.use('/trainings', require('./admin/trainings'));
+// Base admin panel access required for all admin routes
+router.use(hasPermission('admin.access'));
+
+// Sub-routers — each guarded by its own permission on top of admin.access
+router.use('/',           require('./admin/dashboard'));
+router.use('/tools',      hasPermission('tools.manage'),     require('./admin/tools'));
+router.use('/gallery',    hasPermission('gallery.manage'),   require('./admin/gallery'));
+router.use('/users',      hasPermission('users.view'),       require('./admin/users'));
+router.use('/medals',     hasPermission('medals.manage'),    require('./admin/medals'));
+router.use('/trainings',  hasPermission('trainings.manage'), require('./admin/trainings'));
+router.use('/roles',      hasPermission('roles.manage'),     require('./admin/roles'));
 
 module.exports = router;

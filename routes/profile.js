@@ -37,6 +37,12 @@ router.get('/', isAuthenticated, async (req, res) => {
             ORDER BY t.display_order ASC, t.name ASC
         `, [req.session.userId]);
 
+        const [roleRows] = await db.query(`
+            SELECT r.name FROM user_roles ur
+            JOIN roles r ON ur.role_id = r.id
+            WHERE ur.user_id = ? ORDER BY r.name ASC
+        `, [req.session.userId]);
+
         const stats = {
             memberSince: user.created_at,
             lastLogin: user.last_login,
@@ -44,12 +50,13 @@ router.get('/', isAuthenticated, async (req, res) => {
             trainingCount: trainings.length,
             authType: user.auth_type
         };
-        
+
         res.render('profile', {
             title: 'My Profile - Profiteers PMC',
             profileUser: user,
             medals: medals,
             trainings: trainings,
+            roles: roleRows.map(r => r.name),
             stats: stats,
             isOwnProfile: true,
             isLoggedIn: true
@@ -105,6 +112,12 @@ router.get('/:userId', async (req, res) => {
             ORDER BY t.display_order ASC, t.name ASC
         `, [profileUser.id]);
 
+        const [roleRows] = await db.query(`
+            SELECT r.name FROM user_roles ur
+            JOIN roles r ON ur.role_id = r.id
+            WHERE ur.user_id = ? ORDER BY r.name ASC
+        `, [profileUser.id]);
+
         const stats = {
             memberSince: profileUser.created_at,
             lastLogin: profileUser.last_login,
@@ -112,15 +125,16 @@ router.get('/:userId', async (req, res) => {
             trainingCount: trainings.length,
             authType: profileUser.auth_type
         };
-        
+
         const isOwnProfile = req.session.userId && req.session.userId === profileUser.id;
         const isLoggedIn = !!req.session.userId;
-        
+
         res.render('profile', {
             title: `${profileUser.discord_global_name || profileUser.username}'s Profile - Profiteers PMC`,
             profileUser: profileUser,
             medals: medals,
             trainings: trainings,
+            roles: roleRows.map(r => r.name),
             stats: stats,
             isOwnProfile: isOwnProfile,
             isLoggedIn: isLoggedIn

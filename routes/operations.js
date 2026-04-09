@@ -6,6 +6,16 @@ const db = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
 const { isZeus, checkZeusStatus } = require('../middleware/zeus');
 
+// Allows deleting operations: operations.delete permission, or Discord Zeus role.
+function canDeleteOp(req, res, next) {
+    if (!req.isAuthenticated()) {
+        return res.redirect('/login?redirect=' + encodeURIComponent(req.originalUrl));
+    }
+    if (Array.isArray(req.user.permissions) && req.user.permissions.includes('operations.delete')) return next();
+    // Fall through to the full Zeus check (covers Discord Zeus role)
+    return isZeus(req, res, next);
+}
+
 const NEWS_ALLOWED_TAGS = [
     'p', 'br', 'strong', 'em', 'u', 's', 'ul', 'ol', 'li',
     'h1', 'h2', 'h3', 'blockquote', 'a', 'img', 'span', 'div'
@@ -339,7 +349,7 @@ router.get('/manage/list', isZeus, async (req, res) => {
 router.get('/manage/create', isZeus, async (req, res) => {
     try {
         const [users] = await db.query(`
-            SELECT id, username, discord_global_name, discord_username, is_admin
+            SELECT id, username, discord_global_name, discord_username
             FROM users
             ORDER BY discord_global_name ASC, username ASC
         `);
@@ -445,7 +455,7 @@ router.get('/manage/edit/:id', isAuthenticated, async (req, res) => {
         }
 
         const [users] = await db.query(`
-            SELECT id, username, discord_global_name, discord_username, is_admin
+            SELECT id, username, discord_global_name, discord_username
             FROM users
             ORDER BY discord_global_name ASC, username ASC
         `);
@@ -532,7 +542,7 @@ router.post('/manage/edit/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-router.post('/manage/delete/:id', isZeus, async (req, res) => {
+router.post('/manage/delete/:id', canDeleteOp, async (req, res) => {
     try {
         await db.query('DELETE FROM operations WHERE id = ?', [req.params.id]);
         res.redirect('/operations/manage/list?success=Operation deleted successfully');

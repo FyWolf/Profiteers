@@ -1,0 +1,178 @@
+<%- include('../partials/header') %>
+
+<style>
+.roles-section { margin-bottom: 28px; }
+.roles-section h3 {
+    font-size: 0.8em;
+    color: var(--khaki);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(107,142,35,0.2);
+}
+
+.role-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(107,142,35,0.2);
+    border-radius: 9px;
+    margin-bottom: 8px;
+}
+.role-card:last-child { margin-bottom: 0; }
+
+.role-info .role-name { font-weight: 700; font-size: 0.92em; }
+.role-info .role-desc { font-size: 0.75em; color: var(--khaki); opacity: 0.7; margin-top: 2px; }
+.role-info .role-since { font-size: 0.72em; color: var(--khaki); opacity: 0.5; margin-top: 2px; }
+
+.system-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    background: rgba(252,176,13,0.12);
+    border: 1px solid rgba(252,176,13,0.35);
+    border-radius: 10px;
+    font-size: 0.65em;
+    color: var(--accent);
+    font-family: var(--heading-font);
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+}
+
+.revoke-btn {
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.76em;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid rgba(231,76,60,0.35);
+    background: rgba(231,76,60,0.1);
+    color: #ff7b7b;
+    transition: all 0.2s;
+    font-family: var(--body-font);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.revoke-btn:hover { background: rgba(231,76,60,0.22); }
+
+.assign-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    background: rgba(0,0,0,0.2);
+    border: 1px dashed rgba(107,142,35,0.3);
+    border-radius: 9px;
+}
+.assign-select {
+    flex: 1;
+    min-width: 180px;
+    padding: 9px 12px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(107,142,35,0.5);
+    border-radius: 7px;
+    color: var(--sand);
+    font-family: var(--body-font);
+    font-size: 0.88em;
+}
+.assign-select:focus { outline: none; border-color: var(--accent); }
+.assign-btn {
+    padding: 9px 18px;
+    background: linear-gradient(135deg, var(--olive) 0%, var(--olive-light) 100%);
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    font-size: 0.88em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.2s;
+    white-space: nowrap;
+}
+.assign-btn:hover { filter: brightness(1.15); }
+
+.empty-msg {
+    text-align: center;
+    padding: 20px;
+    color: var(--khaki);
+    opacity: 0.55;
+    font-size: 0.88em;
+}
+</style>
+
+<div class="container">
+    <header>
+        <h1>MANAGE ROLES</h1>
+        <div class="subtitle">
+            Roles for
+            <strong style="color:var(--accent);">
+                <%= targetUser.discord_global_name || targetUser.username %>
+            </strong>
+        </div>
+    </header>
+
+    <section class="section">
+        <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+        <% if (error)   { %><div class="alert alert-error"><%= error %></div><% } %>
+
+        <%# Current roles %>
+        <div class="roles-section">
+            <h3>Current Roles (<%= userRoles.length %>)</h3>
+            <% if (userRoles.length === 0) { %>
+                <div class="empty-msg">This user has no roles assigned.</div>
+            <% } else { %>
+                <% userRoles.forEach(role => { %>
+                <div class="role-card">
+                    <div class="role-info">
+                        <div class="role-name">
+                            <%= role.name %>
+                            <% if (role.is_system) { %><span class="system-badge">SYSTEM</span><% } %>
+                        </div>
+                        <% if (role.description) { %>
+                            <div class="role-desc"><%= role.description %></div>
+                        <% } %>
+                        <div class="role-since">
+                            Assigned <%= new Date(role.assigned_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                        </div>
+                    </div>
+                    <form method="POST"
+                          action="/admin/users/<%= targetUser.id %>/roles/revoke/<%= role.id %>"
+                          onsubmit="return confirm('Remove the <%= role.name %> role from this user?')">
+                        <button type="submit" class="revoke-btn">Remove</button>
+                    </form>
+                </div>
+                <% }) %>
+            <% } %>
+        </div>
+
+        <%# Assign new role %>
+        <div class="roles-section">
+            <h3>Assign Role</h3>
+            <% if (availableRoles.length === 0) { %>
+                <div class="empty-msg">No additional roles available to assign.</div>
+            <% } else { %>
+                <form method="POST" action="/admin/users/<%= targetUser.id %>/roles/assign" class="assign-form">
+                    <select name="roleId" class="assign-select" required>
+                        <option value="" disabled selected>Select a role...</option>
+                        <% availableRoles.forEach(role => { %>
+                            <option value="<%= role.id %>">
+                                <%= role.name %><%= role.description ? ` — ${role.description}` : '' %>
+                            </option>
+                        <% }) %>
+                    </select>
+                    <button type="submit" class="assign-btn">Assign Role</button>
+                </form>
+            <% } %>
+        </div>
+    </section>
+
+    <div style="margin-bottom:30px;">
+        <a href="/admin/users" class="btn">← Back to Users</a>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

@@ -35,8 +35,14 @@
                 <% } %>
             </div>
 
-            <% if (profileUser.is_admin) { %>
-                <span style="padding: 2px 10px; background: var(--accent); color: var(--camo-dark); border-radius: 4px; font-weight: 700; font-size: 0.75em;">⭐ ADMIN</span>
+            <% if (roles && roles.length > 0) { %>
+                <div style="display: flex; flex-wrap: wrap; gap: 5px; justify-content: center;">
+                    <% roles.forEach(role => { %>
+                        <span style="padding: 2px 10px; background: <%= role === 'Super Admin' ? 'var(--accent)' : 'rgba(107,142,35,0.25)' %>; color: <%= role === 'Super Admin' ? 'var(--camo-dark)' : 'var(--olive-light)' %>; border-radius: 4px; font-weight: 700; font-size: 0.72em; border: 1px solid <%= role === 'Super Admin' ? 'transparent' : 'rgba(107,142,35,0.5)' %>;">
+                            <%= role === 'Super Admin' ? '★ ' : '' %><%= role %>
+                        </span>
+                    <% }) %>
+                </div>
             <% } %>
 
             <div style="width: 100%; border-top: 1px solid rgba(178,178,125,0.2); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 0.8em; color: var(--khaki);">

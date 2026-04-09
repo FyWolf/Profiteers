@@ -386,8 +386,13 @@
     <%# ── Management ──────────────────────────────────────────── %>
     <section class="section">
         <h2>⚙️ Management</h2>
+        <%
+        const perms = (locals.user && locals.user.permissions) ? locals.user.permissions : [];
+        const can = p => locals.user && perms.includes(p);
+        %>
         <div class="manage-grid">
 
+            <% if (can('tools.manage')) { %>
             <div class="manage-card">
                 <div class="manage-card-top">
                     <span class="manage-icon">🔧</span>
@@ -400,7 +405,9 @@
                     <a href="/admin/tools/add" class="manage-link secondary">+ New</a>
                 </div>
             </div>
+            <% } %>
 
+            <% if (can('gallery.manage')) { %>
             <div class="manage-card">
                 <div class="manage-card-top">
                     <span class="manage-icon">🖼️</span>
@@ -413,7 +420,9 @@
                     <a href="/admin/gallery/upload" class="manage-link secondary">+ Upload</a>
                 </div>
             </div>
+            <% } %>
 
+            <% if (can('users.view')) { %>
             <div class="manage-card">
                 <div class="manage-card-top">
                     <span class="manage-icon">👥</span>
@@ -425,7 +434,9 @@
                     <a href="/admin/users" class="manage-link primary">Manage</a>
                 </div>
             </div>
+            <% } %>
 
+            <% if (can('medals.manage')) { %>
             <div class="manage-card">
                 <div class="manage-card-top">
                     <span class="manage-icon">🏅</span>
@@ -437,7 +448,9 @@
                     <a href="/admin/medals" class="manage-link primary">Manage</a>
                 </div>
             </div>
+            <% } %>
 
+            <% if (can('trainings.manage')) { %>
             <div class="manage-card">
                 <div class="manage-card-top">
                     <span class="manage-icon">🎓</span>
@@ -449,6 +462,31 @@
                     <a href="/admin/trainings" class="manage-link primary">Manage</a>
                 </div>
             </div>
+            <% } %>
+
+            <% if (can('roles.manage')) { %>
+            <div class="manage-card">
+                <div class="manage-card-top"><span class="manage-icon">🔐</span></div>
+                <div class="manage-title">Roles & Permissions</div>
+                <div class="manage-desc">Create roles, assign permissions, and manage user access.</div>
+                <div class="manage-card-footer">
+                    <a href="/admin/roles" class="manage-link primary">Manage</a>
+                    <a href="/admin/roles/create" class="manage-link secondary">+ New Role</a>
+                </div>
+            </div>
+            <% } %>
+
+            <% if (can('lore.manage')) { %>
+            <div class="manage-card">
+                <div class="manage-card-top"><span class="manage-icon">📡</span></div>
+                <div class="manage-title">Lore Terminal</div>
+                <div class="manage-desc">Edit lore terminal nodes, files, and hidden content.</div>
+                <div class="manage-card-footer">
+                    <a href="/lore/admin" class="manage-link primary">Manage</a>
+                    <a href="/lore" class="manage-link secondary">View Terminal</a>
+                </div>
+            </div>
+            <% } %>
 
             <div class="manage-card">
                 <div class="manage-card-top"><span class="manage-icon">📋</span></div>

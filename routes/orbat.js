@@ -803,9 +803,9 @@ router.post('/assign/:roleId', isAuthenticated, async (req, res) => {
                 finalUserId = existingUsers[0].id;
             } else {
                 const [result] = await db.query(`
-                    INSERT INTO users 
-                    (discord_id, username, discord_global_name, discord_avatar, is_admin)
-                    VALUES (?, ?, ?, ?, FALSE)
+                    INSERT INTO users
+                    (discord_id, username, discord_global_name, discord_avatar)
+                    VALUES (?, ?, ?, ?)
                 `, [
                     member.discord_id,
                     member.discord_username,

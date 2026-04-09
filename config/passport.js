@@ -21,7 +21,17 @@ passport.deserializeUser(async (id, done) => {
     try {
         const [users] = await db.query('SELECT * FROM users WHERE id = ?', [id]);
         if (users.length > 0) {
-            done(null, users[0]);
+            const user = users[0];
+            // Load RBAC permissions for this user
+            const [perms] = await db.query(`
+                SELECT DISTINCT p.name
+                FROM user_roles ur
+                JOIN role_permissions rp ON ur.role_id = rp.role_id
+                JOIN permissions p ON rp.permission_id = p.id
+                WHERE ur.user_id = ?
+            `, [user.id]);
+            user.permissions = perms.map(p => p.name);
+            done(null, user);
         } else {
             done(null, false);
         }
@@ -180,9 +190,8 @@ passport.use(new DiscordStrategy({
                     discord_avatar,
                     discord_access_token,
                     discord_refresh_token,
-                    auth_type,
-                    is_admin
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'discord', FALSE)`,
+                    auth_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'discord')`,
                 [
                     username,
                     profile.id,

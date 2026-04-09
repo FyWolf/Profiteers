@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
-const { isAuthenticated, isAdmin } = require('../middleware/auth');
+const { isAuthenticated, hasPermission } = require('../middleware/auth');
 const { checkZeusStatus } = require('../middleware/zeus');
 const { sendLOANotification } = require('../discord/loa');
 const { discordClient } = require('../discord');
@@ -11,8 +11,8 @@ router.get('/my-loas', (req, res) => res.redirect('/loa/all'));
 router.get('/submit', isAuthenticated, async (req, res) => {
     try {
         const [users] = await db.query(`
-            SELECT id, username, discord_global_name, discord_username, is_admin
-            FROM users 
+            SELECT id, username, discord_global_name, discord_username
+            FROM users
             WHERE id != ?
             ORDER BY discord_global_name ASC, username ASC
         `, [req.session.userId]); // Exclude self from list
@@ -240,7 +240,7 @@ router.get('/all', async (req, res) => {
         const activeLoas = loas.filter(loa => new Date(loa.end_date * 1000) >= now && loa.status === 'approved');
         const pastLoas = loas.filter(loa => new Date(loa.end_date * 1000) < now || loa.status !== 'approved');
 
-        const isAdmin = req.session.isAdmin || false;
+        const canAdmin = req.session.isAdmin || false;
         const isZeus = req.session.userId ? await checkZeusStatus(req.session.userId) : false;
 
         let myLoas = [];
@@ -265,7 +265,7 @@ router.get('/all', async (req, res) => {
             activeLoas,
             pastLoas,
             myLoas,
-            canManage: isAdmin || isZeus,
+            canManage: canAdmin || isZeus,
             success: req.query.success || null,
             error: req.query.error || null
         });
@@ -280,7 +280,7 @@ router.get('/all', async (req, res) => {
     }
 });
 
-router.post('/review/:id', isAdmin, async (req, res) => {
+router.post('/review/:id', hasPermission('admin.access'), async (req, res) => {
     try {
         const [loas] = await db.query('SELECT reviewed_by FROM leave_of_absence WHERE id = ?', [req.params.id]);
         if (loas.length === 0) return res.redirect('/loa/all?error=LOA not found');

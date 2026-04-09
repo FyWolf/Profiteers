@@ -1,0 +1,251 @@
+<%- include('../../partials/header') %>
+
+<style>
+.form-card {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(107,142,35,0.3);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 24px;
+}
+
+.form-group { margin-bottom: 20px; }
+.form-label {
+    display: block;
+    font-size: 0.75em;
+    color: var(--khaki);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 7px;
+    font-family: var(--heading-font);
+}
+.form-input,
+.form-textarea {
+    width: 100%;
+    padding: 10px 14px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(107,142,35,0.5);
+    border-radius: 8px;
+    color: var(--sand);
+    font-family: var(--body-font);
+    font-size: 0.9em;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+.form-input:focus,
+.form-textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 8px rgba(252,176,13,0.15); }
+.form-input:disabled { opacity: 0.5; cursor: not-allowed; }
+.form-textarea { resize: vertical; min-height: 70px; }
+
+/* ── Permission grid ─────────────────────────────────────────── */
+.perm-section { margin-bottom: 24px; }
+.perm-category-label {
+    font-size: 0.68em;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--khaki);
+    font-family: var(--heading-font);
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(107,142,35,0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.cat-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.cat-admin      .cat-dot { background: var(--accent); }
+.cat-users      .cat-dot { background: #6bb8f7; }
+.cat-content    .cat-dot { background: var(--olive-light); }
+.cat-operations .cat-dot { background: #ff7b7b; }
+
+.perm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 8px;
+}
+
+.perm-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(107,142,35,0.15);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+.perm-item:hover { border-color: rgba(107,142,35,0.4); background: rgba(107,142,35,0.06); }
+.perm-item.checked { border-color: rgba(107,142,35,0.6); background: rgba(107,142,35,0.1); }
+
+.perm-item input[type="checkbox"] {
+    margin-top: 2px;
+    accent-color: var(--olive-light);
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+}
+.perm-name { font-size: 0.85em; font-weight: 700; color: var(--sand); font-family: var(--heading-font); }
+.perm-desc { font-size: 0.72em; color: var(--khaki); margin-top: 2px; opacity: 0.75; }
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+.btn-save {
+    padding: 10px 22px;
+    background: linear-gradient(135deg, var(--olive) 0%, var(--olive-light) 100%);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.2s;
+}
+.btn-save:hover { filter: brightness(1.15); }
+.btn-cancel {
+    padding: 10px 18px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(107,142,35,0.4);
+    border-radius: 8px;
+    color: var(--khaki);
+    text-decoration: none;
+    font-size: 0.9em;
+    transition: all 0.2s;
+    display: inline-block;
+}
+.btn-cancel:hover { border-color: var(--accent); color: var(--accent); }
+
+.select-all-btn {
+    font-size: 0.72em;
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+    margin-left: auto;
+    font-family: var(--body-font);
+}
+</style>
+
+<div class="container">
+    <header>
+        <h1><%= role ? 'EDIT ROLE' : 'CREATE ROLE' %></h1>
+        <div class="subtitle"><%= role ? `Editing: ${role.name}` : 'Define a new role and assign permissions' %></div>
+    </header>
+
+    <% if (error) { %><div class="alert alert-error" style="margin-bottom:20px;"><%= error %></div><% } %>
+
+    <form method="POST" action="/admin/roles/<%= role ? role.id + '/edit' : 'create' %>">
+        <div class="form-card">
+            <div class="form-group">
+                <label class="form-label" for="name">Role Name</label>
+                <input type="text"
+                       id="name"
+                       name="name"
+                       class="form-input"
+                       value="<%= role ? role.name : '' %>"
+                       placeholder="e.g. Moderator, Zeus, Content Manager"
+                       <%= role && role.is_system ? 'disabled' : '' %>
+                       required>
+                <% if (role && role.is_system) { %>
+                    <input type="hidden" name="name" value="<%= role.name %>">
+                    <div style="font-size:0.75em; color:var(--khaki); margin-top:5px; opacity:0.7;">
+                        System role names cannot be changed.
+                    </div>
+                <% } %>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="description">Description <span style="opacity:0.5;">(optional)</span></label>
+                <textarea id="description"
+                          name="description"
+                          class="form-textarea"
+                          placeholder="Describe what this role is for..."><%= role ? (role.description || '') : '' %></textarea>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+                <h3 style="margin:0; font-size:0.9em; color:var(--khaki); letter-spacing:2px; text-transform:uppercase;">
+                    Permissions
+                </h3>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="select-all-btn" onclick="setAll(true)">Select all</button>
+                    <button type="button" class="select-all-btn" onclick="setAll(false)">Clear all</button>
+                </div>
+            </div>
+
+            <%
+            // Group permissions by category
+            const grouped = {};
+            permissions.forEach(p => {
+                if (!grouped[p.category]) grouped[p.category] = [];
+                grouped[p.category].push(p);
+            });
+            const categoryOrder = ['admin', 'users', 'content', 'operations', 'general'];
+            const sortedCats = Object.keys(grouped).sort((a, b) => {
+                const ai = categoryOrder.indexOf(a);
+                const bi = categoryOrder.indexOf(b);
+                if (ai === -1 && bi === -1) return a.localeCompare(b);
+                if (ai === -1) return 1;
+                if (bi === -1) return -1;
+                return ai - bi;
+            });
+            %>
+
+            <% sortedCats.forEach(cat => { %>
+            <div class="perm-section">
+                <div class="perm-category-label cat-<%= cat %>">
+                    <span class="cat-dot"></span>
+                    <%= cat.charAt(0).toUpperCase() + cat.slice(1) %>
+                </div>
+                <div class="perm-grid">
+                    <% grouped[cat].forEach(perm => {
+                        const isChecked = rolePerms.includes(perm.id);
+                    %>
+                    <label class="perm-item <%= isChecked ? 'checked' : '' %>"
+                           for="perm-<%= perm.id %>">
+                        <input type="checkbox"
+                               id="perm-<%= perm.id %>"
+                               name="permissions"
+                               value="<%= perm.id %>"
+                               <%= isChecked ? 'checked' : '' %>
+                               onchange="this.closest('.perm-item').classList.toggle('checked', this.checked)">
+                        <div>
+                            <div class="perm-name"><%= perm.name %></div>
+                            <% if (perm.description) { %>
+                                <div class="perm-desc"><%= perm.description %></div>
+                            <% } %>
+                        </div>
+                    </label>
+                    <% }) %>
+                </div>
+            </div>
+            <% }) %>
+        </div>
+
+        <div class="btn-row" style="margin-bottom:30px;">
+            <button type="submit" class="btn-save">
+                <%= role ? 'Save Changes' : 'Create Role' %>
+            </button>
+            <a href="/admin/roles" class="btn-cancel">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+function setAll(checked) {
+    document.querySelectorAll('.perm-item input[type="checkbox"]').forEach(cb => {
+        cb.checked = checked;
+        cb.closest('.perm-item').classList.toggle('checked', checked);
+    });
+}
+</script>
+
+<%- include('../../partials/footer') %>

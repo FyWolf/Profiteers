@@ -63,7 +63,10 @@ async function canEdit(userId, operationId) {
 async function requireEdit(req, res, next) {
     if (!req.isAuthenticated()) return res.status(401).json({ success: false, error: 'Not authenticated' });
     try {
-        if (await canEdit(req.session.userId, req.params.id)) return next();
+        // map.editor permission grants edit access to any operation's map
+        const hasMapEditor = req.user.is_admin ||
+            (Array.isArray(req.user.permissions) && req.user.permissions.includes('map.editor'));
+        if (hasMapEditor || await canEdit(req.session.userId, req.params.id)) return next();
         return res.status(403).json({ success: false, error: 'Permission denied' });
     } catch (err) {
         next(err);
