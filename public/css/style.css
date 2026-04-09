@@ -214,6 +214,19 @@ nav .nav-links > li > a.active {
 @media (min-width: 769px) {
     .dropdown:hover .dropdown-content { display: block; }
     .dropdown:hover .chevron { transform: rotate(180deg); }
+
+    /* Invisible bridge that fills the gap so moving the mouse
+       slowly between the trigger and the menu doesn't close it */
+    .dropdown::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        height: 6px;
+        display: none;
+    }
+    .dropdown:hover::after { display: block; }
 }
 
 /* ── Mobile nav ─────────────────────────────────────────────────────── */
