@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><%= title %></title>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.css">
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.js"></script>
@@ -197,7 +197,7 @@ html, body {
 
 /* ─── Minimap overview ───────────────────────────────────────────── */
 #minimap-wrap {
-    position: absolute; bottom: 32px; right: 12px; z-index: 800;
+    position: absolute; bottom: 40px; right: 12px; z-index: 800;
     width: 185px; background: rgba(12,22,12,0.93);
     border: 1px solid var(--olive); border-radius: 7px;
     box-shadow: 0 4px 18px rgba(0,0,0,0.6);
@@ -234,6 +234,36 @@ html, body {
     box-shadow: 0 0 0 1px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(0,0,0,0.3);
     min-width: 3px; min-height: 3px;
 }
+
+/* ─── Controls hint panel ───────────────────────────────────────── */
+#hint-panel {
+    position: absolute; bottom: 8px; right: 12px; z-index: 810;
+    width: 250px; background: rgba(12,22,12,0.93);
+    border: 1px solid var(--olive); border-radius: 7px;
+    font-size: 0.88em; overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+#hint-panel.collapsed #hint-body { display: none; }
+#hint-panel.collapsed #hint-toggle { transform: rotate(180deg); }
+#hint-header {
+    padding: 6px 10px 6px 12px; display: flex; align-items: center; gap: 6px;
+    background: rgba(0,0,0,0.35); border-bottom: 1px solid var(--border); cursor: pointer;
+    user-select: none;
+}
+#hint-header:hover #hint-label { color: var(--sand); }
+#hint-label { flex: 1; font-size: 0.78em; color: var(--muted); text-transform: uppercase; letter-spacing: 0.09em; }
+#hint-toggle { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9em; padding: 0 2px; line-height: 1; transition: transform 0.2s, color 0.1s; }
+#hint-toggle:hover { color: var(--sand); }
+#hint-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; }
+.hint-sep { font-size: 0.78em; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin: 7px 0 3px; opacity: 0.85; }
+.hint-sep:first-child { margin-top: 0; }
+.hint-row { display: flex; align-items: baseline; gap: 8px; line-height: 1.6; }
+.hint-key {
+    background: rgba(178,178,125,0.1); border: 1px solid var(--border);
+    border-radius: 3px; padding: 1px 6px; font-family: monospace; font-size: 0.9em;
+    color: var(--sand); white-space: nowrap; flex-shrink: 0;
+}
+.hint-desc { color: var(--khaki); font-size: 0.95em; }
 
 /* ─── NATO SIDC Builder Modal ────────────────────────────────────── */
 #nato-modal {
@@ -658,6 +688,35 @@ html, body {
                 <div id="minimap-viewport"></div>
             </div>
         </div>
+
+        <!-- Controls hint (edit mode only) -->
+        <% if (canEdit) { %>
+        <div id="hint-panel" class="collapsed">
+            <div id="hint-header">
+                <span id="hint-label">? Controls</span>
+                <button id="hint-toggle" title="Show / hide controls">▼</button>
+            </div>
+            <div id="hint-body">
+                <div class="hint-sep">Tools</div>
+                <div class="hint-row"><span class="hint-key">Esc</span><span class="hint-desc">Select / pan</span></div>
+                <div class="hint-row"><span class="hint-key">M</span><span class="hint-desc">Place NATO marker</span></div>
+                <div class="hint-row"><span class="hint-key">L</span><span class="hint-desc">Draw line</span></div>
+                <div class="hint-row"><span class="hint-key">P</span><span class="hint-desc">Draw polygon</span></div>
+                <div class="hint-row"><span class="hint-key">R</span><span class="hint-desc">Draw rectangle</span></div>
+                <div class="hint-row"><span class="hint-key">C</span><span class="hint-desc">Draw circle</span></div>
+                <div class="hint-row"><span class="hint-key">T</span><span class="hint-desc">Place text label</span></div>
+                <div class="hint-sep">While drawing (Line / Polygon)</div>
+                <div class="hint-row"><span class="hint-key">Click</span><span class="hint-desc">Add a point</span></div>
+                <div class="hint-row"><span class="hint-key">Right-click</span><span class="hint-desc">Finish shape</span></div>
+                <div class="hint-row"><span class="hint-key">Double-click</span><span class="hint-desc">Finish shape</span></div>
+                <div class="hint-row"><span class="hint-key">Backspace</span><span class="hint-desc">Undo last point</span></div>
+                <div class="hint-row"><span class="hint-key">Esc</span><span class="hint-desc">Cancel drawing</span></div>
+                <div class="hint-sep">Selection</div>
+                <div class="hint-row"><span class="hint-key">Click shape</span><span class="hint-desc">Select &amp; edit</span></div>
+                <div class="hint-row"><span class="hint-key">Del</span><span class="hint-desc">Delete selected</span></div>
+            </div>
+        </div>
+        <% } %>
 
         <!-- Properties panel -->
         <% if (canEdit) { %>
@@ -2469,6 +2528,12 @@ if (CAN_EDIT) {
         }
     });
 
+    // Controls hint panel toggle
+    document.getElementById('hint-header')?.addEventListener('click', () => {
+        const panel = document.getElementById('hint-panel');
+        panel.classList.toggle('collapsed');
+    });
+
     // Close modals on backdrop click
     document.getElementById('nato-modal')?.addEventListener('click', e => {
         if (e.target === document.getElementById('nato-modal')) closeNATOModal();
@@ -2494,6 +2559,12 @@ document.getElementById('export-copy')?.addEventListener('click', async () => {
         setTimeout(() => btn.textContent = orig, 1800);
     } catch { document.getElementById('export-sqf-text').select(); document.execCommand('copy'); }
 });
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SESSION KEEP-ALIVE — ping every 10 min so the session never expires
+   while the user has the map open
+   ═══════════════════════════════════════════════════════════════════════ */
+setInterval(() => fetch('/ping', { credentials: 'same-origin' }).catch(() => {}), 10 * 60 * 1000);
 
 /* ═══════════════════════════════════════════════════════════════════════
    BOOT

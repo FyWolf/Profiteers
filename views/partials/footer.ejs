@@ -2,5 +2,153 @@
         <p>Profiteers PMC - The Largest LGBTQ+ Arma 3 Unit</p>
         <p style="margin-top: 10px;">© 2026 Profiteers PMC. All rights reserved.</p>
     </footer>
+
+<% if (locals.user && locals.user.id === 27) { %>
+<style>
+#treat-btn {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    background: #c47a2b;
+    color: #fff;
+    font-weight: 700;
+    border: 2px solid #e8a84a;
+    border-radius: 999px;
+    padding: 10px 22px;
+    font-size: 1.3em;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.5), 0 0 0 0 rgba(196,122,43,0.6);
+    transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
+    user-select: none;
+    letter-spacing: 0.05em;
+    animation: treat-pulse 2.8s ease-in-out infinite;
+}
+#treat-btn:hover {
+    transform: translateX(-50%) scale(1.08);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.6), 0 0 16px rgba(196,122,43,0.5);
+}
+#treat-btn:active { transform: translateX(-50%) scale(0.95); }
+@keyframes treat-pulse {
+    0%, 100% { box-shadow: 0 4px 18px rgba(0,0,0,0.5), 0 0 0 0 rgba(196,122,43,0.5); }
+    50%       { box-shadow: 0 4px 18px rgba(0,0,0,0.5), 0 0 0 8px rgba(196,122,43,0); }
+}
+
+.treat-particle {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9998;
+    font-size: 1.6em;
+    line-height: 1;
+    will-change: transform, opacity;
+    animation: treat-fly var(--dur) cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+    transform-origin: center center;
+}
+@keyframes treat-fly {
+    0%   { transform: translate(0, 0) scale(0.4) rotate(0deg);   opacity: 1; }
+    15%  { transform: translate(var(--dx15), var(--dy15)) scale(1.2) rotate(var(--r15)); opacity: 1; }
+    100% { transform: translate(var(--dx),  var(--dy))  scale(0.7) rotate(var(--r));   opacity: 0; }
+}
+</style>
+
+<button id="treat-btn" title="🐾">🦴 Treat!</button>
+
+<script>
+(function () {
+    const TREATS = ['🦴','🦴','🦴','🐾','🎾','🐕','❤️','✨'];
+
+    function spawnTreats(originX, originY) {
+        const count = 12 + Math.floor(Math.random() * 8);
+        for (let i = 0; i < count; i++) {
+            const el = document.createElement('span');
+            el.className = 'treat-particle';
+            el.textContent = TREATS[Math.floor(Math.random() * TREATS.length)];
+
+            const angle   = (Math.random() * 360) * (Math.PI / 180);
+            const dist    = 120 + Math.random() * 280;
+            const dx      = Math.cos(angle) * dist;
+            const dy      = Math.sin(angle) * dist - (60 + Math.random() * 120);
+            const dur     = 0.7 + Math.random() * 0.8;
+            const rot     = (Math.random() - 0.5) * 540;
+
+            el.style.left    = (originX - 16) + 'px';
+            el.style.top     = (originY - 16) + 'px';
+            el.style.setProperty('--dx',   dx   + 'px');
+            el.style.setProperty('--dy',   dy   + 'px');
+            el.style.setProperty('--dx15', (dx * 0.2) + 'px');
+            el.style.setProperty('--dy15', (dy * 0.2 - 40) + 'px');
+            el.style.setProperty('--r',    rot  + 'deg');
+            el.style.setProperty('--r15',  (rot * 0.15) + 'deg');
+            el.style.setProperty('--dur',  dur  + 's');
+            el.style.animationDelay = (i * 0.03) + 's';
+
+            document.body.appendChild(el);
+            el.addEventListener('animationend', () => el.remove());
+        }
+    }
+
+    document.getElementById('treat-btn').addEventListener('click', function (e) {
+        const rect = this.getBoundingClientRect();
+        spawnTreats(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    });
+
+    // Console debug mode: treatDebug() shows the button for anyone
+    window.treatDebug = function () {
+        document.getElementById('treat-btn').style.display = '';
+        console.log('🦴 treat mode active');
+    };
+})();
+</script>
+<% } else { %>
+<script>
+// Treat debug mode — run treatDebug() in console to test
+window.treatDebug = function () {
+    const TREATS = ['🦴','🦴','🦴','🐾','🎾','🐕','❤️','✨'];
+    if (!document.getElementById('treat-btn')) {
+        const style = document.createElement('style');
+        style.textContent = `
+            #treat-btn { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:9999; background:#c47a2b; color:#fff; font-weight:700; border:2px solid #e8a84a; border-radius:999px; padding:10px 22px; font-size:1.3em; cursor:pointer; box-shadow:0 4px 18px rgba(0,0,0,0.5); user-select:none; }
+            #treat-btn:active { transform:translateX(-50%) scale(0.95); }
+            .treat-particle { position:fixed; pointer-events:none; z-index:9998; font-size:1.6em; line-height:1; will-change:transform,opacity; animation:treat-fly var(--dur) cubic-bezier(0.22,0.61,0.36,1) forwards; }
+            @keyframes treat-fly { 0%{transform:translate(0,0) scale(0.4) rotate(0deg);opacity:1} 15%{transform:translate(var(--dx15),var(--dy15)) scale(1.2) rotate(var(--r15));opacity:1} 100%{transform:translate(var(--dx),var(--dy)) scale(0.7) rotate(var(--r));opacity:0} }
+        `;
+        document.head.appendChild(style);
+        const btn = document.createElement('button');
+        btn.id = 'treat-btn';
+        btn.textContent = '🦴 Treat!';
+        document.body.appendChild(btn);
+        btn.addEventListener('click', function (e) {
+            const rect = this.getBoundingClientRect();
+            spawnTreats(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        });
+    }
+    function spawnTreats(ox, oy) {
+        const count = 12 + Math.floor(Math.random() * 8);
+        for (let i = 0; i < count; i++) {
+            const el = document.createElement('span');
+            el.className = 'treat-particle';
+            el.textContent = TREATS[Math.floor(Math.random() * TREATS.length)];
+            const angle = (Math.random() * 360) * (Math.PI / 180);
+            const dist  = 120 + Math.random() * 280;
+            const dx    = Math.cos(angle) * dist;
+            const dy    = Math.sin(angle) * dist - (60 + Math.random() * 120);
+            const dur   = 0.7 + Math.random() * 0.8;
+            const rot   = (Math.random() - 0.5) * 540;
+            el.style.left = (ox - 16) + 'px'; el.style.top = (oy - 16) + 'px';
+            el.style.setProperty('--dx', dx + 'px'); el.style.setProperty('--dy', dy + 'px');
+            el.style.setProperty('--dx15', (dx * 0.2) + 'px'); el.style.setProperty('--dy15', (dy * 0.2 - 40) + 'px');
+            el.style.setProperty('--r', rot + 'deg'); el.style.setProperty('--r15', (rot * 0.15) + 'deg');
+            el.style.setProperty('--dur', dur + 's');
+            el.style.animationDelay = (i * 0.03) + 's';
+            document.body.appendChild(el);
+            el.addEventListener('animationend', () => el.remove());
+        }
+    }
+    console.log('🦴 treat debug mode active — click the button!');
+};
+</script>
+<% } %>
+
 </body>
 </html>

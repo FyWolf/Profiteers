@@ -67,7 +67,7 @@ const sessionStore = new MySQLStore({
 
 app.use(session({
     secret: process.env.SESSION_SECRET,
-    resave: false,
+    resave: true,            // must be true with rolling:true so the store record expiry is updated
     saveUninitialized: false,
     rolling: true,   // reset expiry on every request while the user is active
     store: sessionStore,
