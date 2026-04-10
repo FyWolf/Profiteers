@@ -193,11 +193,24 @@ function renderPubSquadCard(squad) {
            <button onclick="toggleAddSub(${squad.id})" class="btn" style="margin-top: 8px; width: 100%; background: rgba(0,0,0,0.2); border: 1px dashed var(--khaki); font-size: 0.8em; padding: 6px;">➕ Add Sub-group</button>`
         : '';
 
+    const fileInput = canEdit ? `<input type="file" id="iconInput_${squad.id}" accept="image/*" style="display:none" onchange="uploadSquadIcon(${squad.id}, this)">` : '';
+    let iconArea;
+    if (canEdit) {
+        if (squad.icon) {
+            iconArea = `<img src="/uploads/squad-icons/${esc(squad.icon)}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;border:1px solid ${squad.color};flex-shrink:0;"><button onclick="document.getElementById('iconInput_${squad.id}').click()" class="btn" style="padding:1px 4px;font-size:0.6em;flex-shrink:0;opacity:0.8;" title="Change icon">✏️</button><button onclick="removeSquadIcon(${squad.id})" class="btn btn-danger" style="padding:1px 4px;font-size:0.6em;flex-shrink:0;" title="Remove icon">✕</button>`;
+        } else {
+            iconArea = `<button onclick="document.getElementById('iconInput_${squad.id}').click()" class="btn" style="padding:1px 5px;font-size:0.65em;flex-shrink:0;opacity:0.7;" title="Upload icon">🖼️</button>`;
+        }
+    } else {
+        iconArea = squad.icon ? `<img src="/uploads/squad-icons/${esc(squad.icon)}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;border:1px solid ${squad.color};flex-shrink:0;">` : '';
+    }
+
     return `<div class="card orbat-squad-card" style="border-left: 4px solid ${squad.color}; padding: 10px 12px;">
+        ${fileInput}
         <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 2px solid ${squad.color};">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                 <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0;">
-                    ${squad.icon ? `<img src="/uploads/squad-icons/${esc(squad.icon)}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;border:1px solid ${squad.color};flex-shrink:0;">` : ''}
+                    ${iconArea}
                     <div style="min-width:0;">
                         <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
                             <h3 style="color: ${squad.color}; margin: 0; font-size: 0.92em; word-break: break-word;">${esc(squad.name)} ${yourSquadBadge}</h3>
@@ -585,6 +598,29 @@ async function submitTeamFrequencies(teamId) {
         const d = await r.json();
         if (d.success) location.reload(); else alert(d.error || 'Failed to save frequencies');
     } catch { alert('Failed to save frequencies'); }
+}
+
+async function uploadSquadIcon(squadId, input) {
+    const file = input.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('icon', file);
+    try {
+        const r = await fetch(`/orbat/api/squads/${squadId}/icon`, { method: 'POST', body: fd });
+        const d = await r.json();
+        if (d.success) location.reload();
+        else alert(d.error || 'Upload failed');
+    } catch { alert('Upload failed'); }
+}
+
+async function removeSquadIcon(squadId) {
+    if (!confirm('Remove this squad icon?')) return;
+    try {
+        const r = await fetch(`/orbat/api/squads/${squadId}/icon`, { method: 'DELETE' });
+        const d = await r.json();
+        if (d.success) location.reload();
+        else alert(d.error || 'Failed to remove icon');
+    } catch { alert('Failed to remove icon'); }
 }
 
 // ── Drag-to-pan ORBAT canvas ──────────────────────────────────────────────
