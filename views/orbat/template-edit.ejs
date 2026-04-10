@@ -95,7 +95,7 @@ function renderTemplateSquadCard(squad) {
 
     const unassigned = roles.filter(r => !r.team_id);
     const unassignedHtml = `<div id="unassigned-${squad.id}" data-team-roles="${squad.id}" data-team-id="" style="min-height:6px;">
-        ${teams.length > 0 && unassigned.length > 0 ? `<div style="padding:2px 8px 0;font-size:0.63em;color:var(--khaki);opacity:0.5;text-transform:uppercase;letter-spacing:0.06em;">Ungrouped</div>` : ''}
+        ${''}
         ${unassigned.map(r => renderTemplateRoleCard(r, squad)).join('')}
     </div>`;
 
@@ -294,58 +294,54 @@ function renderTemplateNode(node, isRoot) {
     <% } %>
 
     <section class="section">
-        <h2>Template Information</h2>
-        <form method="POST" action="/orbat/templates/edit/<%= template.id %>">
-            <div style="display: grid; gap: 15px;">
-                <div class="form-group">
-                    <label for="name">Template Name</label>
-                    <input type="text" id="name" name="name" value="<%= template.name %>" required>
-                </div>
-                <div class="form-group">
-                    <label for="description">Description</label>
-                    <textarea id="description" name="description" rows="2"><%= template.description || '' %></textarea>
-                </div>
-                <button type="submit" class="btn btn-primary">💾 Save Template Info</button>
+        <div style="position:relative;">
+            <div class="org-tree-scroll" style="min-height:120px;">
+                <% if (squads.length === 0) { %>
+                    <div class="card text-center" style="margin:60px auto;max-width:400px;">
+                        <p style="color: var(--khaki);">No groups yet. Use the panel to add one.</p>
+                    </div>
+                <% } else { %>
+                    <div class="org-tree-root">
+                        <%- squadTree.map(root => renderTemplateNode(root, true)).join('') %>
+                    </div>
+                <% } %>
             </div>
-        </form>
-    </section>
 
-    <section class="section">
-        <h2>➕ Add Root Group</h2>
-        <form id="addSquadForm" class="card">
-            <div style="display: grid; grid-template-columns: 2fr 1fr 80px auto; gap: 10px; align-items: end;">
-                <div class="form-group" style="margin: 0;">
-                    <label for="newSquadName">Group Name</label>
-                    <input type="text" id="newSquadName" placeholder="e.g., 1st Platoon" required>
+            <div id="editPanel" style="position:absolute;top:10px;left:10px;z-index:100;background:rgba(15,24,15,0.96);border:1px solid var(--olive);border-radius:6px;box-shadow:0 4px 18px rgba(0,0,0,0.6);width:220px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid rgba(107,142,35,0.3);cursor:pointer;" onclick="toggleEditPanel()">
+                    <span style="font-size:0.75em;font-weight:700;color:var(--olive);letter-spacing:0.06em;text-transform:uppercase;">Settings</span>
+                    <span id="editPanelChevron" style="font-size:0.7em;color:var(--khaki);transition:transform 0.2s;">▾</span>
                 </div>
-                <div class="form-group" style="margin: 0;">
-                    <label for="newSquadColor">Color</label>
-                    <input type="color" id="newSquadColor" value="#3498DB" style="width: 100%; height: 42px;">
+                <div id="editPanelBody" style="padding:8px 10px;display:flex;flex-direction:column;gap:8px;">
+                    <form method="POST" action="/orbat/templates/edit/<%= template.id %>" style="display:flex;flex-direction:column;gap:5px;">
+                        <label style="font-size:0.7em;color:var(--khaki);margin:0;">Name</label>
+                        <input type="text" name="name" value="<%= template.name %>" required placeholder="Template name" style="margin:0;font-size:0.8em;padding:4px 7px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;">
+                        <label style="font-size:0.7em;color:var(--khaki);margin:0;">Description</label>
+                        <input type="text" name="description" value="<%= template.description || '' %>" placeholder="Optional" style="margin:0;font-size:0.8em;padding:4px 7px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;">
+                        <button type="submit" class="btn btn-primary" style="font-size:0.78em;padding:3px 8px;margin-top:2px;">Save info</button>
+                    </form>
+                    <div style="height:1px;background:rgba(255,255,255,0.07);"></div>
+                    <form id="addSquadForm" style="display:flex;flex-direction:column;gap:5px;">
+                        <div style="font-size:0.72em;font-weight:700;color:var(--olive);text-transform:uppercase;letter-spacing:0.05em;">Add top-level group</div>
+                        <div style="font-size:0.68em;color:var(--khaki);opacity:0.7;margin-bottom:2px;">A platoon, section or any top-level unit. Sub-groups can be nested inside after creation.</div>
+                        <label style="font-size:0.7em;color:var(--khaki);margin:0;">Group name</label>
+                        <input type="text" id="newSquadName" placeholder="e.g. 1st Platoon" required style="margin:0;font-size:0.8em;padding:4px 7px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;">
+                        <div style="display:flex;gap:6px;">
+                            <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;">
+                                <label style="font-size:0.7em;color:var(--khaki);margin:0;">Order</label>
+                                <input type="number" id="newSquadOrder" value="0" min="0" style="margin:0;font-size:0.8em;padding:4px 7px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;width:100%;box-sizing:border-box;">
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:2px;align-items:center;flex-shrink:0;">
+                                <label style="font-size:0.7em;color:var(--khaki);margin:0;">Color</label>
+                                <input type="color" id="newSquadColor" value="#3498DB" style="width:32px;height:28px;border:none;background:none;cursor:pointer;padding:0;">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="font-size:0.78em;padding:3px 8px;margin-top:2px;">Add group</button>
+                    </form>
                 </div>
-                <div class="form-group" style="margin: 0;">
-                    <label for="newSquadOrder">Order</label>
-                    <input type="number" id="newSquadOrder" value="0" min="0" style="width: 100%;">
-                </div>
-                <button type="submit" class="btn btn-primary" style="height: 42px;">➕ Add</button>
             </div>
-        </form>
+        </div>
     </section>
-
-    <% if (squads.length === 0) { %>
-        <section class="section">
-            <div class="card text-center">
-                <p style="color: var(--khaki);">No groups created yet. Add a group above to get started!</p>
-            </div>
-        </section>
-    <% } else { %>
-        <section class="section">
-            <div class="org-tree-scroll">
-                <div class="org-tree-root">
-                    <%- squadTree.map(root => renderTemplateNode(root, true)).join('') %>
-                </div>
-            </div>
-        </section>
-    <% } %>
 
     <section class="section">
         <a href="/orbat/templates" class="btn">← Back to Templates</a>
@@ -713,6 +709,15 @@ async function submitTeamFrequencies(teamId) {
         const d = await r.json();
         if (d.success) location.reload(); else alert(d.error || 'Failed to save frequencies');
     } catch { alert('Failed to save frequencies'); }
+}
+
+// ── Edit panel toggle ─────────────────────────────────────────────────────
+function toggleEditPanel() {
+    const body = document.getElementById('editPanelBody');
+    const chevron = document.getElementById('editPanelChevron');
+    const collapsed = body.style.display === 'none';
+    body.style.display = collapsed ? 'flex' : 'none';
+    chevron.style.transform = collapsed ? '' : 'rotate(-90deg)';
 }
 
 // ── Controls dropdown ─────────────────────────────────────────────────────

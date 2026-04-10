@@ -104,7 +104,7 @@ function renderPubSquadCard(squad) {
         unassignedHtml = `<div id="unassigned-${squad.id}" data-team-roles="${squad.id}" data-team-id="" style="min-height:6px;"><p style="color: var(--khaki); opacity: 0.7; font-size: 0.9em; font-style: italic;">No roles defined</p></div>`;
     } else {
         unassignedHtml = `<div id="unassigned-${squad.id}" data-team-roles="${squad.id}" data-team-id="" style="min-height:6px;">
-            ${teams.length > 0 && unassigned.length > 0 ? `<div style="padding:2px 8px 0;font-size:0.63em;color:var(--khaki);opacity:0.5;text-transform:uppercase;letter-spacing:0.06em;">Ungrouped</div>` : ''}
+            ${''}
             ${unassigned.map(r => renderPubRoleCard(r, squad, canEdit)).join('')}
         </div>`;
     }
