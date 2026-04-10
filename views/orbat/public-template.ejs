@@ -200,7 +200,7 @@ function renderPubSquadCard(squad) {
                     ${squad.icon ? `<img src="/uploads/squad-icons/${esc(squad.icon)}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;border:1px solid ${squad.color};flex-shrink:0;">` : ''}
                     <div style="min-width:0;">
                         <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
-                            <h3 style="color: ${squad.color}; margin: 0; font-size: 0.92em;">${esc(squad.name)} ${yourSquadBadge}</h3>
+                            <h3 style="color: ${squad.color}; margin: 0; font-size: 0.92em; word-break: break-word;">${esc(squad.name)} ${yourSquadBadge}</h3>
                             ${lrBadge}${srBadge}
                             ${canEdit ? `<button onclick="toggleFreqForm('sq', ${squad.id})" class="btn" style="padding:1px 4px;font-size:0.65em;opacity:0.7;" title="Edit Radio Frequencies">📻</button>` : ''}
                         </div>
