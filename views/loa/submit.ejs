@@ -19,7 +19,7 @@
                            id="start_date" 
                            name="start_date" 
                            required
-                           min="<%= new Date().toISOString().slice(0, 16) %>">
+                           min="<%= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16) %>">
                     <small style="color: var(--khaki);">When your leave begins</small>
                 </div>
 
