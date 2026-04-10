@@ -194,32 +194,32 @@ function renderPubSquadCard(squad) {
         : '';
 
     const fileInput = canEdit ? `<input type="file" id="iconInput_${squad.id}" accept="image/*" style="display:none" onchange="uploadSquadIcon(${squad.id}, this)">` : '';
-    let iconArea;
-    if (canEdit) {
-        if (squad.icon) {
-            iconArea = `<img src="/uploads/squad-icons/${esc(squad.icon)}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;border:1px solid ${squad.color};flex-shrink:0;"><button onclick="document.getElementById('iconInput_${squad.id}').click()" class="btn" style="padding:1px 4px;font-size:0.6em;flex-shrink:0;opacity:0.8;" title="Change icon">✏️</button><button onclick="removeSquadIcon(${squad.id})" class="btn btn-danger" style="padding:1px 4px;font-size:0.6em;flex-shrink:0;" title="Remove icon">✕</button>`;
-        } else {
-            iconArea = `<button onclick="document.getElementById('iconInput_${squad.id}').click()" class="btn" style="padding:1px 5px;font-size:0.65em;flex-shrink:0;opacity:0.7;" title="Upload icon">🖼️</button>`;
-        }
-    } else {
-        iconArea = squad.icon ? `<img src="/uploads/squad-icons/${esc(squad.icon)}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;border:1px solid ${squad.color};flex-shrink:0;">` : '';
-    }
+    const iconImg = squad.icon ? `<img src="/uploads/squad-icons/${esc(squad.icon)}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;border:1px solid ${squad.color};flex-shrink:0;">` : '';
+    const ctrlMenu = canEdit ? `
+        <div class="ctrl-menu">
+            <button class="ctrl-menu-btn" onclick="toggleCtrlMenu(this)">···</button>
+            <div class="ctrl-menu-list">
+                <button class="ctrl-menu-item" onclick="document.getElementById('iconInput_${squad.id}').click()">${squad.icon ? 'Change icon' : 'Upload icon'}</button>
+                ${squad.icon ? `<button class="ctrl-menu-item ctrl-menu-danger" onclick="removeSquadIcon(${squad.id})">Remove icon</button>` : ''}
+                <button class="ctrl-menu-item" onclick="toggleFreqForm('sq', ${squad.id})">Radio Freq</button>
+                ${canDeleteThisSquad ? `<button class="ctrl-menu-item ctrl-menu-danger" onclick="deleteSquad(${squad.id})">Delete group</button>` : ''}
+            </div>
+        </div>` : '';
 
     return `<div class="card orbat-squad-card" style="border-left: 4px solid ${squad.color}; padding: 10px 12px;">
         ${fileInput}
         <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 2px solid ${squad.color};">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                 <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0;">
-                    ${iconArea}
+                    ${iconImg}
                     <div style="min-width:0;">
                         <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
                             <h3 style="color: ${squad.color}; margin: 0; font-size: 0.92em; word-break: break-word;">${esc(squad.name)} ${yourSquadBadge}</h3>
                             ${lrBadge}${srBadge}
-                            ${canEdit ? `<button onclick="toggleFreqForm('sq', ${squad.id})" class="btn" style="padding:1px 4px;font-size:0.65em;opacity:0.7;" title="Edit Radio Frequencies">📻</button>` : ''}
                         </div>
                     </div>
                 </div>
-                ${deleteBtn}
+                ${ctrlMenu}
             </div>
         </div>
         ${squadFreqForm}
@@ -241,6 +241,54 @@ function renderPubNode(node, isRoot) {
     return `<div class="${wrapClass}">${cardHtml}${childrenHtml}</div>`;
 }
 %>
+
+<style>
+.ctrl-menu { position: relative; flex-shrink: 0; }
+.ctrl-menu-btn {
+    padding: 2px 7px;
+    font-size: 0.78em;
+    letter-spacing: 0.05em;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(178,178,125,0.25);
+    border-radius: 3px;
+    color: var(--sand);
+    cursor: pointer;
+    line-height: 1.4;
+}
+.ctrl-menu-btn:hover { background: rgba(255,255,255,0.12); }
+.ctrl-menu-list {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 2px);
+    z-index: 500;
+    background: rgba(15,24,15,0.98);
+    border: 1px solid var(--olive);
+    border-radius: 5px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.55);
+    min-width: 130px;
+    overflow: hidden;
+}
+.ctrl-menu-list.open { display: block; }
+.ctrl-menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 6px 12px;
+    font-size: 0.78em;
+    font-family: inherit;
+    color: var(--sand);
+    background: none;
+    border: none;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    cursor: pointer;
+    white-space: nowrap;
+}
+.ctrl-menu-item:last-child { border-bottom: none; }
+.ctrl-menu-item:hover { background: rgba(107,142,35,0.25); }
+.ctrl-menu-danger { color: #e74c3c; }
+.ctrl-menu-danger:hover { background: rgba(231,76,60,0.15) !important; color: #ff6b6b; }
+</style>
 
 <div class="container orbat-wide">
     <header>
@@ -599,6 +647,17 @@ async function submitTeamFrequencies(teamId) {
         if (d.success) location.reload(); else alert(d.error || 'Failed to save frequencies');
     } catch { alert('Failed to save frequencies'); }
 }
+
+function toggleCtrlMenu(btn) {
+    const list = btn.nextElementSibling;
+    const isOpen = list.classList.contains('open');
+    document.querySelectorAll('.ctrl-menu-list.open').forEach(m => m.classList.remove('open'));
+    if (!isOpen) list.classList.add('open');
+}
+document.addEventListener('click', e => {
+    if (!e.target.closest('.ctrl-menu'))
+        document.querySelectorAll('.ctrl-menu-list.open').forEach(m => m.classList.remove('open'));
+});
 
 async function uploadSquadIcon(squadId, input) {
     const file = input.files[0];
