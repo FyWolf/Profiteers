@@ -1,0 +1,237 @@
+<%- include('../partials/header') %>
+
+<style>
+.info-nav { display:flex; gap:8px; margin-bottom:24px; flex-wrap:wrap; }
+.info-nav a { padding:6px 16px; border-radius:6px; font-size:0.82em; font-weight:700; letter-spacing:0.05em; text-decoration:none; background:rgba(0,0,0,0.3); border:1px solid rgba(107,142,35,0.3); color:var(--khaki); transition:all 0.2s; }
+.info-nav a.active, .info-nav a:hover { background:rgba(107,142,35,0.2); border-color:var(--olive); color:var(--sand); }
+
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media(max-width:860px) { .two-col { grid-template-columns:1fr; } }
+
+.panel { background:linear-gradient(135deg,rgba(0,0,0,0.4) 0%,rgba(10,20,10,0.4) 100%); border:1px solid rgba(107,142,35,0.4); border-radius:10px; padding:20px; }
+.panel h3 { margin:0 0 16px; font-size:0.88em; color:var(--khaki); letter-spacing:1px; border-bottom:1px solid rgba(107,142,35,0.2); padding-bottom:10px; }
+
+.row-item { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+.row-item:last-child { border-bottom:none; }
+.row-label { flex:1; font-size:0.88em; color:var(--sand); }
+.row-sub { font-size:0.72em; color:var(--khaki); display:block; }
+
+.fg { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+.fg input, .fg select {
+    padding:6px 10px;
+    background:rgba(40,40,40,0.9); color:var(--sand);
+    border:1px solid rgba(107,142,35,0.45); border-radius:5px;
+    font-family:var(--body-font); font-size:0.85em;
+}
+.fg input { flex:1; min-width:0; }
+
+.staff-avatar { width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0; }
+.staff-avatar-fb { width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:0.85em;color:white;flex-shrink:0; }
+
+.role-chip { display:inline-block; font-size:0.68em; font-weight:700; padding:1px 7px; border-radius:3px; }
+
+.search-wrap { position:relative; margin-bottom:12px; }
+.search-wrap input { width:100%;box-sizing:border-box;padding:8px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.88em; }
+#roster-results { position:absolute; left:0; right:0; top:100%; z-index:200; background:rgba(15,24,15,0.98); border:1px solid var(--olive); border-top:none; border-radius:0 0 6px 6px; max-height:220px; overflow-y:auto; display:none; }
+.roster-opt { display:flex; align-items:center; gap:8px; padding:8px 10px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.05); }
+.roster-opt:hover { background:rgba(107,142,35,0.2); }
+.roster-opt:last-child { border-bottom:none; }
+</style>
+
+<div class="container">
+    <header>
+        <h1>INFORMATION PAGE</h1>
+        <div class="subtitle">Configuration Panel</div>
+    </header>
+
+    <div class="info-nav">
+        <a href="/admin/info/servers">Servers</a>
+        <a href="/admin/info/staff" class="active">Staff & Departments</a>
+        <a href="/admin/info/kit">Kit Regulations</a>
+        <a href="/info" target="_blank" style="margin-left:auto;">View Page ↗</a>
+    </div>
+
+    <section class="section">
+        <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+        <% if (error)   { %><div class="alert alert-error"><%= error %></div><% } %>
+
+        <div class="two-col">
+            <!-- Departments -->
+            <div class="panel">
+                <h3>DEPARTMENTS</h3>
+
+                <form method="POST" action="/admin/info/departments/add" style="margin-bottom:16px;">
+                    <div class="fg">
+                        <input type="text" name="name" required placeholder="Department name..." style="flex:1;">
+                        <input type="number" name="display_order" value="0" min="0" style="width:60px;">
+                        <button type="submit" class="btn btn-primary" style="padding:6px 12px;font-size:0.85em;">Add</button>
+                    </div>
+                </form>
+
+                <% if (departments.length === 0) { %>
+                    <div style="text-align:center;color:var(--khaki);opacity:0.6;font-size:0.85em;padding:16px;">No departments yet.</div>
+                <% } else { %>
+                    <% departments.forEach(dept => { %>
+                    <div class="row-item">
+                        <div class="row-label">
+                            <strong><%= dept.name %></strong>
+                            <span class="row-sub">Order: <%= dept.display_order %></span>
+                        </div>
+                        <button onclick="toggleDeptEdit(<%= dept.id %>)" class="btn" style="padding:2px 7px;font-size:0.75em;">Edit</button>
+                        <form method="POST" action="/admin/info/departments/delete/<%= dept.id %>" style="display:inline;" onsubmit="return confirm('Delete department and unassign members?')">
+                            <button type="submit" class="btn btn-danger" style="padding:2px 7px;font-size:0.75em;">Del</button>
+                        </form>
+                    </div>
+                    <div id="dept-edit-<%= dept.id %>" style="display:none;margin-bottom:6px;padding:8px;background:rgba(0,0,0,0.3);border-radius:5px;">
+                        <form method="POST" action="/admin/info/departments/edit/<%= dept.id %>">
+                            <div class="fg">
+                                <input type="text" name="name" value="<%= dept.name %>" required style="flex:1;">
+                                <input type="number" name="display_order" value="<%= dept.display_order %>" style="width:60px;">
+                                <button type="submit" class="btn btn-primary" style="padding:5px 10px;font-size:0.82em;">Save</button>
+                                <button type="button" onclick="toggleDeptEdit(<%= dept.id %>)" class="btn" style="padding:5px;">✕</button>
+                            </div>
+                        </form>
+                    </div>
+                    <% }) %>
+                <% } %>
+            </div>
+
+            <!-- Add staff member -->
+            <div class="panel">
+                <h3>ADD STAFF MEMBER</h3>
+                <p style="font-size:0.8em;color:var(--khaki);margin:0 0 12px;">Search roster members to feature on the info page.</p>
+
+                <div class="search-wrap">
+                    <input type="text" id="roster-search" placeholder="Search roster members..." autocomplete="off">
+                    <div id="roster-results"></div>
+                </div>
+
+                <form method="POST" action="/admin/info/staff/add" id="add-staff-form">
+                    <input type="hidden" id="add-discord-id" name="discord_id" required>
+                    <div id="selected-member" style="display:none;padding:8px 10px;background:rgba(107,142,35,0.1);border:1px solid rgba(107,142,35,0.3);border-radius:5px;margin-bottom:10px;font-size:0.85em;color:var(--sand);">
+                        <strong>Selected:</strong> <span id="selected-name"></span>
+                        <button type="button" onclick="clearMember()" style="margin-left:8px;padding:1px 7px;font-size:0.8em;background:#e74c3c;border:none;color:white;border-radius:3px;cursor:pointer;">Clear</button>
+                    </div>
+                    <div class="fg" style="margin-bottom:10px;">
+                        <select name="department_id" style="flex:1;">
+                            <option value="">No Department</option>
+                            <% departments.forEach(d => { %>
+                            <option value="<%= d.id %>"><%= d.name %></option>
+                            <% }) %>
+                        </select>
+                        <input type="number" name="display_order" value="0" min="0" style="width:60px;" placeholder="Order">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width:100%;padding:8px;">Add to Staff</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Staff list -->
+        <div class="panel" style="margin-top:20px;">
+            <h3>CURRENT STAFF (<%= staffMembers.length %>)</h3>
+            <% if (staffMembers.length === 0) { %>
+                <div style="text-align:center;color:var(--khaki);opacity:0.6;font-size:0.85em;padding:16px;">No staff members configured.</div>
+            <% } else { %>
+                <% staffMembers.forEach(m => { %>
+                <%
+                    const displayName = m.nickname || m.discord_global_name || m.discord_username;
+                    const avatarUrl = m.discord_avatar
+                        ? `https://cdn.discordapp.com/avatars/${m.discord_id}/${m.discord_avatar}.png?size=64`
+                        : null;
+                    const deptName = departments.find(d => d.id === m.department_id)?.name || 'No Department';
+                %>
+                <div class="row-item">
+                    <% if (avatarUrl) { %>
+                        <img src="<%= avatarUrl %>" class="staff-avatar" alt="<%= displayName %>" onerror="this.style.display='none'">
+                    <% } else { %>
+                        <div class="staff-avatar-fb" style="background:<%= m.role_color %>;"><%= displayName.charAt(0).toUpperCase() %></div>
+                    <% } %>
+                    <div class="row-label">
+                        <strong><%= displayName %></strong>
+                        <span class="row-sub">
+                            <span class="role-chip" style="background:<%= m.role_color %>22;color:<%= m.role_color %>;border:1px solid <%= m.role_color %>44;"><%= m.role_name %></span>
+                            — <%= deptName %>
+                        </span>
+                    </div>
+                    <button onclick="toggleStaffEdit(<%= m.id %>)" class="btn" style="padding:2px 7px;font-size:0.75em;">Edit</button>
+                    <form method="POST" action="/admin/info/staff/delete/<%= m.id %>" style="display:inline;" onsubmit="return confirm('Remove from staff page?')">
+                        <button type="submit" class="btn btn-danger" style="padding:2px 7px;font-size:0.75em;">Del</button>
+                    </form>
+                </div>
+                <div id="staff-edit-<%= m.id %>" style="display:none;margin-bottom:6px;padding:8px;background:rgba(0,0,0,0.3);border-radius:5px;">
+                    <form method="POST" action="/admin/info/staff/edit/<%= m.id %>">
+                        <div class="fg">
+                            <select name="department_id" style="flex:1;">
+                                <option value="">No Department</option>
+                                <% departments.forEach(d => { %>
+                                <option value="<%= d.id %>" <%= m.department_id === d.id ? 'selected' : '' %>><%= d.name %></option>
+                                <% }) %>
+                            </select>
+                            <input type="number" name="display_order" value="<%= m.display_order %>" style="width:60px;">
+                            <button type="submit" class="btn btn-primary" style="padding:5px 10px;font-size:0.82em;">Save</button>
+                            <button type="button" onclick="toggleStaffEdit(<%= m.id %>)" class="btn" style="padding:5px;">✕</button>
+                        </div>
+                    </form>
+                </div>
+                <% }) %>
+            <% } %>
+        </div>
+    </section>
+
+    <div class="mt-2"><a href="/admin" class="btn">← Back to Dashboard</a></div>
+</div>
+
+<script>
+const rosterMembers = <%- JSON.stringify(rosterMembers.map(m => ({
+    discord_id: m.discord_id,
+    name: m.discord_global_name || m.discord_username,
+    role: m.role_name,
+    color: m.role_color,
+    avatar: m.discord_avatar
+}))) %>;
+
+const searchInput   = document.getElementById('roster-search');
+const resultsBox    = document.getElementById('roster-results');
+const hiddenInput   = document.getElementById('add-discord-id');
+const selectedBlock = document.getElementById('selected-member');
+const selectedName  = document.getElementById('selected-name');
+
+searchInput.addEventListener('input', function() {
+    const q = this.value.toLowerCase().trim();
+    if (!q) { resultsBox.style.display = 'none'; return; }
+    const hits = rosterMembers.filter(m => m.name.toLowerCase().includes(q) || m.discord_id.includes(q)).slice(0, 15);
+    if (hits.length === 0) { resultsBox.innerHTML = '<div style="padding:10px;color:var(--khaki);font-size:0.85em;">No results</div>'; resultsBox.style.display = 'block'; return; }
+    resultsBox.innerHTML = hits.map(m => {
+        const avatarHtml = m.avatar
+            ? `<img src="https://cdn.discordapp.com/avatars/${m.discord_id}/${m.avatar}.png?size=32" style="width:24px;height:24px;border-radius:50%;object-fit:cover;">`
+            : `<div style="width:24px;height:24px;border-radius:50%;background:${m.color};display:flex;align-items:center;justify-content:center;font-size:0.75em;font-weight:900;color:white;">${m.name.charAt(0).toUpperCase()}</div>`;
+        return `<div class="roster-opt" onclick="selectMember('${m.discord_id}','${m.name.replace(/'/g,"\\'")}')">
+            ${avatarHtml}
+            <div>
+                <div style="font-size:0.88em;color:var(--sand);">${m.name}</div>
+                <div style="font-size:0.7em;color:${m.color};">${m.role}</div>
+            </div>
+        </div>`;
+    }).join('');
+    resultsBox.style.display = 'block';
+});
+
+function selectMember(id, name) {
+    hiddenInput.value = id;
+    selectedName.textContent = name;
+    selectedBlock.style.display = 'block';
+    searchInput.value = '';
+    resultsBox.style.display = 'none';
+}
+function clearMember() {
+    hiddenInput.value = '';
+    selectedBlock.style.display = 'none';
+}
+document.addEventListener('click', e => {
+    if (!searchInput.contains(e.target) && !resultsBox.contains(e.target)) resultsBox.style.display = 'none';
+});
+function toggleDeptEdit(id)  { const el = document.getElementById('dept-edit-' + id);  el.style.display = el.style.display === 'none' ? 'block' : 'none'; }
+function toggleStaffEdit(id) { const el = document.getElementById('staff-edit-' + id); el.style.display = el.style.display === 'none' ? 'block' : 'none'; }
+</script>
+
+<%- include('../partials/footer') %>

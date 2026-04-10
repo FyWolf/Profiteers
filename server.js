@@ -38,6 +38,9 @@ const operationsRoutes = require('./routes/operations');
 const operationsMapRoutes = require('./routes/operations-map');
 const { discordClient, initializeDiscord } = require('./discord');
 const modpacksRoutes = require('./routes/modpacks');
+const infoRoutes = require('./routes/info');
+const cron = require('node-cron');
+const { runRosterSync } = require('./routes/roster');
 
 
 const app = express();
@@ -109,6 +112,7 @@ app.use('/roster', rosterRoutes);
 app.use('/modpacks', modpacksRoutes);
 const loreRoutes = require('./routes/lore');
 app.use('/lore', loreRoutes);
+app.use('/info', infoRoutes);
 
 app.use((req, res) => {
     res.status(404).render('error', {
@@ -144,5 +148,15 @@ Server running !
 });
 
 initializeDiscord();
+
+// ── Scheduled Jobs ────────────────────────────────────────────────────────────
+// Roster auto-sync — every hour at :00
+cron.schedule('0 * * * *', async () => {
+    try {
+        await runRosterSync();
+    } catch (error) {
+        console.error('[CRON] Roster sync failed:', error.message);
+    }
+});
 
 module.exports = app;

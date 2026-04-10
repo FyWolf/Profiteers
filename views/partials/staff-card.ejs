@@ -1,0 +1,27 @@
+<%
+    const displayName = member.nickname || member.discord_global_name || member.discord_username;
+    const avatarUrl = member.discord_avatar
+        ? `https://cdn.discordapp.com/avatars/${member.discord_id}/${member.discord_avatar}.png?size=128`
+        : null;
+%>
+<% if (member.user_id) { %>
+<a href="/profile/<%= member.user_id %>" class="staff-card">
+<% } else { %>
+<div class="staff-card">
+<% } %>
+    <% if (avatarUrl) { %>
+        <img src="<%= avatarUrl %>" class="staff-avatar" alt="<%= displayName %>"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="staff-avatar-fb" style="background:<%= member.role_color %>;display:none;"><%= displayName.charAt(0).toUpperCase() %></div>
+    <% } else { %>
+        <div class="staff-avatar-fb" style="background:<%= member.role_color %>;"><%= displayName.charAt(0).toUpperCase() %></div>
+    <% } %>
+    <div class="staff-info">
+        <div class="staff-name"><%= displayName %></div>
+        <span class="staff-role" style="background:<%= member.role_color %>22;color:<%= member.role_color %>;border:1px solid <%= member.role_color %>55;"><%= member.role_name %></span>
+    </div>
+<% if (member.user_id) { %>
+</a>
+<% } else { %>
+</div>
+<% } %>

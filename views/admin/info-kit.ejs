@@ -1,0 +1,296 @@
+<%- include('../partials/header') %>
+
+<style>
+.info-nav { display:flex; gap:8px; margin-bottom:24px; flex-wrap:wrap; }
+.info-nav a { padding:6px 16px; border-radius:6px; font-size:0.82em; font-weight:700; letter-spacing:0.05em; text-decoration:none; background:rgba(0,0,0,0.3); border:1px solid rgba(107,142,35,0.3); color:var(--khaki); transition:all 0.2s; }
+.info-nav a.active, .info-nav a:hover { background:rgba(107,142,35,0.2); border-color:var(--olive); color:var(--sand); }
+
+.kit-layout { display:grid; grid-template-columns:260px 1fr; gap:20px; align-items:start; }
+@media(max-width:800px) { .kit-layout { grid-template-columns:1fr; } }
+
+.panel { background:linear-gradient(135deg,rgba(0,0,0,0.4) 0%,rgba(10,20,10,0.4) 100%); border:1px solid rgba(107,142,35,0.4); border-radius:10px; padding:20px; }
+.panel h3 { margin:0 0 14px; font-size:0.88em; color:var(--khaki); letter-spacing:1px; border-bottom:1px solid rgba(107,142,35,0.2); padding-bottom:8px; }
+
+.fg { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+.fg input, .fg select, .fg textarea {
+    padding:6px 10px;
+    background:rgba(40,40,40,0.9); color:var(--sand);
+    border:1px solid rgba(107,142,35,0.45); border-radius:5px;
+    font-family:var(--body-font); font-size:0.85em;
+}
+
+.role-list-item {
+    display:flex; align-items:center; gap:6px;
+    padding:8px 10px; border-radius:6px; cursor:pointer;
+    border:1px solid transparent; margin-bottom:4px;
+    transition:all 0.15s; font-size:0.88em; color:var(--sand);
+}
+.role-list-item:hover   { background:rgba(107,142,35,0.1); border-color:rgba(107,142,35,0.3); }
+.role-list-item.active  { background:rgba(107,142,35,0.18); border-color:rgba(107,142,35,0.5); color:var(--accent); }
+.role-list-item .badge  { font-size:0.72em; background:rgba(0,0,0,0.3); border-radius:3px; padding:1px 6px; color:var(--khaki); margin-left:auto; }
+
+.slot-table { width:100%; border-collapse:collapse; }
+.slot-table th { font-size:0.72em; letter-spacing:0.07em; color:var(--khaki); text-transform:uppercase; border-bottom:2px solid rgba(107,142,35,0.3); padding:7px 10px; text-align:left; }
+.slot-table td { padding:8px 10px; border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.88em; color:var(--sand); vertical-align:middle; }
+.slot-table tr:last-child td { border-bottom:none; }
+.slot-table tr:hover td { background:rgba(107,142,35,0.05); }
+.slot-table input, .slot-table textarea {
+    width:100%; box-sizing:border-box; padding:4px 7px;
+    background:rgba(40,40,40,0.9); color:var(--sand);
+    border:1px solid rgba(107,142,35,0.4); border-radius:4px;
+    font-family:var(--body-font); font-size:0.85em;
+}
+.slot-table textarea { resize:vertical; min-height:34px; }
+
+.add-slot-row { background:rgba(107,142,35,0.06); }
+.add-slot-row td { padding:8px 10px; }
+
+.no-role-selected { display:flex; align-items:center; justify-content:center; min-height:200px; color:var(--khaki); opacity:0.55; font-size:0.9em; }
+</style>
+
+<div class="container">
+    <header>
+        <h1>INFORMATION PAGE</h1>
+        <div class="subtitle">Configuration Panel</div>
+    </header>
+
+    <div class="info-nav">
+        <a href="/admin/info/servers">Servers</a>
+        <a href="/admin/info/staff">Staff & Departments</a>
+        <a href="/admin/info/kit" class="active">Kit Regulations</a>
+        <a href="/info" target="_blank" style="margin-left:auto;">View Page ↗</a>
+    </div>
+
+    <section class="section">
+        <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+        <% if (error)   { %><div class="alert alert-error"><%= error %></div><% } %>
+
+        <div class="kit-layout">
+            <!-- Left: role list -->
+            <div>
+                <div class="panel">
+                    <h3>KIT ROLES</h3>
+
+                    <form method="POST" action="/admin/info/kit/roles/add" style="margin-bottom:14px;">
+                        <div style="display:flex;gap:6px;margin-bottom:6px;">
+                            <input type="text" name="name" required placeholder="Role name..." style="flex:1;padding:7px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.88em;">
+                        </div>
+                        <div style="display:flex;gap:6px;">
+                            <input type="number" name="display_order" value="<%= kitRoles.length %>" min="0" style="width:60px;padding:6px 8px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.85em;" placeholder="Order">
+                            <button type="submit" class="btn btn-primary" style="flex:1;padding:6px;">Add Role</button>
+                        </div>
+                    </form>
+
+                    <% if (kitRoles.length === 0) { %>
+                        <div style="text-align:center;color:var(--khaki);opacity:0.6;font-size:0.82em;padding:12px;">No roles yet.</div>
+                    <% } else { %>
+                        <% kitRoles.forEach((role, i) => { %>
+                        <div class="role-list-item <%= i === 0 ? 'active' : '' %>" onclick="selectRole(<%= role.id %>, this)">
+                            <span><%= role.name %></span>
+                            <span class="badge"><%= (slotsByRole[role.id] || []).length %> slots</span>
+                        </div>
+                        <% }) %>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Right: slot editor -->
+            <div class="panel" id="slot-panel">
+                <% if (kitRoles.length === 0) { %>
+                    <div class="no-role-selected">Add a role to get started.</div>
+                <% } else { %>
+                    <% kitRoles.forEach((role, ri) => { %>
+                    <div id="role-editor-<%= role.id %>" style="display:<%= ri === 0 ? 'block' : 'none' %>;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                            <h3 style="margin:0;flex:1;"><%= role.name %></h3>
+                            <button onclick="startRoleEdit(<%= role.id %>)" class="btn" style="padding:3px 9px;font-size:0.78em;">Rename</button>
+                            <form method="POST" action="/admin/info/kit/roles/delete/<%= role.id %>" style="display:inline;" onsubmit="return confirm('Delete this role and all its slots?')">
+                                <button type="submit" class="btn btn-danger" style="padding:3px 9px;font-size:0.78em;">Delete Role</button>
+                            </form>
+                        </div>
+
+                        <div id="role-rename-<%= role.id %>" style="display:none;margin-bottom:12px;padding:10px;background:rgba(0,0,0,0.3);border-radius:6px;">
+                            <form method="POST" action="/admin/info/kit/roles/edit/<%= role.id %>">
+                                <div style="display:flex;gap:6px;">
+                                    <input type="text" name="name" value="<%= role.name %>" required style="flex:1;padding:7px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.88em;">
+                                    <input type="number" name="display_order" value="<%= role.display_order %>" style="width:60px;padding:6px 8px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.85em;">
+                                    <button type="submit" class="btn btn-primary" style="padding:6px 12px;">Save</button>
+                                    <button type="button" onclick="startRoleEdit(<%= role.id %>)" class="btn" style="padding:6px 8px;">✕</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="card" style="padding:0;overflow:hidden;">
+                            <table class="slot-table" id="slot-table-<%= role.id %>">
+                                <thead>
+                                    <tr>
+                                        <th style="width:35%;">Slot Name</th>
+                                        <th>Value</th>
+                                        <th style="width:90px;">Order</th>
+                                        <th style="width:80px;text-align:right;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="slot-body-<%= role.id %>">
+                                    <% const slots = slotsByRole[role.id] || []; %>
+                                    <% if (slots.length === 0) { %>
+                                    <tr id="no-slots-<%= role.id %>"><td colspan="4" style="text-align:center;color:var(--khaki);opacity:0.6;font-style:italic;">No slots defined.</td></tr>
+                                    <% } %>
+                                    <% slots.forEach(slot => { %>
+                                    <tr id="slot-row-<%= slot.id %>">
+                                        <td>
+                                            <span id="sname-<%= slot.id %>"><%= slot.slot_name %></span>
+                                            <input id="sname-input-<%= slot.id %>" type="text" value="<%= slot.slot_name %>" style="display:none;">
+                                        </td>
+                                        <td>
+                                            <span id="sval-<%= slot.id %>"><%= slot.slot_value || '—' %></span>
+                                            <textarea id="sval-input-<%= slot.id %>" style="display:none;"><%= slot.slot_value || '' %></textarea>
+                                        </td>
+                                        <td>
+                                            <span id="sord-<%= slot.id %>"><%= slot.display_order %></span>
+                                            <input id="sord-input-<%= slot.id %>" type="number" value="<%= slot.display_order %>" style="display:none;width:50px;">
+                                        </td>
+                                        <td style="text-align:right;">
+                                            <div id="slot-view-btns-<%= slot.id %>">
+                                                <button onclick="editSlot(<%= slot.id %>)" class="btn" style="padding:2px 7px;font-size:0.75em;">Edit</button>
+                                                <button onclick="deleteSlot(<%= slot.id %>)" class="btn btn-danger" style="padding:2px 7px;font-size:0.75em;">Del</button>
+                                            </div>
+                                            <div id="slot-edit-btns-<%= slot.id %>" style="display:none;">
+                                                <button onclick="saveSlot(<%= slot.id %>)" class="btn btn-primary" style="padding:2px 7px;font-size:0.75em;">Save</button>
+                                                <button onclick="cancelSlotEdit(<%= slot.id %>)" class="btn" style="padding:2px 6px;font-size:0.75em;">✕</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <% }) %>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="add-slot-row">
+                                        <td><input type="text" id="new-name-<%= role.id %>" placeholder="Slot name..." style="width:100%;box-sizing:border-box;"></td>
+                                        <td><textarea id="new-val-<%= role.id %>" placeholder="Value..." style="width:100%;box-sizing:border-box;min-height:34px;resize:vertical;"></textarea></td>
+                                        <td><input type="number" id="new-ord-<%= role.id %>" value="<%= (slotsByRole[role.id] || []).length %>" style="width:55px;"></td>
+                                        <td style="text-align:right;"><button onclick="addSlot(<%= role.id %>)" class="btn btn-primary" style="padding:4px 9px;font-size:0.8em;">Add</button></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    <% }) %>
+                <% } %>
+            </div>
+        </div>
+    </section>
+
+    <div class="mt-2"><a href="/admin" class="btn">← Back to Dashboard</a></div>
+</div>
+
+<script>
+let activeRoleEl = document.querySelector('.role-list-item.active');
+
+function selectRole(id, el) {
+    if (activeRoleEl) activeRoleEl.classList.remove('active');
+    el.classList.add('active');
+    activeRoleEl = el;
+    document.querySelectorAll('[id^="role-editor-"]').forEach(e => e.style.display = 'none');
+    const editor = document.getElementById('role-editor-' + id);
+    if (editor) editor.style.display = 'block';
+}
+
+function startRoleEdit(id) {
+    const el = document.getElementById('role-rename-' + id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function editSlot(id) {
+    ['sname','sval','sord'].forEach(k => {
+        document.getElementById(k + '-' + id).style.display = 'none';
+        document.getElementById(k + '-input-' + id).style.display = '';
+    });
+    document.getElementById('slot-view-btns-' + id).style.display = 'none';
+    document.getElementById('slot-edit-btns-' + id).style.display = '';
+}
+
+function cancelSlotEdit(id) {
+    ['sname','sval','sord'].forEach(k => {
+        document.getElementById(k + '-' + id).style.display = '';
+        document.getElementById(k + '-input-' + id).style.display = 'none';
+    });
+    document.getElementById('slot-view-btns-' + id).style.display = '';
+    document.getElementById('slot-edit-btns-' + id).style.display = 'none';
+}
+
+async function saveSlot(id) {
+    const name  = document.getElementById('sname-input-' + id).value.trim();
+    const val   = document.getElementById('sval-input-' + id).value.trim();
+    const order = document.getElementById('sord-input-' + id).value;
+    if (!name) return alert('Slot name is required.');
+    const r = await fetch('/admin/info/kit/slots/edit/' + id, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot_name: name, slot_value: val, display_order: order })
+    });
+    const d = await r.json();
+    if (!d.success) return alert(d.error || 'Failed to save.');
+    document.getElementById('sname-' + id).textContent = name;
+    document.getElementById('sval-' + id).textContent  = val || '—';
+    document.getElementById('sord-' + id).textContent  = order;
+    cancelSlotEdit(id);
+}
+
+async function deleteSlot(id) {
+    if (!confirm('Delete this slot?')) return;
+    const r = await fetch('/admin/info/kit/slots/delete/' + id, { method: 'POST' });
+    const d = await r.json();
+    if (!d.success) return alert(d.error || 'Failed to delete.');
+    document.getElementById('slot-row-' + id).remove();
+}
+
+async function addSlot(roleId) {
+    const name  = document.getElementById('new-name-' + roleId).value.trim();
+    const val   = document.getElementById('new-val-' + roleId).value.trim();
+    const order = document.getElementById('new-ord-' + roleId).value;
+    if (!name) return alert('Slot name is required.');
+    const r = await fetch('/admin/info/kit/slots/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role_id: roleId, slot_name: name, slot_value: val, display_order: order })
+    });
+    const d = await r.json();
+    if (!d.success) return alert(d.error || 'Failed to add slot.');
+
+    const noSlots = document.getElementById('no-slots-' + roleId);
+    if (noSlots) noSlots.remove();
+
+    const tbody = document.getElementById('slot-body-' + roleId);
+    const newId = d.id;
+    const tr = document.createElement('tr');
+    tr.id = 'slot-row-' + newId;
+    tr.innerHTML = `
+        <td><span id="sname-${newId}">${name}</span><input id="sname-input-${newId}" type="text" value="${name}" style="display:none;"></td>
+        <td><span id="sval-${newId}">${val || '—'}</span><textarea id="sval-input-${newId}" style="display:none;">${val}</textarea></td>
+        <td><span id="sord-${newId}">${order}</span><input id="sord-input-${newId}" type="number" value="${order}" style="display:none;width:50px;"></td>
+        <td style="text-align:right;">
+            <div id="slot-view-btns-${newId}">
+                <button onclick="editSlot(${newId})" class="btn" style="padding:2px 7px;font-size:0.75em;">Edit</button>
+                <button onclick="deleteSlot(${newId})" class="btn btn-danger" style="padding:2px 7px;font-size:0.75em;">Del</button>
+            </div>
+            <div id="slot-edit-btns-${newId}" style="display:none;">
+                <button onclick="saveSlot(${newId})" class="btn btn-primary" style="padding:2px 7px;font-size:0.75em;">Save</button>
+                <button onclick="cancelSlotEdit(${newId})" class="btn" style="padding:2px 6px;font-size:0.75em;">✕</button>
+            </div>
+        </td>
+    `;
+    tbody.appendChild(tr);
+
+    // Clear inputs & update counter
+    document.getElementById('new-name-' + roleId).value = '';
+    document.getElementById('new-val-' + roleId).value  = '';
+    document.getElementById('new-ord-' + roleId).value  = parseInt(order) + 1;
+
+    // Update badge count
+    if (activeRoleEl) {
+        const badge = activeRoleEl.querySelector('.badge');
+        if (badge) badge.textContent = (parseInt(badge.textContent) + 1) + ' slots';
+    }
+}
+</script>
+
+<%- include('../partials/footer') %>

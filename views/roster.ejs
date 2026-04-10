@@ -1,5 +1,73 @@
 <%- include('partials/header') %>
 
+<style>
+.card:hover { transform: translateY(-4px); box-shadow: 0 6px 20px rgba(255,215,0,0.2); }
+a:has(.card) { display: block; }
+
+/* Staff section */
+.staff-section { margin-bottom: 48px; }
+.staff-section-title {
+    font-size: 1em; letter-spacing: 2px; color: var(--khaki);
+    margin: 0 0 4px; text-transform: uppercase;
+}
+.dept-block { margin-bottom: 32px; }
+.dept-label {
+    font-family: var(--heading-font);
+    font-size: 0.78em;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    text-transform: uppercase;
+    border-bottom: 1px solid rgba(107,142,35,0.3);
+    padding-bottom: 6px;
+    margin: 0 0 14px;
+}
+.subcat-label {
+    font-family: var(--heading-font);
+    font-size: 0.68em;
+    letter-spacing: 0.12em;
+    color: var(--khaki);
+    text-transform: uppercase;
+    padding-bottom: 4px;
+    margin: 16px 0 10px;
+    opacity: 0.8;
+}
+.dept-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 4px;
+}
+.staff-card {
+    background: linear-gradient(135deg,rgba(0,0,0,0.45) 0%,rgba(10,20,10,0.45) 100%);
+    border: 1px solid rgba(107,142,35,0.35);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.2s, transform 0.2s;
+}
+.staff-card:hover { border-color: rgba(252,176,13,0.5); transform: translateY(-2px); }
+.staff-avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.staff-avatar-fb {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3em; font-weight: 900; color: white;
+    flex-shrink: 0;
+}
+.staff-info { min-width: 0; }
+.staff-name { font-weight: 700; font-size: 0.92em; color: var(--sand); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.staff-role { font-size: 0.72em; font-weight: 700; margin-top: 3px; display: inline-block; padding: 1px 7px; border-radius: 3px; }
+</style>
+
 <div class="container">
     <header>
         <h1>UNIT ROSTER</h1>
@@ -7,161 +75,192 @@
     </header>
 
     <% if (lastSync) { %>
-        <div style="text-align: center; margin-bottom: 30px; padding: 15px; background: rgba(52, 152, 219, 0.1); border: 1px solid #3498DB; border-radius: 8px;">
-            <p style="color: var(--khaki); margin: 0;">
-                <strong style="color: #3498DB;">Last Updated:</strong>
-                <%= new Date(lastSync).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %>
-            </p>
-        </div>
+    <div style="text-align:center;margin-bottom:30px;padding:15px;background:rgba(52,152,219,0.1);border:1px solid #3498DB;border-radius:8px;">
+        <p style="color:var(--khaki);margin:0;">
+            <strong style="color:#3498DB;">Last Updated:</strong>
+            <%= new Date(lastSync).toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' }) %>
+        </p>
+    </div>
     <% } %>
 
+    <!-- ── Staff by Department ──────────────────────────────────────────── -->
+    <%
+    // Check if any dept has any members at all
+    const hasAnyStaff = departments.some(d => {
+        const data = staffByDept[d.label];
+        if (!data) return false;
+        if (data.members.length > 0) return true;
+        return Object.values(data.subcats).some(arr => arr.length > 0);
+    });
+    %>
+    <% if (hasAnyStaff) { %>
+    <section class="section staff-section">
+        <h2 class="staff-section-title">Staff</h2>
+        <p style="color:var(--khaki);font-size:0.88em;margin:0 0 24px;">Leadership and department heads</p>
+
+        <% departments.forEach(dept => { %>
+        <%
+            const deptData = staffByDept[dept.label];
+            if (!deptData) return;
+            const hasSubcats = dept.subcategories && dept.subcategories.length > 0;
+            const totalInDept = deptData.members.length + Object.values(deptData.subcats).reduce((s, a) => s + a.length, 0);
+            if (totalInDept === 0) return;
+        %>
+        <div class="dept-block">
+            <div class="dept-label"><%= dept.label %></div>
+
+            <% if (hasSubcats) { %>
+                <!-- Sub-categorised department -->
+                <% dept.subcategories.forEach(sc => { %>
+                <% const scMembers = deptData.subcats[sc.label] || []; %>
+                <% if (scMembers.length > 0) { %>
+                <div class="subcat-label"><%= sc.label %></div>
+                <div class="dept-grid">
+                    <% scMembers.forEach(member => { %>
+                    <%- include('partials/staff-card', { member }) %>
+                    <% }) %>
+                </div>
+                <% } %>
+                <% }) %>
+                <!-- Members in dept but no sub-cat -->
+                <% if (deptData.members.length > 0) { %>
+                <div class="subcat-label">General</div>
+                <div class="dept-grid">
+                    <% deptData.members.forEach(member => { %>
+                    <%- include('partials/staff-card', { member }) %>
+                    <% }) %>
+                </div>
+                <% } %>
+            <% } else { %>
+                <!-- Flat department -->
+                <div class="dept-grid">
+                    <% deptData.members.forEach(member => { %>
+                    <%- include('partials/staff-card', { member }) %>
+                    <% }) %>
+                </div>
+            <% } %>
+        </div>
+        <% }) %>
+    </section>
+    <% } %>
+
+    <!-- ── Members by Rank ──────────────────────────────────────────────── -->
     <% roles.forEach(role => { %>
-        <% const members = membersByRole[role.id] || []; %>
-        <% if (members.length > 0) { %>
-            <section class="section" style="margin-bottom: 40px;">
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 3px solid <%= role.color %>;">
-                    <div style="width: 6px; height: 50px; background: <%= role.color %>; border-radius: 3px;"></div>
-                    <div>
-                        <h2 style="margin: 0; color: <%= role.color %>; font-size: 1.8em;">
-                            <%= role.name %>
-                        </h2>
-                        <% if (role.description) { %>
-                            <p style="margin: 5px 0 0 0; color: var(--khaki); font-size: 0.9em;">
-                                <%= role.description %>
-                            </p>
+    <% const members = membersByRole[role.id] || []; %>
+    <% if (members.length > 0) { %>
+    <section class="section" style="margin-bottom:40px;">
+        <div style="display:flex;align-items:center;gap:15px;margin-bottom:25px;padding-bottom:15px;border-bottom:3px solid <%= role.color %>;">
+            <div style="width:6px;height:50px;background:<%= role.color %>;border-radius:3px;"></div>
+            <div>
+                <h2 style="margin:0;color:<%= role.color %>;font-size:1.8em;"><%= role.name %></h2>
+                <% if (role.description) { %>
+                <p style="margin:5px 0 0;color:var(--khaki);font-size:0.9em;"><%= role.description %></p>
+                <% } %>
+                <p style="margin:5px 0 0;color:var(--khaki);font-size:0.85em;"><%= members.length %> <%= members.length === 1 ? 'member' : 'members' %></p>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:20px;">
+            <% members.forEach(member => { %>
+            <% if (member.user_id) { %>
+                <a href="/profile/<%= member.user_id %>" style="text-decoration:none;color:inherit;">
+            <% } else { %>
+                <div>
+            <% } %>
+                <div class="card" style="border-left:4px solid <%= role.color %>;padding:20px;transition:all 0.2s ease;<%= member.user_id ? 'cursor:pointer;' : 'opacity:0.8;' %>">
+                    <div style="display:flex;align-items:center;gap:15px;">
+                        <% if (member.discord_avatar) { %>
+                            <img src="https://cdn.discordapp.com/avatars/<%= member.discord_id %>/<%= member.discord_avatar %>.png?size=128"
+                                 alt="<%= member.discord_global_name || member.discord_username %>"
+                                 style="width:64px;height:64px;border-radius:50%;border:3px solid <%= role.color %>;">
+                        <% } else { %>
+                            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,<%= role.color %> 0%,rgba(0,0,0,0.5) 100%);display:flex;align-items:center;justify-content:center;font-size:1.8em;color:white;font-weight:900;border:3px solid <%= role.color %>;">
+                                <%= (member.discord_global_name || member.discord_username).charAt(0).toUpperCase() %>
+                            </div>
                         <% } %>
-                        <p style="margin: 5px 0 0 0; color: var(--khaki); font-size: 0.85em;">
-                            <%= members.length %> <%= members.length === 1 ? 'member' : 'members' %>
-                        </p>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:700;font-size:1.1em;color:var(--sand);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                <%= member.nickname || member.discord_username %>
+                            </div>
+                            <div style="font-size:0.9em;color:var(--khaki);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                AKA: <%= member.discord_global_name %>
+                            </div>
+                            <% if (user) { %>
+                            <div style="font-size:0.85em;color:var(--khaki);opacity:0.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                @<%= member.discord_username %>
+                            </div>
+                            <% } %>
+                            <% if (member.joined_at) { %>
+                            <div style="font-size:0.75em;color:<%= role.color %>;margin-top:6px;">
+                                Joined <%= new Date(member.joined_at).toLocaleDateString('en-US', { month:'short', year:'numeric' }) %>
+                            </div>
+                            <% } %>
+                        </div>
                     </div>
                 </div>
-
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
-                    <% members.forEach(member => { %>
-                        <% if (member.user_id) { %>
-                            <a href="/profile/<%= member.user_id %>" style="text-decoration: none; color: inherit;">
-                        <% } else { %>
-                            <div style="text-decoration: none; color: inherit;">
-                        <% } %>
-                            <div class="card" style="border-left: 4px solid <%= role.color %>; padding: 20px; transition: all 0.2s ease; <%= member.user_id ? 'cursor: pointer;' : 'opacity: 0.8;' %>">
-                                <div style="display: flex; align-items: center; gap: 15px;">
-                                    <% if (member.discord_avatar) { %>
-                                        <img 
-                                            src="https://cdn.discordapp.com/avatars/<%= member.discord_id %>/<%= member.discord_avatar %>.png?size=128" 
-                                            alt="<%= member.discord_global_name || member.discord_username %>" 
-                                            style="width: 64px; height: 64px; border-radius: 50%; border: 3px solid <%= role.color %>;"
-                                        >
-                                    <% } else { %>
-                                        <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, <%= role.color %> 0%, rgba(0,0,0,0.5) 100%); display: flex; align-items: center; justify-content: center; font-size: 1.8em; color: white; font-weight: 900; border: 3px solid <%= role.color %>;">
-                                            <%= (member.discord_global_name || member.discord_username).charAt(0).toUpperCase() %>
-                                        </div>
-                                    <% } %>
-                                    
-                                    <div style="flex: 1; min-width: 0;">
-                                        <div style="font-weight: 700; font-size: 1.1em; color: var(--sand); margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                            <%= member.nickname || member.discord_username %>
-                                        </div>
-                                        
-                                            <div style="font-size: 0.9em; color: var(--khaki); margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                                AKA: <%= member.discord_global_name %>
-                                            </div>
-                                        
-                                        <% if (user) { %>
-                                            <!-- Only show Discord handle to logged-in users -->
-                                            <div style="font-size: 0.85em; color: var(--khaki); opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                                @<%= member.discord_username %>
-                                            </div>
-                                        <% } %>
-                                        
-                                        <% if (member.joined_at) { %>
-                                            <div style="font-size: 0.75em; color: <%= role.color %>; margin-top: 6px;">
-                                                Joined <%= new Date(member.joined_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) %>
-                                            </div>
-                                        <% } %>
-                                    </div>
-                                </div>
-                            </div>
-                        <% if (member.user_id) { %>
-                            </a>
-                        <% } else { %>
-                            </div>
-                        <% } %>
-                    <% }); %>
-                </div>
-            </section>
-        <% } %>
-    <% }); %>
-
-    <section class="section">
-        <div style="text-align: center; padding: 30px; background: rgba(107,142,35,0.1); border: 2px solid var(--olive); border-radius: 8px;">
-            <h3 style="color: var(--olive-light); margin-bottom: 10px;">Total Personnel</h3>
-            <div style="font-size: 3em; font-weight: 900; color: var(--accent); margin-bottom: 10px;">
-                <%= Object.values(membersByRole).reduce((sum, members) => sum + members.length, 0) %>
+            <% if (member.user_id) { %>
+            </a>
+            <% } else { %>
             </div>
-            <p style="color: var(--khaki);">Active Unit Members</p>
+            <% } %>
+            <% }) %>
+        </div>
+    </section>
+    <% } %>
+    <% }) %>
+
+    <!-- ── Total ─────────────────────────────────────────────────────────── -->
+    <section class="section">
+        <div style="text-align:center;padding:30px;background:rgba(107,142,35,0.1);border:2px solid var(--olive);border-radius:8px;">
+            <h3 style="color:var(--olive-light);margin-bottom:10px;">Total Personnel</h3>
+            <div style="font-size:3em;font-weight:900;color:var(--accent);margin-bottom:10px;">
+                <%= Object.values(membersByRole).reduce((sum, m) => sum + m.length, 0) %>
+            </div>
+            <p style="color:var(--khaki);">Active Unit Members</p>
         </div>
     </section>
 
     <% if (user && user.isAdmin) { %>
-        <section class="section">
-            <div style="padding: 20px; background: rgba(155, 89, 182, 0.1); border: 2px solid #9B59B6; border-radius: 8px;">
-                <h3 style="color: #9B59B6; margin-bottom: 15px;">Admin Controls</h3>
-                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                    <button id="syncBtn" onclick="syncRoster()" class="btn btn-primary">
-                        Sync Roster from Discord
-                    </button>
-                </div>
-                <div id="syncResult" style="margin-top: 15px; display: none;"></div>
+    <section class="section">
+        <div style="padding:20px;background:rgba(155,89,182,0.1);border:2px solid #9B59B6;border-radius:8px;">
+            <h3 style="color:#9B59B6;margin-bottom:15px;">Admin Controls</h3>
+            <div style="display:flex;gap:15px;flex-wrap:wrap;">
+                <button id="syncBtn" onclick="syncRoster()" class="btn btn-primary">Sync Roster from Discord</button>
             </div>
-        </section>
+            <div id="syncResult" style="margin-top:15px;display:none;"></div>
+        </div>
+    </section>
     <% } %>
 </div>
-
-<style>
-.card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.2);
-}
-
-a:has(.card) {
-    display: block;
-}
-</style>
 
 <% if (user && user.isAdmin) { %>
 <script>
 async function syncRoster() {
     const btn = document.getElementById('syncBtn');
     const result = document.getElementById('syncResult');
-    
     btn.disabled = true;
-    btn.textContent = '🔄 Syncing from Discord...';
+    btn.textContent = 'Syncing from Discord...';
     result.style.display = 'none';
-    
     try {
-        const response = await fetch('/roster/sync', {
-            method: 'POST'
-        });
+        const response = await fetch('/roster/sync', { method: 'POST' });
         const data = await response.json();
-        
         result.style.display = 'block';
-        
         if (data.success) {
             result.className = 'alert alert-success';
-            result.textContent = `✅ ${data.message} (Total: ${data.total}, Synced: ${data.synced}, Skipped: ${data.skipped} bots)`;
+            result.textContent = `${data.message} (Total: ${data.total}, Synced: ${data.synced}, Skipped: ${data.skipped} bots)`;
             setTimeout(() => location.reload(), 2000);
         } else {
             result.className = 'alert alert-error';
-            result.textContent = `❌ ${data.error}`;
+            result.textContent = data.error;
             btn.disabled = false;
-            btn.textContent = '🔄 Sync Roster from Discord';
+            btn.textContent = 'Sync Roster from Discord';
         }
-    } catch (error) {
+    } catch {
         result.style.display = 'block';
         result.className = 'alert alert-error';
-        result.textContent = '❌ Error syncing roster';
+        result.textContent = 'Error syncing roster';
         btn.disabled = false;
-        btn.textContent = '🔄 Sync Roster from Discord';
+        btn.textContent = 'Sync Roster from Discord';
     }
 }
 </script>

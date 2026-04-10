@@ -1,0 +1,168 @@
+<%- include('../partials/header') %>
+
+<style>
+.info-nav { display:flex; gap:8px; margin-bottom:24px; flex-wrap:wrap; }
+.info-nav a { padding:6px 16px; border-radius:6px; font-size:0.82em; font-weight:700; letter-spacing:0.05em; text-decoration:none; background:rgba(0,0,0,0.3); border:1px solid rgba(107,142,35,0.3); color:var(--khaki); transition:all 0.2s; }
+.info-nav a.active, .info-nav a:hover { background:rgba(107,142,35,0.2); border-color:var(--olive); color:var(--sand); }
+
+.top-row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+.top-row h2 { margin:0; font-size:1em; color:var(--khaki); letter-spacing:2px; }
+
+.servers-table { width:100%; border-collapse:collapse; }
+.servers-table th { font-size:0.72em; letter-spacing:0.08em; color:var(--khaki); text-transform:uppercase; border-bottom:2px solid rgba(107,142,35,0.3); padding:8px 12px; text-align:left; }
+.servers-table td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.88em; color:var(--sand); vertical-align:middle; }
+.servers-table tr:last-child td { border-bottom:none; }
+.servers-table tr:hover td { background:rgba(107,142,35,0.06); }
+
+.form-card { background:linear-gradient(135deg,rgba(0,0,0,0.4) 0%,rgba(10,20,10,0.4) 100%); border:1px solid rgba(107,142,35,0.4); border-radius:10px; padding:20px 24px; margin-bottom:20px; }
+.form-grid { display:grid; grid-template-columns:2fr 2fr 1fr 1fr 80px 100px; gap:10px; align-items:end; }
+.form-group label { display:block; font-size:0.72em; color:var(--khaki); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:5px; }
+.form-group input, .form-group select {
+    width:100%; padding:8px 10px; box-sizing:border-box;
+    background:rgba(40,40,40,0.9); color:var(--sand);
+    border:1px solid rgba(107,142,35,0.45); border-radius:5px;
+    font-family:var(--body-font); font-size:0.88em;
+}
+.game-types { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+.game-type-badge { font-size:0.7em; background:rgba(0,0,0,0.3); border:1px solid rgba(107,142,35,0.25); border-radius:3px; padding:2px 6px; color:var(--khaki); }
+
+.inline-edit { display:none; background:rgba(0,0,0,0.4); padding:10px 12px; }
+.inline-grid { display:grid; grid-template-columns:2fr 2fr 1fr 1fr 80px 100px; gap:8px; align-items:end; }
+.inline-grid input, .inline-grid select {
+    width:100%; padding:5px 8px; box-sizing:border-box;
+    background:rgba(40,40,40,0.9); color:var(--sand);
+    border:1px solid rgba(107,142,35,0.45); border-radius:4px;
+    font-family:var(--body-font); font-size:0.84em;
+}
+</style>
+
+<div class="container">
+    <header>
+        <h1>INFORMATION PAGE</h1>
+        <div class="subtitle">Configuration Panel</div>
+    </header>
+
+    <div class="info-nav">
+        <a href="/admin/info/servers" class="active">Servers</a>
+        <a href="/admin/info/staff">Staff & Departments</a>
+        <a href="/admin/info/kit">Kit Regulations</a>
+        <a href="/info" target="_blank" style="margin-left:auto;">View Page ↗</a>
+    </div>
+
+    <section class="section">
+        <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+        <% if (error)   { %><div class="alert alert-error"><%= error %></div><% } %>
+
+        <div class="form-card">
+            <h3 style="margin:0 0 16px;font-size:0.88em;color:var(--khaki);letter-spacing:1px;">ADD SERVER</h3>
+            <form method="POST" action="/admin/info/servers/add">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Display Name</label>
+                        <input type="text" name="name" required placeholder="Main Server">
+                    </div>
+                    <div class="form-group">
+                        <label>Host / IP</label>
+                        <input type="text" name="host" required placeholder="123.45.67.89">
+                    </div>
+                    <div class="form-group">
+                        <label>Port</label>
+                        <input type="number" name="port" value="2302" min="1" max="65535">
+                    </div>
+                    <div class="form-group">
+                        <label>Game Type</label>
+                        <input type="text" name="game_type" value="arma3" placeholder="arma3">
+                    </div>
+                    <div class="form-group">
+                        <label>Order</label>
+                        <input type="number" name="display_order" value="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <button type="submit" class="btn btn-primary" style="width:100%;padding:8px;">Add</button>
+                    </div>
+                </div>
+            </form>
+            <div style="margin-top:10px;">
+                <span style="font-size:0.75em;color:var(--khaki);">Common game types:</span>
+                <div class="game-types">
+                    <% ['arma3','arma2','minecraft','csgo','tf2','gmod','rust','squad'].forEach(t => { %>
+                    <span class="game-type-badge"><%= t %></span>
+                    <% }) %>
+                </div>
+            </div>
+        </div>
+
+        <div class="top-row">
+            <h2>SERVERS (<%= servers.length %>)</h2>
+        </div>
+
+        <% if (servers.length === 0) { %>
+            <div style="text-align:center;padding:40px;color:var(--khaki);opacity:0.6;">No servers configured yet.</div>
+        <% } else { %>
+            <div class="card" style="padding:0;overflow:hidden;">
+                <table class="servers-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Host</th>
+                            <th>Port</th>
+                            <th>Game Type</th>
+                            <th>Order</th>
+                            <th style="text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% servers.forEach(srv => { %>
+                        <tr>
+                            <td><strong><%= srv.name %></strong></td>
+                            <td style="font-family:monospace;font-size:0.85em;"><%= srv.host %></td>
+                            <td><%= srv.port %></td>
+                            <td><span style="font-family:monospace;font-size:0.82em;background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:3px;"><%= srv.game_type %></span></td>
+                            <td><%= srv.display_order %></td>
+                            <td style="text-align:right;">
+                                <button onclick="toggleEdit(<%= srv.id %>)" class="btn" style="padding:3px 8px;font-size:0.78em;">Edit</button>
+                                <form method="POST" action="/admin/info/servers/delete/<%= srv.id %>" style="display:inline;" onsubmit="return confirm('Delete <%= srv.name %>?')">
+                                    <button type="submit" class="btn btn-danger" style="padding:3px 8px;font-size:0.78em;">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr id="edit-<%= srv.id %>" class="inline-edit">
+                            <td colspan="6" style="padding:0;">
+                                <div style="padding:12px 12px;">
+                                    <form method="POST" action="/admin/info/servers/edit/<%= srv.id %>">
+                                        <div class="inline-grid">
+                                            <div><input type="text" name="name" value="<%= srv.name %>" required></div>
+                                            <div><input type="text" name="host" value="<%= srv.host %>" required></div>
+                                            <div><input type="number" name="port" value="<%= srv.port %>"></div>
+                                            <div><input type="text" name="game_type" value="<%= srv.game_type %>"></div>
+                                            <div><input type="number" name="display_order" value="<%= srv.display_order %>"></div>
+                                            <div style="display:flex;gap:4px;">
+                                                <button type="submit" class="btn btn-primary" style="flex:1;padding:5px;">Save</button>
+                                                <button type="button" onclick="toggleEdit(<%= srv.id %>)" class="btn" style="padding:5px 8px;">✕</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        <% } %>
+    </section>
+
+    <div class="mt-2">
+        <a href="/admin" class="btn">← Back to Dashboard</a>
+    </div>
+</div>
+
+<script>
+function toggleEdit(id) {
+    const row = document.getElementById('edit-' + id);
+    row.style.display = row.style.display === 'table-row' ? 'none' : 'table-row';
+}
+</script>
+
+<%- include('../partials/footer') %>
