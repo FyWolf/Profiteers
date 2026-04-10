@@ -5,6 +5,11 @@ const { isAuthenticated, isAdmin } = require('../middleware/auth');
 const { isZeus, checkZeusStatus } = require('../middleware/zeus');
 const { EmbedBuilder } = require('discord.js');
 const { discordClient } = require('../discord');
+const path = require('path');
+const fs = require('fs');
+
+const SQUAD_ICON_DIR = path.join(__dirname, '..', 'public', 'uploads', 'squad-icons');
+const ALLOWED_ICON_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg']);
 
 function buildTree(squads) {
     const byId = {};
@@ -1345,6 +1350,59 @@ router.post('/api/squads/:squadId/set-frequencies', isAuthenticated, async (req,
     } catch (error) {
         console.error('Error setting squad frequencies:', error);
         res.json({ success: false, error: 'Failed to set frequencies' });
+    }
+});
+
+router.post('/api/squads/:id/icon', isAuthenticated, async (req, res) => {
+    try {
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus
+            && !await isEditorOfSquadOrAncestor(req.session.userId, req.params.id)
+            && !await isHostOfSquadOperation(req.session.userId, req.params.id)) {
+            return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
+        if (!req.files || !req.files.icon) return res.json({ success: false, error: 'No file uploaded' });
+        const file = req.files.icon;
+        const ext = path.extname(file.name).toLowerCase();
+        if (!ALLOWED_ICON_EXTS.has(ext)) return res.json({ success: false, error: 'Invalid file type' });
+        if (file.size > 8 * 1024 * 1024) return res.json({ success: false, error: 'File too large (max 8 MB)' });
+
+        const [existing] = await db.query('SELECT icon FROM orbat_squads WHERE id = ?', [req.params.id]);
+        if (!existing.length) return res.json({ success: false, error: 'Squad not found' });
+        if (existing[0].icon) {
+            const old = path.join(SQUAD_ICON_DIR, existing[0].icon);
+            if (fs.existsSync(old)) fs.unlinkSync(old);
+        }
+
+        const stored = `${Date.now()}-${req.params.id}${ext}`;
+        await file.mv(path.join(SQUAD_ICON_DIR, stored));
+        await db.query('UPDATE orbat_squads SET icon = ? WHERE id = ?', [stored, req.params.id]);
+        res.json({ success: true, icon: `/uploads/squad-icons/${stored}` });
+    } catch (err) {
+        console.error('Squad icon upload error:', err);
+        res.json({ success: false, error: 'Upload failed' });
+    }
+});
+
+router.delete('/api/squads/:id/icon', isAuthenticated, async (req, res) => {
+    try {
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus
+            && !await isEditorOfSquadOrAncestor(req.session.userId, req.params.id)
+            && !await isHostOfSquadOperation(req.session.userId, req.params.id)) {
+            return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
+        const [existing] = await db.query('SELECT icon FROM orbat_squads WHERE id = ?', [req.params.id]);
+        if (!existing.length) return res.json({ success: false, error: 'Squad not found' });
+        if (existing[0].icon) {
+            const old = path.join(SQUAD_ICON_DIR, existing[0].icon);
+            if (fs.existsSync(old)) fs.unlinkSync(old);
+            await db.query('UPDATE orbat_squads SET icon = NULL WHERE id = ?', [req.params.id]);
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Squad icon delete error:', err);
+        res.json({ success: false, error: 'Failed to remove icon' });
     }
 });
 

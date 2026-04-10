@@ -70,7 +70,7 @@ async function requireEdit(req, res, next) {
 router.get('/:id/map', async (req, res) => {
     try {
         const [ops] = await db.query(
-            'SELECT id, title, is_published FROM operations WHERE id = ?',
+            'SELECT id, title, is_published, orbat_type, orbat_template_id FROM operations WHERE id = ?',
             [req.params.id]
         );
         if (!ops.length || !ops[0].is_published) {
@@ -80,15 +80,34 @@ router.get('/:id/map', async (req, res) => {
                 user: res.locals.user
             });
         }
+        const op = ops[0];
+
+        let squads = [];
+        if (op.orbat_type === 'fixed' && op.orbat_template_id) {
+            [squads] = await db.query(
+                'SELECT id, name, color, icon FROM orbat_squads WHERE orbat_id = ? ORDER BY display_order ASC',
+                [op.orbat_template_id]
+            );
+        } else if (op.orbat_type === 'dynamic') {
+            [squads] = await db.query(
+                'SELECT id, name, color, icon FROM orbat_squads WHERE operation_id = ? ORDER BY display_order ASC',
+                [req.params.id]
+            );
+        }
+        squads = squads.map(s => ({
+            ...s,
+            icon_url: s.icon ? `/uploads/squad-icons/${s.icon}` : null
+        }));
 
         const edit = req.isAuthenticated()
             ? await canEdit(req.session.userId, req.params.id)
             : false;
 
         res.render('operations/map', {
-            title: `${ops[0].title} — Mission Map`,
-            operation: ops[0],
+            title: `${op.title} — Mission Map`,
+            operation: op,
             canEdit: edit,
+            squads,
             user: res.locals.user
         });
     } catch (err) {
@@ -239,7 +258,7 @@ router.post('/:id/map/annotations', requireEdit, async (req, res) => {
     try {
         const { layer_id, type, geometry, properties } = req.body;
 
-        const VALID_TYPES = ['nato_marker', 'polyline', 'polygon', 'rectangle', 'circle', 'text'];
+        const VALID_TYPES = ['nato_marker', 'polyline', 'polygon', 'rectangle', 'circle', 'text', 'squad_marker'];
         if (!VALID_TYPES.includes(type)) return res.json({ success: false, error: 'Invalid type' });
         if (!layer_id || !geometry)      return res.json({ success: false, error: 'layer_id and geometry required' });
 

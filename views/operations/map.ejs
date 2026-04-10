@@ -597,6 +597,64 @@ html, body {
 
 /* ─── Rotation row in properties panel ──────────────────────────── */
 #pr-rotation-row input[type=range] { width: 100%; cursor: pointer; accent-color: var(--accent); }
+
+/* ─── Units panel ────────────────────────────────────────────────── */
+#units-panel {
+    border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; max-height: 240px;
+}
+#units-header {
+    padding: 7px 12px 6px; display: flex; align-items: center; justify-content: space-between;
+    background: rgba(0,0,0,0.2); flex-shrink: 0;
+    font-family: 'Orbitron', sans-serif; font-size: 0.68em;
+    letter-spacing: 0.2em; color: var(--olive-light); text-transform: uppercase;
+}
+#units-list { overflow-y: auto; padding: 4px 0; }
+#units-list::-webkit-scrollbar { width: 4px; }
+#units-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.unit-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 10px; cursor: pointer; transition: background 0.15s;
+    border-left: 3px solid transparent;
+}
+.unit-item:hover { background: rgba(107,142,35,0.12); }
+.unit-item.placing {
+    background: rgba(252,176,13,0.12);
+    border-left-color: var(--accent);
+}
+.unit-icon {
+    width: 24px; height: 24px; border-radius: 4px;
+    object-fit: cover; border: 1px solid; flex-shrink: 0;
+}
+.unit-icon-fallback {
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; color: white; font-size: 0.75em;
+    border: none;
+}
+.unit-name { font-size: 0.82em; color: var(--sand); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ─── Squad marker on map ────────────────────────────────────────── */
+.squad-map-marker {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    pointer-events: none;
+}
+.squad-map-marker .sq-icon {
+    width: 32px; height: 32px; border-radius: 5px;
+    object-fit: cover; border: 2px solid; box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+}
+.squad-map-marker .sq-icon-fallback {
+    width: 32px; height: 32px; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; color: white; font-size: 0.9em;
+    border: 2px solid rgba(255,255,255,0.4); box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+}
+.squad-map-marker .sq-label {
+    background: rgba(15,24,15,0.9); border: 1px solid;
+    border-radius: 3px; padding: 1px 5px;
+    font-size: 10px; font-family: 'Roboto Mono', monospace; font-weight: 700;
+    white-space: nowrap; color: white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
 </style>
 </head>
 <body>
@@ -626,6 +684,34 @@ html, body {
             <% } %>
         </div>
         <div id="layer-list"></div>
+
+        <% if (squads && squads.length > 0) { %>
+        <div id="units-panel">
+            <div id="units-header">
+                <span>Units</span>
+                <span id="units-placing-label" style="display:none;font-size:0.68em;color:var(--accent);letter-spacing:0.06em;">Click map to place</span>
+            </div>
+            <div id="units-list">
+                <% squads.forEach(sq => { %>
+                <div class="unit-item" data-squad-id="<%= sq.id %>"
+                     data-squad-name="<%= sq.name %>"
+                     data-squad-color="<%= sq.color %>"
+                     data-icon-url="<%= sq.icon_url || '' %>"
+                     onclick="activateSquadPlacement(this)"
+                     title="Click to place <%= sq.name %> on the map">
+                    <% if (sq.icon_url) { %>
+                        <img src="<%= sq.icon_url %>" class="unit-icon" style="border-color:<%= sq.color %>">
+                    <% } else { %>
+                        <div class="unit-icon unit-icon-fallback" style="background:<%= sq.color %>">
+                            <%= sq.name.charAt(0).toUpperCase() %>
+                        </div>
+                    <% } %>
+                    <span class="unit-name"><%= sq.name %></span>
+                </div>
+                <% }); %>
+            </div>
+        </div>
+        <% } %>
 
         <!-- Terrain indicator + map style switcher -->
         <div id="world-panel">
@@ -903,6 +989,7 @@ html, body {
    ═══════════════════════════════════════════════════════════════════════ */
 const OP_ID    = <%- operation.id %>;
 const CAN_EDIT = <%- canEdit ? 'true' : 'false' %>;
+const SQUADS   = <%- JSON.stringify(squads || []) %>;
 
 // SIDC Builder — entity catalog keyed by symbol set (2-char code).
 // Uses 20-char numeric SIDC (APP-6D / MIL-STD-2525D) that milsymbol v3 supports natively.
@@ -1064,6 +1151,9 @@ let selectedLayerId = null;
 let pendingNATOLatLng = null;
 let pendingSIDC       = null;
 
+// Squad marker placement
+let squadPlacingSquad = null;
+
 // Layer modal state
 let lmodalMode    = 'add';
 let lmodalLayerId = null;
@@ -1102,6 +1192,21 @@ function makeNATOIcon(sidc, label, rotation = 0, size = 35) {
         html,
         iconSize:   [symSize.width, symSize.height],
         iconAnchor: [anchor.x, anchor.y],
+    });
+}
+
+function makeSquadIcon(name, color, iconUrl, size = 32) {
+    const iconHtml = iconUrl
+        ? `<img src="${iconUrl}" class="sq-icon" style="border-color:${color};width:${size}px;height:${size}px;">`
+        : `<div class="sq-icon-fallback" style="background:${color};width:${size}px;height:${size}px;">${name.charAt(0).toUpperCase()}</div>`;
+    return L.divIcon({
+        className: '',
+        html: `<div class="squad-map-marker">
+                 ${iconHtml}
+                 <div class="sq-label" style="border-color:${color};color:${color};">${name}</div>
+               </div>`,
+        iconSize:   [size, size + 20],
+        iconAnchor: [size / 2, size / 2],
     });
 }
 
@@ -1621,6 +1726,22 @@ function renderAnnotation(ann) {
                 }
             });
         }
+    } else if (ann.type === 'squad_marker') {
+        const [ax, ay] = ann.geometry.coordinates;
+        feature = L.marker(armaToLatLng(ax, ay), {
+            icon: makeSquadIcon(p.squad_name || '?', p.squad_color || '#6b8e23', p.icon_url || null),
+            draggable: !!CAN_EDIT,
+        });
+        if (CAN_EDIT) {
+            feature.on('dragend', async () => {
+                const a2 = latLngToArma(feature.getLatLng());
+                const newGeom = { ...ann.geometry, coordinates: [a2.x, a2.y] };
+                setSaveStatus('saving', 'Saving…');
+                const r = await apiFetch(`/operations/${OP_ID}/map/annotations/${ann.id}`, 'PATCH', { geometry: newGeom });
+                if (r.success) { ann.geometry = newGeom; setSaveStatus('saved', 'Saved'); }
+                else setSaveStatus('error', 'Error saving position');
+            });
+        }
     } else if (ann.type === 'text') {
         const [ax, ay] = ann.geometry.coordinates;
         feature = L.marker(armaToLatLng(ax, ay), { icon: makeTextIcon(p.label, p.color || '#F5C518') });
@@ -2097,6 +2218,13 @@ function onMapClick(e) {
         if (CAN_EDIT) setWorldStatus('err', 'Set a world name first');
         return;
     }
+
+    // Squad marker placement takes priority — doesn't require a layer to be active
+    if (squadPlacingSquad) {
+        placeSquadMarker(e.latlng, squadPlacingSquad);
+        return;
+    }
+
     if (!activeLayerId) {
         alert('Please select or create a layer first.');
         return;
@@ -2455,7 +2583,7 @@ document.addEventListener('keydown', e => {
     if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
 
     switch (e.key) {
-        case 'Escape':     setDrawMode('select'); closeNATOModal(); break;
+        case 'Escape':     setDrawMode('select'); closeNATOModal(); cancelSquadPlacement(); break;
         case 'm': case 'M': setDrawMode('nato_marker'); break;
         case 'l': case 'L': setDrawMode('polyline'); break;
         case 'p': case 'P': setDrawMode('polygon'); break;
@@ -2565,6 +2693,62 @@ document.getElementById('export-copy')?.addEventListener('click', async () => {
    while the user has the map open
    ═══════════════════════════════════════════════════════════════════════ */
 setInterval(() => fetch('/ping', { credentials: 'same-origin' }).catch(() => {}), 10 * 60 * 1000);
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SQUAD MARKER PLACEMENT
+   ═══════════════════════════════════════════════════════════════════════ */
+function activateSquadPlacement(el) {
+    if (!CAN_EDIT) return;
+    const sq = {
+        id:    parseInt(el.dataset.squadId),
+        name:  el.dataset.squadName,
+        color: el.dataset.squadColor,
+        iconUrl: el.dataset.iconUrl || null,
+    };
+
+    if (squadPlacingSquad && squadPlacingSquad.id === sq.id) {
+        cancelSquadPlacement();
+        return;
+    }
+
+    squadPlacingSquad = sq;
+    document.querySelectorAll('.unit-item').forEach(i => i.classList.remove('placing'));
+    el.classList.add('placing');
+    document.getElementById('units-placing-label').style.display = '';
+    document.getElementById('map').classList.add('draw-mode', 'placing');
+}
+
+function cancelSquadPlacement() {
+    squadPlacingSquad = null;
+    document.querySelectorAll('.unit-item').forEach(i => i.classList.remove('placing'));
+    const lbl = document.getElementById('units-placing-label');
+    if (lbl) lbl.style.display = 'none';
+    document.getElementById('map').classList.remove('draw-mode', 'placing');
+}
+
+async function placeSquadMarker(ll, sq) {
+    if (!activeLayerId) {
+        alert('Please select or create a layer first.');
+        return;
+    }
+    const a = latLngToArma(ll);
+    const geometry   = { type: 'Point', coordinates: [a.x, a.y] };
+    const properties = { squad_id: sq.id, squad_name: sq.name, squad_color: sq.color, icon_url: sq.iconUrl || '' };
+
+    setSaveStatus('saving', 'Saving…');
+    const data = await apiFetch(`/operations/${OP_ID}/map/annotations`, 'POST', {
+        layer_id: activeLayerId, type: 'squad_marker', geometry, properties,
+    });
+    if (data.success) {
+        renderAnnotation({ id: data.id, layer_id: activeLayerId, type: 'squad_marker', geometry, properties });
+        renderLayerPanel();
+        setSaveStatus('saved', 'Saved');
+    } else {
+        setSaveStatus('error', 'Error');
+        alert(data.error || 'Failed to place marker');
+    }
+    cancelSquadPlacement();
+}
 
 /* ═══════════════════════════════════════════════════════════════════════
    BOOT
