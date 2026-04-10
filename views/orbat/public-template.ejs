@@ -39,17 +39,19 @@ function renderPubRoleCard(role, squad, canEdit) {
             </div>
            </div>`;
 
-    let actionBtns = '';
-    if (canEdit) {
-        const assignBtns = assignment
-            ? `<button onclick="showAssignModal(${role.id}, ${escapedRoleName})" class="btn" style="padding:2px 5px;font-size:0.72em;" title="Change">🔄</button><button onclick="unassignPlayer(${role.id})" class="btn btn-danger" style="padding:2px 5px;font-size:0.72em;" title="Remove">✕</button>`
-            : `<button onclick="showAssignModal(${role.id}, ${escapedRoleName})" class="btn" style="padding:2px 5px;font-size:0.72em;background:${squad.color};color:white;" title="Assign">➕</button>`;
-        actionBtns = `<div style="display:flex;gap:3px;flex-shrink:0;">
-            <button onclick="showRoleEdit(${role.id})" class="btn" style="padding:2px 5px;font-size:0.72em;" title="Rename">✏️</button>
-            <button onclick="deleteRole(${role.id})" class="btn btn-danger" style="padding:2px 5px;font-size:0.72em;" title="Delete">🗑️</button>
-            ${assignBtns}
-        </div>`;
-    }
+    const actionBtns = canEdit
+        ? `<div class="ctrl-menu">
+               <button class="ctrl-menu-btn" onclick="toggleCtrlMenu(this)">···</button>
+               <div class="ctrl-menu-list">
+                   ${assignment
+                       ? `<button class="ctrl-menu-item" onclick="showAssignModal(${role.id}, ${escapedRoleName})">Change player</button>
+                          <button class="ctrl-menu-item ctrl-menu-danger" onclick="unassignPlayer(${role.id})">Remove player</button>`
+                       : `<button class="ctrl-menu-item" onclick="showAssignModal(${role.id}, ${escapedRoleName})">Assign player</button>`}
+                   <button class="ctrl-menu-item" onclick="showRoleEdit(${role.id})">Edit slot</button>
+                   <button class="ctrl-menu-item ctrl-menu-danger" onclick="deleteRole(${role.id})">Delete slot</button>
+               </div>
+           </div>`
+        : '';
 
     const editZone = canEdit
         ? `<div id="roleEdit_${role.id}" style="display:none;padding:6px 8px;background:rgba(0,0,0,0.2);border-top:1px solid rgba(255,255,255,0.06);">

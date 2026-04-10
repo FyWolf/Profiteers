@@ -62,24 +62,27 @@ function renderRoleCard(role, squad) {
             </div>
            </div>`;
 
-    // Buttons — compact icon-size
-    let buttonsHtml = '';
-    const showButtons = (canClaim && isEmpty && user) || (canClaim && isOwnAssignment) || (canManage && operation.orbat_type === 'dynamic');
-    if (showButtons) {
-        let claimBtn = '';
-        if (canClaim && isEmpty && user) {
-            claimBtn = `<button onclick="claimSlot(${role.id})" class="btn btn-primary" style="padding:2px 7px;font-size:0.72em;">Claim</button>`;
-        } else if (canClaim && isOwnAssignment) {
-            claimBtn = `<button onclick="unclaimSlot(${role.id})" class="btn" style="background:#e74c3c;padding:2px 7px;font-size:0.72em;">Leave</button>`;
-        }
-        let manageBtn = '';
-        if (canManage && operation.orbat_type === 'dynamic') {
-            const unassignBtn = assignment ? `<button onclick="unassignPlayer(${role.id})" class="btn btn-danger" style="padding:2px 5px;font-size:0.72em;">✕</button>` : '';
-            const assignIcon = assignment ? '🔄' : '➕';
-            manageBtn = `${unassignBtn}<button onclick="showAssignModal(${role.id}, ${esc(JSON.stringify(role.role_name))})" class="btn" style="padding:2px 5px;font-size:0.72em;">${assignIcon}</button><button onclick="deleteRole(${role.id})" class="btn btn-danger" style="padding:2px 5px;font-size:0.72em;" title="Delete slot">🗑️</button>`;
-        }
-        buttonsHtml = `<div style="display:flex;gap:3px;flex-shrink:0;">${claimBtn}${manageBtn}</div>`;
+    let claimBtn = '';
+    if (canClaim && isEmpty && user) {
+        claimBtn = `<button onclick="claimSlot(${role.id})" class="btn btn-primary" style="padding:2px 7px;font-size:0.72em;">Claim</button>`;
+    } else if (canClaim && isOwnAssignment) {
+        claimBtn = `<button onclick="unclaimSlot(${role.id})" class="btn" style="background:#e74c3c;padding:2px 7px;font-size:0.72em;">Leave</button>`;
     }
+    const manageMenu = (canManage && operation.orbat_type === 'dynamic')
+        ? `<div class="ctrl-menu">
+               <button class="ctrl-menu-btn" onclick="toggleCtrlMenu(this)">···</button>
+               <div class="ctrl-menu-list">
+                   ${assignment
+                       ? `<button class="ctrl-menu-item" onclick="showAssignModal(${role.id}, ${esc(JSON.stringify(role.role_name))})">Change player</button>
+                          <button class="ctrl-menu-item ctrl-menu-danger" onclick="unassignPlayer(${role.id})">Remove player</button>`
+                       : `<button class="ctrl-menu-item" onclick="showAssignModal(${role.id}, ${esc(JSON.stringify(role.role_name))})">Assign player</button>`}
+                   <button class="ctrl-menu-item ctrl-menu-danger" onclick="deleteRole(${role.id})">Delete slot</button>
+               </div>
+           </div>`
+        : '';
+    const buttonsHtml = (claimBtn || manageMenu)
+        ? `<div style="display:flex;gap:3px;align-items:center;flex-shrink:0;">${claimBtn}${manageMenu}</div>`
+        : '';
 
     const grabStyle = (canManage && operation.orbat_type === 'dynamic') ? ' cursor: grab;' : '';
 
