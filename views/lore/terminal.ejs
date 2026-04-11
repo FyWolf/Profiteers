@@ -329,7 +329,7 @@ body { overflow: hidden; }
                 <span><b>TAB</b> autocomplete</span>
                 <span><b>↑↓</b> history</span>
             </div>
-            <% if ((locals.user.permissions && locals.user.permissions.includes('lore.manage'))) { %>
+            <% if ((locals.user && locals.user.permissions && locals.user.permissions.includes('lore.manage'))) { %>
                 <a href="/lore/admin" class="mt-admin-link">⚙ Admin</a>
             <% } %>
         </div>
