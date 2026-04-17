@@ -1,6 +1,7 @@
 const discordClient = require('./client');
 const { startReminderScheduler } = require('./reminders');
 const { updateOperationPost } = require('./operations');
+const { registerActivityHandlers } = require('./activity');
 const db = require('../config/database');
 
 discordClient.on('interactionCreate', async interaction => {
@@ -89,6 +90,7 @@ function initializeDiscord() {
         if (process.env.DISCORD_ENABLE_REMINDERS === 'true') {
             startReminderScheduler(discordClient);
         }
+        registerActivityHandlers(discordClient);
     });
 }
 

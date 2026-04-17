@@ -17,5 +17,6 @@ router.use('/medals',     hasPermission('medals.manage'),    require('./admin/me
 router.use('/trainings',  hasPermission('trainings.manage'), require('./admin/trainings'));
 router.use('/roles',      hasPermission('roles.manage'),     require('./admin/roles'));
 router.use('/info',       hasPermission('info.manage'),       require('./admin/info'));
+router.use('/presence',   require('./admin/presence'));
 
 module.exports = router;
