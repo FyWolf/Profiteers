@@ -1,23 +1,19 @@
-<%
-/*
- * buildSquadCard(squad, opts)
- *
- * opts:
- *   canEdit       – show edit/freq UI, drag handle, ctrl-menu
- *   canDynamic    – show add-team/role/subgroup and delete-team/squad actions
- *   canDeleteSquad – show "Delete group" specifically for this squad
- *   badgeHtml     – optional extra badge rendered next to squad name
- *   renderRole(r) – function(role) => HTML string for a single role card
- */
-function buildSquadCard(squad, opts) {
-    const { canEdit, canDynamic, canDeleteSquad, badgeHtml, renderRole } = opts;
-    const roles = rolesBySquad[squad.id] || [];
-    const teams = teamsBySquad[squad.id] || [];
+'use strict';
 
-    const lrBadge = squad.lr_frequency ? `<span title="Long Range" style="font-size:0.68em;background:rgba(0,100,200,0.25);color:#7bb3e0;padding:1px 5px;border-radius:3px;white-space:nowrap;">LR ${esc(squad.lr_frequency)}</span>` : '';
-    const srBadge = squad.sr_frequency ? `<span title="Short Range" style="font-size:0.68em;background:rgba(0,180,100,0.25);color:#7de0a5;padding:1px 5px;border-radius:3px;white-space:nowrap;">SR ${esc(squad.sr_frequency)}</span>` : '';
+function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
-    const squadEditForm = canEdit ? `
+function createCardBuilder(rolesBySquad, teamsBySquad) {
+    return function buildSquadCard(squad, opts) {
+        const { canEdit, canDynamic, canDeleteSquad, badgeHtml, renderRole } = opts;
+        const roles = rolesBySquad[squad.id] || [];
+        const teams = teamsBySquad[squad.id] || [];
+
+        const lrBadge = squad.lr_frequency ? `<span title="Long Range" style="font-size:0.68em;background:rgba(0,100,200,0.25);color:#7bb3e0;padding:1px 5px;border-radius:3px;white-space:nowrap;">LR ${esc(squad.lr_frequency)}</span>` : '';
+        const srBadge = squad.sr_frequency ? `<span title="Short Range" style="font-size:0.68em;background:rgba(0,180,100,0.25);color:#7de0a5;padding:1px 5px;border-radius:3px;white-space:nowrap;">SR ${esc(squad.sr_frequency)}</span>` : '';
+
+        const squadEditForm = canEdit ? `
         <div id="editSquadForm_${squad.id}" style="display:none;margin-bottom:8px;padding:8px;background:rgba(0,0,0,0.2);border-radius:4px;">
             <input type="text" id="editSquadName_${squad.id}" value="${esc(squad.name)}"
                    style="width:100%;box-sizing:border-box;margin:0 0 6px 0;font-size:0.88em;padding:5px 8px;">
@@ -28,7 +24,7 @@ function buildSquadCard(squad, opts) {
             </div>
         </div>` : '';
 
-    const squadFreqForm = canEdit ? `
+        const squadFreqForm = canEdit ? `
         <div id="sqFreqForm_${squad.id}" style="display:none;padding:6px 8px;background:rgba(0,0,0,0.25);border-radius:4px;margin-bottom:6px;">
             <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
                 <span style="font-size:0.75em;color:var(--khaki);white-space:nowrap;">LR</span>
@@ -40,20 +36,20 @@ function buildSquadCard(squad, opts) {
             </div>
         </div>` : '';
 
-    const unassigned = roles.filter(r => !r.team_id);
-    let unassignedHtml;
-    if (roles.length === 0 && teams.length === 0) {
-        unassignedHtml = `<div id="unassigned-${squad.id}" data-team-roles="${squad.id}" data-team-id="" style="min-height:6px;"><p style="color:var(--khaki);opacity:0.7;font-size:0.9em;font-style:italic;">No roles defined</p></div>`;
-    } else {
-        unassignedHtml = `<div id="unassigned-${squad.id}" data-team-roles="${squad.id}" data-team-id="" style="min-height:6px;">
+        const unassigned = roles.filter(r => !r.team_id);
+        let unassignedHtml;
+        if (roles.length === 0 && teams.length === 0) {
+            unassignedHtml = `<div id="unassigned-${squad.id}" data-team-roles="${squad.id}" data-team-id="" style="min-height:6px;"><p style="color:var(--khaki);opacity:0.7;font-size:0.9em;font-style:italic;">No roles defined</p></div>`;
+        } else {
+            unassignedHtml = `<div id="unassigned-${squad.id}" data-team-roles="${squad.id}" data-team-id="" style="min-height:6px;">
             ${teams.length > 0 && unassigned.length > 0 ? `<div style="padding:2px 8px 0;font-size:0.63em;color:var(--khaki);opacity:0.5;text-transform:uppercase;letter-spacing:0.06em;">Ungrouped</div>` : ''}
             ${unassigned.map(r => renderRole(r)).join('')}
         </div>`;
-    }
+        }
 
-    const teamsHtml = teams.map(team => {
-        const teamRoles = roles.filter(r => r.team_id === team.id);
-        const teamCtrlMenu = canEdit ? `
+        const teamsHtml = teams.map(team => {
+            const teamRoles = roles.filter(r => r.team_id === team.id);
+            const teamCtrlMenu = canEdit ? `
             <div class="ctrl-menu">
                 <button class="ctrl-menu-btn" onclick="toggleCtrlMenu(this)">···</button>
                 <div class="ctrl-menu-list">
@@ -62,7 +58,7 @@ function buildSquadCard(squad, opts) {
                     ${canDynamic ? `<button class="ctrl-menu-item ctrl-menu-danger" onclick="deleteTeam(${team.id})">Delete team</button>` : ''}
                 </div>
             </div>` : '';
-        const teamEditForm = canEdit ? `
+            const teamEditForm = canEdit ? `
             <div id="editTeamForm_${team.id}" style="display:none;padding:4px 8px;background:rgba(0,0,0,0.25);">
                 <div style="display:flex;gap:4px;align-items:center;">
                     <input type="text" id="editTeamName_${team.id}" value="${esc(team.name)}" style="flex:1;margin:0;font-size:0.82em;padding:3px 6px;">
@@ -71,10 +67,10 @@ function buildSquadCard(squad, opts) {
                     <button onclick="document.getElementById('editTeamForm_${team.id}').style.display='none'" class="btn" style="flex-shrink:0;padding:2px 6px;font-size:0.78em;">✕</button>
                 </div>
             </div>` : '';
-        const teamLrBadge = team.lr_frequency ? `<span title="Long Range" style="font-size:0.65em;background:rgba(0,100,200,0.25);color:#7bb3e0;padding:1px 4px;border-radius:3px;white-space:nowrap;">LR ${esc(team.lr_frequency)}</span>` : '';
-        const teamSrBadge = team.sr_frequency ? `<span title="Short Range" style="font-size:0.65em;background:rgba(0,180,100,0.25);color:#7de0a5;padding:1px 4px;border-radius:3px;white-space:nowrap;">SR ${esc(team.sr_frequency)}</span>` : '';
-        const teamFreqBadges = (teamLrBadge || teamSrBadge) ? `<div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:2px;">${teamLrBadge}${teamSrBadge}</div>` : '';
-        const teamFreqForm = canEdit ? `
+            const teamLrBadge = team.lr_frequency ? `<span title="Long Range" style="font-size:0.65em;background:rgba(0,100,200,0.25);color:#7bb3e0;padding:1px 4px;border-radius:3px;white-space:nowrap;">LR ${esc(team.lr_frequency)}</span>` : '';
+            const teamSrBadge = team.sr_frequency ? `<span title="Short Range" style="font-size:0.65em;background:rgba(0,180,100,0.25);color:#7de0a5;padding:1px 4px;border-radius:3px;white-space:nowrap;">SR ${esc(team.sr_frequency)}</span>` : '';
+            const teamFreqBadges = (teamLrBadge || teamSrBadge) ? `<div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:2px;">${teamLrBadge}${teamSrBadge}</div>` : '';
+            const teamFreqForm = canEdit ? `
             <div id="tmFreqForm_${team.id}" style="display:none;padding:4px 8px;background:rgba(0,0,0,0.25);">
                 <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
                     <span style="font-size:0.75em;color:var(--khaki);white-space:nowrap;">LR</span>
@@ -85,7 +81,7 @@ function buildSquadCard(squad, opts) {
                     <button onclick="document.getElementById('tmFreqForm_${team.id}').style.display='none'" class="btn" style="padding:2px 6px;font-size:0.78em;flex-shrink:0;">✕</button>
                 </div>
             </div>` : '';
-        return `<div data-team-block="${team.id}">
+            return `<div data-team-block="${team.id}">
             <div class="team-hdr" style="${canEdit ? 'cursor:grab;' : ''}display:flex;align-items:center;gap:4px;padding:3px 8px;margin-top:4px;background:rgba(0,0,0,0.25);border-left:3px solid ${team.color};">
                 <div style="flex:1;min-width:0;overflow:hidden;">
                     <div style="font-size:0.7em;font-weight:700;color:${team.color};letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(team.name)}</div>
@@ -99,10 +95,10 @@ function buildSquadCard(squad, opts) {
                 ${teamRoles.map(r => renderRole(r)).join('')}
             </div>
         </div>`;
-    }).join('');
+        }).join('');
 
-    const addTeamHtml = canDynamic
-        ? `<div id="addTeamForm_${squad.id}" style="display:none;margin-top:6px;padding:6px 8px;background:rgba(0,0,0,0.2);border-radius:4px;border:1px dashed ${squad.color};">
+        const addTeamHtml = canDynamic
+            ? `<div id="addTeamForm_${squad.id}" style="display:none;margin-top:6px;padding:6px 8px;background:rgba(0,0,0,0.2);border-radius:4px;border:1px dashed ${squad.color};">
             <div style="display:flex;gap:4px;align-items:center;">
                 <input type="text" id="addTeamName_${squad.id}" placeholder="Team name..." style="flex:1;min-width:0;margin:0;font-size:0.82em;padding:4px 6px;">
                 <input type="color" id="addTeamColor_${squad.id}" value="${squad.color}" style="width:28px;height:28px;flex-shrink:0;border:none;background:none;cursor:pointer;padding:0;">
@@ -111,9 +107,9 @@ function buildSquadCard(squad, opts) {
             </div>
            </div>
            <button onclick="toggleAddTeam(${squad.id})" class="btn" style="margin-top:5px;width:100%;background:rgba(0,0,0,0.15);border:1px dashed rgba(178,178,125,0.3);font-size:0.75em;padding:3px;">➕ Add Team</button>`
-        : '';
+            : '';
 
-    const addRoleSection = canDynamic ? `
+        const addRoleSection = canDynamic ? `
         <div style="margin-top:8px;padding:8px;border:2px dashed ${squad.color};border-radius:4px;background:rgba(0,0,0,0.2);overflow:hidden;">
             <div style="display:flex;gap:6px;align-items:center;min-width:0;">
                 <input type="text" id="newRoleName_${squad.id}" placeholder="New slot name..."
@@ -123,7 +119,7 @@ function buildSquadCard(squad, opts) {
             </div>
         </div>` : '';
 
-    const addSubgroupSection = canDynamic ? `
+        const addSubgroupSection = canDynamic ? `
         <div id="addSubForm_${squad.id}" style="display:none;margin-top:10px;padding:10px;border:1px dashed var(--khaki);border-radius:4px;background:rgba(0,0,0,0.2);overflow:hidden;">
             <div style="display:flex;gap:6px;align-items:center;min-width:0;">
                 <input type="text" id="addSubName_${squad.id}" placeholder="Sub-group name..." style="flex:1;min-width:0;padding:6px 8px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;font-size:0.88em;margin:0;" onkeydown="if(event.key==='Enter'){event.preventDefault();submitAddChildSquad(${squad.id})}">
@@ -134,9 +130,9 @@ function buildSquadCard(squad, opts) {
         </div>
         <button onclick="toggleAddSub(${squad.id})" class="btn" style="margin-top:8px;width:100%;background:rgba(0,0,0,0.2);border:1px dashed var(--khaki);font-size:0.8em;padding:6px;">➕ Add Sub-group</button>` : '';
 
-    const fileInput = canEdit ? `<input type="file" id="iconInput_${squad.id}" accept="image/*" style="display:none" onchange="uploadSquadIcon(${squad.id}, this)">` : '';
-    const iconImg = squad.icon ? `<img src="/uploads/squad-icons/${esc(squad.icon)}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;border:1px solid ${squad.color};flex-shrink:0;">` : '';
-    const ctrlMenu = canEdit ? `
+        const fileInput = canEdit ? `<input type="file" id="iconInput_${squad.id}" accept="image/*" style="display:none" onchange="uploadSquadIcon(${squad.id}, this)">` : '';
+        const iconImg = squad.icon ? `<img src="/uploads/squad-icons/${esc(squad.icon)}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;border:1px solid ${squad.color};flex-shrink:0;">` : '';
+        const ctrlMenu = canEdit ? `
         <div class="ctrl-menu">
             <button class="ctrl-menu-btn" onclick="toggleCtrlMenu(this)">···</button>
             <div class="ctrl-menu-list">
@@ -148,7 +144,7 @@ function buildSquadCard(squad, opts) {
             </div>
         </div>` : '';
 
-    return `<div class="card orbat-squad-card" style="border-left:4px solid ${squad.color};padding:10px 12px;">
+        return `<div class="card orbat-squad-card" style="border-left:4px solid ${squad.color};padding:10px 12px;">
         ${fileInput}
         <div style="margin-bottom:6px;padding-bottom:6px;border-bottom:2px solid ${squad.color};display:flex;align-items:center;justify-content:space-between;gap:6px;">
             <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0;">
@@ -172,5 +168,7 @@ function buildSquadCard(squad, opts) {
         ${addRoleSection}
         ${addSubgroupSection}
     </div>`;
+    };
 }
-%>
+
+module.exports = { createCardBuilder };

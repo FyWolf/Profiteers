@@ -8,6 +8,8 @@ const { discordClient } = require('../discord');
 const path = require('path');
 const fs = require('fs');
 
+const { createCardBuilder } = require('../helpers/orbatCard');
+
 const SQUAD_ICON_DIR = path.join(__dirname, '..', 'public', 'uploads', 'squad-icons');
 const ALLOWED_ICON_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg']);
 
@@ -243,7 +245,8 @@ router.get('/view/:templateId', async (req, res) => {
             rolesBySquad: rolesBySquad,
             assignments: assignments,
             teamsBySquad: teamsBySquad,
-            editorSquadIds: editorSquadIds
+            editorSquadIds: editorSquadIds,
+            buildSquadCard: createCardBuilder(rolesBySquad, teamsBySquad)
         });
     } catch (error) {
         console.error('Error loading ORBAT template:', error);
@@ -571,7 +574,8 @@ router.get('/operation/:operationId', async (req, res) => {
                 assignments: {},
                 canManage: false,
                 canClaim: false,
-                orbatPublished: false
+                orbatPublished: false,
+                buildSquadCard: createCardBuilder({}, {})
             });
         }
 
@@ -689,7 +693,8 @@ router.get('/operation/:operationId', async (req, res) => {
             canManage: canManage,
             canClaim: canClaim,
             orbatPublished: orbatPublished,
-            editorSquadIds: editorSquadIds
+            editorSquadIds: editorSquadIds,
+            buildSquadCard: createCardBuilder(rolesBySquad, teamsBySquad)
         });
     } catch (error) {
         console.error('Error loading ORBAT:', error);
