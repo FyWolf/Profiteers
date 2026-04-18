@@ -207,7 +207,7 @@ function renderSquadCard(squad) {
             <button onclick="deleteSquad(${squad.id})" class="btn btn-danger" style="padding:2px 6px;font-size:0.72em;" title="Delete sub-group">🗑️</button>
         </div>` : '';
 
-    const squadEditForm = isDynamic ? `
+    const squadEditForm = canEditFreq ? `
         <div id="editSquadForm_${squad.id}" style="display:none;margin-bottom:8px;padding:8px;background:rgba(0,0,0,0.2);border-radius:4px;">
             <input type="text" id="editSquadName_${squad.id}" value="${esc(squad.name)}"
                    style="width:100%;box-sizing:border-box;margin:0 0 6px 0;font-size:0.88em;padding:5px 8px;">
@@ -227,8 +227,8 @@ function renderSquadCard(squad) {
                 <button class="ctrl-menu-item" onclick="document.getElementById('iconInput_${squad.id}').click()">${squad.icon ? 'Change icon' : 'Upload icon'}</button>
                 ${squad.icon ? `<button class="ctrl-menu-item ctrl-menu-danger" onclick="removeSquadIcon(${squad.id})">Remove icon</button>` : ''}
                 <button class="ctrl-menu-item" onclick="toggleFreqForm('sq', ${squad.id})">Radio Freq</button>
-                ${isDynamic ? `<button class="ctrl-menu-item" onclick="startEditSquad(${squad.id}, '${esc(squad.name)}', '${esc(squad.color)}')">Edit group</button>
-                <button class="ctrl-menu-item ctrl-menu-danger" onclick="deleteSquad(${squad.id})">Delete group</button>` : ''}
+                <button class="ctrl-menu-item" onclick="startEditSquad(${squad.id}, '${esc(squad.name)}', '${esc(squad.color)}')">Edit group</button>
+                ${isDynamic ? `<button class="ctrl-menu-item ctrl-menu-danger" onclick="deleteSquad(${squad.id})">Delete group</button>` : ''}
             </div>
         </div>` : '';
 
@@ -236,7 +236,7 @@ function renderSquadCard(squad) {
         ${fileInput}
         <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 2px solid ${squad.color}; display:flex; align-items:center; justify-content:space-between; gap:6px;">
             <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0;">
-                ${isDynamic ? '<span class="squad-drag-handle" title="Drag to reorder" style="cursor:grab;color:var(--khaki);opacity:0.35;flex-shrink:0;font-size:1.05em;user-select:none;padding:0 2px;">⠿</span>' : ''}
+                ${canEditFreq ? '<span class="squad-drag-handle" title="Drag to reorder" style="cursor:grab;color:var(--khaki);opacity:0.35;flex-shrink:0;font-size:1.05em;user-select:none;padding:0 2px;">⠿</span>' : ''}
                 ${iconImg}
                 <div style="min-width:0;">
                     <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
@@ -412,6 +412,28 @@ async function unpublishOrbat() {
         const d = await r.json();
         if (d.success) location.reload(); else alert(d.error || 'Failed to unpublish');
     } catch(e) { console.error('Error unpublishing ORBAT:', e); alert('Failed to unpublish ORBAT'); }
+}
+<% } %>
+
+<% if (operation.orbat_type === 'dynamic' && !canManage && editorSquadIds && editorSquadIds.length > 0) { %>
+function startEditSquad(squadId) {
+    const form = document.getElementById('editSquadForm_' + squadId);
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function submitEditSquad(squadId) {
+    const name = document.getElementById('editSquadName_' + squadId).value.trim();
+    const color = document.getElementById('editSquadColor_' + squadId).value;
+    if (!name) return;
+    try {
+        const r = await fetch(`/orbat/api/squads/${squadId}/edit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, color })
+        });
+        const d = await r.json();
+        if (d.success) location.reload(); else alert(d.error || 'Failed to update group');
+    } catch { alert('Failed to update group'); }
 }
 <% } %>
 
@@ -618,6 +640,31 @@ document.querySelectorAll('.addRoleForm').forEach(form => {
             const d = await r.json();
             if (d.success) location.reload(); else alert(d.error || 'Failed to add role');
         } catch { alert('Failed to add role'); }
+    });
+});
+<% } %>
+
+<% if (operation.orbat_type === 'dynamic' && !canManage && editorSquadIds && editorSquadIds.length > 0) { %>
+document.addEventListener('DOMContentLoaded', () => {
+    [document.querySelector('.org-tree-root'), ...document.querySelectorAll('.org-row')].forEach(container => {
+        if (!container) return;
+        new Sortable(container, {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            handle: '.squad-drag-handle',
+            onEnd: async function() {
+                const ids = Array.from(container.querySelectorAll(':scope > [data-squad-id]'))
+                                 .map(el => el.getAttribute('data-squad-id'));
+                if (ids.length < 2) return;
+                try {
+                    await fetch(`/orbat/api/squads/${ids[0]}/reorder-siblings`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ squadIds: ids })
+                    });
+                } catch(e) { console.error('Failed to reorder squads:', e); }
+            }
+        });
     });
 });
 <% } %>
