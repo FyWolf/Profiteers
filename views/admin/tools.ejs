@@ -1,34 +1,5 @@
 <%- include('../partials/header') %>
 
-<style>
-.stat-bar { display:flex; gap:28px; flex-wrap:wrap; margin-top:16px; padding-top:16px; border-top:1px solid rgba(107,142,35,0.3); }
-.stat-chip { display:flex; flex-direction:column; align-items:center; }
-.stat-val { font-family:var(--heading-font); font-size:1.7em; color:var(--accent); line-height:1; }
-.stat-lbl { font-size:0.7em; color:var(--khaki); margin-top:3px; }
-
-.top-row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
-.top-row h2 { margin:0; font-size:1.1em; color:var(--khaki); letter-spacing:2px; }
-
-.admin-table { width:100%; border-collapse:collapse; }
-.admin-table th { padding:10px 12px; font-size:0.7em; color:var(--khaki); border-bottom:2px solid rgba(107,142,35,0.35); font-family:var(--heading-font); letter-spacing:1px; text-align:left; opacity:.85; white-space:nowrap; }
-.admin-table td { padding:11px 12px; border-bottom:1px solid rgba(107,142,35,0.1); vertical-align:middle; }
-.admin-table tbody tr:hover td { background:rgba(107,142,35,0.05); }
-.admin-table .link-cell { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-
-.act { padding:5px 10px; border-radius:6px; font-size:0.76em; font-weight:700; text-decoration:none; cursor:pointer; border:1px solid transparent; transition:all 0.2s; white-space:nowrap; display:inline-block; font-family:var(--body-font); }
-.act-edit { background:rgba(252,176,13,0.1); border-color:rgba(252,176,13,0.35); color:var(--accent); }
-.act-edit:hover { background:rgba(252,176,13,0.22); }
-.act-del  { background:rgba(231,76,60,0.1);  border-color:rgba(231,76,60,0.35);  color:#ff7b7b; }
-.act-del:hover  { background:rgba(231,76,60,0.22); }
-
-.pill-on  { padding:4px 12px; border-radius:20px; font-size:0.78em; font-weight:700; cursor:pointer; border:1px solid var(--olive); background:rgba(107,142,35,0.25); color:var(--olive-light); font-family:var(--heading-font); transition:all 0.2s; }
-.pill-off { padding:4px 12px; border-radius:20px; font-size:0.78em; font-weight:700; cursor:pointer; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); color:var(--khaki); font-family:var(--heading-font); transition:all 0.2s; opacity:.7; }
-.pill-on:hover, .pill-off:hover { border-color:var(--accent); opacity:1; }
-
-.empty-state { text-align:center; padding:48px 20px; color:var(--khaki); opacity:.6; }
-.empty-icon { font-size:3em; margin-bottom:12px; }
-.empty-state p { font-size:.9em; margin-top:6px; }
-</style>
 
 <div class="container">
     <header>

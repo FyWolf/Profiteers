@@ -1080,7 +1080,9 @@ router.post('/api/templates/:templateId/squads/add', isAuthenticated, async (req
 router.post('/api/squads/:id/edit', isAuthenticated, async (req, res) => {
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
-        if (!userIsZeus && !await isHostOfSquadOperation(req.session.userId, req.params.id)) {
+        if (!userIsZeus
+            && !await isEditorOfSquadOrAncestor(req.session.userId, req.params.id)
+            && !await isHostOfSquadOperation(req.session.userId, req.params.id)) {
             return res.status(403).json({ success: false, error: 'Permission denied' });
         }
 
@@ -1210,6 +1212,34 @@ router.post('/api/squads/:squadId/reorder-teams', isAuthenticated, async (req, r
     } catch (error) {
         console.error('Error reordering teams:', error);
         res.json({ success: false, error: 'Failed to reorder teams' });
+    }
+});
+
+router.post('/api/squads/:squadId/reorder-siblings', isAuthenticated, async (req, res) => {
+    try {
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus) {
+            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, req.params.squadId)
+                || await isHostOfSquadOperation(req.session.userId, req.params.squadId);
+            if (!canEdit) return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
+        const { squadIds } = req.body;
+        if (!Array.isArray(squadIds) || squadIds.length === 0) {
+            return res.json({ success: false, error: 'Invalid data' });
+        }
+        const [ref] = await db.query('SELECT parent_squad_id FROM orbat_squads WHERE id = ?', [req.params.squadId]);
+        if (!ref.length) return res.json({ success: false, error: 'Squad not found' });
+        const parentId = ref[0].parent_squad_id;
+        for (let i = 0; i < squadIds.length; i++) {
+            await db.query(
+                'UPDATE orbat_squads SET display_order = ? WHERE id = ? AND parent_squad_id <=> ?',
+                [i, squadIds[i], parentId]
+            );
+        }
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error reordering squads:', error);
+        res.json({ success: false, error: 'Failed to reorder squads' });
     }
 });
 

@@ -213,6 +213,7 @@ function renderPubSquadCard(squad) {
         <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 2px solid ${squad.color};">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                 <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0;">
+                    ${canEdit ? '<span class="squad-drag-handle" title="Drag to reorder" style="cursor:grab;color:var(--khaki);opacity:0.35;flex-shrink:0;font-size:1.05em;user-select:none;padding:0 2px;">⠿</span>' : ''}
                     ${iconImg}
                     <div style="min-width:0;">
                         <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
@@ -240,57 +241,10 @@ function renderPubNode(node, isRoot) {
     if (node.children && node.children.length > 0) {
         childrenHtml = `<div class="org-v-bar"></div><div class="org-row">${node.children.map(child => renderPubNode(child, false)).join('')}</div>`;
     }
-    return `<div class="${wrapClass}">${cardHtml}${childrenHtml}</div>`;
+    return `<div class="${wrapClass}" data-squad-id="${node.id}">${cardHtml}${childrenHtml}</div>`;
 }
 %>
 
-<style>
-.ctrl-menu { position: relative; flex-shrink: 0; }
-.ctrl-menu-btn {
-    padding: 2px 7px;
-    font-size: 0.78em;
-    letter-spacing: 0.05em;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(178,178,125,0.25);
-    border-radius: 3px;
-    color: var(--sand);
-    cursor: pointer;
-    line-height: 1.4;
-}
-.ctrl-menu-btn:hover { background: rgba(255,255,255,0.12); }
-.ctrl-menu-list {
-    display: none;
-    position: absolute;
-    right: 0;
-    top: calc(100% + 2px);
-    z-index: 500;
-    background: rgba(15,24,15,0.98);
-    border: 1px solid var(--olive);
-    border-radius: 5px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.55);
-    min-width: 130px;
-    overflow: hidden;
-}
-.ctrl-menu-list.open { display: block; }
-.ctrl-menu-item {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 6px 12px;
-    font-size: 0.78em;
-    font-family: inherit;
-    color: var(--sand);
-    background: none;
-    border: none;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-    cursor: pointer;
-    white-space: nowrap;
-}
-.ctrl-menu-item:last-child { border-bottom: none; }
-.ctrl-menu-item:hover { background: rgba(107,142,35,0.25); }
-.ctrl-menu-danger { color: #e74c3c; }
-.ctrl-menu-danger:hover { background: rgba(231,76,60,0.15) !important; color: #ff6b6b; }
-</style>
 
 <div class="container orbat-wide">
     <header>
@@ -321,40 +275,10 @@ function renderPubNode(node, isRoot) {
     </section>
 </div>
 
-<% if (user && editorSquadIds && editorSquadIds.length > 0) { %>
-<div id="assignModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
-    <div class="card" style="max-width: 500px; width: 90%;">
-        <h3 style="margin-bottom: 15px;">Assign Player to <span id="modalRoleName"></span></h3>
-        <div class="form-group">
-            <label for="playerSearch">Search Roster</label>
-            <input type="text" id="playerSearch" placeholder="Type player name..." oninput="searchPlayers(this.value)">
-        </div>
-        <div id="playerResults" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;">
-            <p style="color: var(--khaki); text-align: center;">Start typing to search...</p>
-        </div>
-        <div style="display: flex; gap: 10px;">
-            <button onclick="closeAssignModal()" class="btn" style="flex: 1;">Cancel</button>
-        </div>
-    </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<style>.sortable-ghost { opacity: 0.4; }</style>
-
 <script>
 const templateId = '<%= template.id %>';
-let currentRoleId = null;
 
-function toggleAddSub(squadId) {
-    const form = document.getElementById('addSubForm_' + squadId);
-    if (form.style.display === 'none') {
-        form.style.display = 'block';
-        document.getElementById('addSubName_' + squadId).focus();
-    } else {
-        form.style.display = 'none';
-    }
-}
-
+<% if (user && editorSquadIds && editorSquadIds.length > 0) { %>
 async function deleteSquad(squadId) {
     if (!confirm('Delete this sub-group and all its roles?')) return;
     try {
@@ -379,75 +303,6 @@ async function submitAddChildSquad(parentSquadId) {
         if (d.success) location.reload(); else alert(d.error || 'Failed to add sub-group');
     } catch { alert('Failed to add sub-group'); }
 }
-
-function showAssignModal(roleId, roleName) {
-    currentRoleId = roleId;
-    document.getElementById('modalRoleName').textContent = roleName;
-    document.getElementById('assignModal').style.display = 'flex';
-    document.getElementById('playerSearch').value = '';
-    document.getElementById('playerResults').innerHTML = '<p style="color: var(--khaki); text-align: center;">Start typing to search...</p>';
-}
-
-function closeAssignModal() {
-    document.getElementById('assignModal').style.display = 'none';
-    currentRoleId = null;
-}
-
-let _playerSearchResults = [];
-
-async function searchPlayers(query) {
-    if (query.length < 2) {
-        document.getElementById('playerResults').innerHTML = '<p style="color: var(--khaki); text-align: center;">Type at least 2 characters...</p>';
-        return;
-    }
-    try {
-        const r = await fetch(`/roster/search?q=${encodeURIComponent(query)}`);
-        const players = await r.json();
-        if (players.length === 0) {
-            document.getElementById('playerResults').innerHTML = '<p style="color: var(--khaki); text-align: center;">No players found</p>';
-            return;
-        }
-        _playerSearchResults = players;
-        let html = '<div style="display: grid; gap: 8px;">';
-        players.forEach((p, i) => {
-            const badge = p.needs_registration ? '<span style="background: rgba(241,196,15,0.3); color: #f1c40f; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; margin-left: 8px;">Not logged in</span>' : '';
-            const safeName = p.name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            html += `<div onclick="assignPlayer(${i})" style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(107,142,35,0.3)'" onmouseout="this.style.background='rgba(0,0,0,0.3)'"><strong>${safeName}</strong>${badge}</div>`;
-        });
-        html += '</div>';
-        document.getElementById('playerResults').innerHTML = html;
-    } catch (e) { console.error('Error searching players:', e); }
-}
-
-async function assignPlayer(playerOrIndex) {
-    const player = typeof playerOrIndex === 'number' ? _playerSearchResults[playerOrIndex] : playerOrIndex;
-    const msg = player.needs_registration
-        ? `Assign ${player.name}? (They haven't logged in yet - we'll create an account for them)`
-        : `Assign ${player.name} to this slot?`;
-    if (!confirm(msg)) return;
-    try {
-        const r = await fetch(`/orbat/assign/${currentRoleId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: player.user_id, discordId: player.discord_id })
-        });
-        const d = await r.json();
-        if (d.success) location.reload(); else alert(d.error || 'Failed to assign player');
-    } catch { alert('Failed to assign player'); }
-}
-
-async function unassignPlayer(roleId) {
-    if (!confirm('Remove player from this slot?')) return;
-    try {
-        const r = await fetch(`/orbat/unassign/${roleId}`, { method: 'POST' });
-        const d = await r.json();
-        if (d.success) location.reload(); else alert(d.error || 'Failed to remove player');
-    } catch { alert('Failed to remove player'); }
-}
-
-document.getElementById('assignModal')?.addEventListener('click', e => {
-    if (e.target.id === 'assignModal') closeAssignModal();
-});
 
 function showRoleEdit(roleId) {
     document.getElementById('roleView_' + roleId).style.display = 'none';
@@ -496,61 +351,6 @@ async function addRole(squadId) {
         const d = await r.json();
         if (d.success) location.reload(); else alert(d.error || 'Failed to add slot');
     } catch { alert('Failed to add slot'); }
-}
-
-function toggleAddTeam(squadId) {
-    const form = document.getElementById('addTeamForm_' + squadId);
-    if (form.style.display === 'none') {
-        form.style.display = 'block';
-        document.getElementById('addTeamName_' + squadId).focus();
-    } else {
-        form.style.display = 'none';
-    }
-}
-
-async function submitAddTeam(squadId) {
-    const nameInput = document.getElementById('addTeamName_' + squadId);
-    const colorInput = document.getElementById('addTeamColor_' + squadId);
-    const name = nameInput.value.trim();
-    if (!name) { nameInput.focus(); return; }
-    try {
-        const r = await fetch(`/orbat/api/squads/${squadId}/add-team`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, color: colorInput.value })
-        });
-        const d = await r.json();
-        if (d.success) location.reload(); else alert(d.error || 'Failed to add team');
-    } catch { alert('Failed to add team'); }
-}
-
-function startEditTeam(teamId) {
-    const form = document.getElementById('editTeamForm_' + teamId);
-    form.style.display = form.style.display === 'none' ? 'block' : 'none';
-}
-
-async function submitEditTeam(teamId) {
-    const name = document.getElementById('editTeamName_' + teamId).value.trim();
-    const color = document.getElementById('editTeamColor_' + teamId).value;
-    if (!name) return;
-    try {
-        const r = await fetch(`/orbat/api/teams/${teamId}/edit`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, color })
-        });
-        const d = await r.json();
-        if (d.success) location.reload(); else alert(d.error || 'Failed to update team');
-    } catch { alert('Failed to update team'); }
-}
-
-async function deleteTeam(teamId) {
-    if (!confirm('Delete this team? Roles will become ungrouped.')) return;
-    try {
-        const r = await fetch(`/orbat/api/teams/${teamId}/delete`, { method: 'POST' });
-        const d = await r.json();
-        if (d.success) location.reload(); else alert(d.error || 'Failed to delete team');
-    } catch { alert('Failed to delete team'); }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -612,104 +412,31 @@ document.addEventListener('DOMContentLoaded', () => {
     } // end block scope for squad
     <% } %>
     <% }); %>
+
+    // Squad drag-to-reorder
+    [document.querySelector('.org-tree-root'), ...document.querySelectorAll('.org-row')].forEach(container => {
+        if (!container) return;
+        new Sortable(container, {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            handle: '.squad-drag-handle',
+            onEnd: async function() {
+                const ids = Array.from(container.querySelectorAll(':scope > [data-squad-id]'))
+                                 .map(el => el.getAttribute('data-squad-id'));
+                if (ids.length < 2) return;
+                try {
+                    await fetch(`/orbat/api/squads/${ids[0]}/reorder-siblings`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ squadIds: ids })
+                    });
+                } catch(e) { console.error('Failed to reorder squads:', e); }
+            }
+        });
+    });
 });
-</script>
 <% } %>
-
-<script>
-function toggleFreqForm(type, id) {
-    const el = document.getElementById((type === 'sq' ? 'sqFreqForm_' : 'tmFreqForm_') + id);
-    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
-}
-
-async function submitSquadFrequencies(squadId) {
-    const lr = document.getElementById('sqLrFreq_' + squadId)?.value.trim() || null;
-    const sr = document.getElementById('sqSrFreq_' + squadId)?.value.trim() || null;
-    try {
-        const r = await fetch(`/orbat/api/squads/${squadId}/set-frequencies`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lr, sr })
-        });
-        const d = await r.json();
-        if (d.success) location.reload(); else alert(d.error || 'Failed to save frequencies');
-    } catch { alert('Failed to save frequencies'); }
-}
-
-async function submitTeamFrequencies(teamId) {
-    const lr = document.getElementById('tmLrFreq_' + teamId)?.value.trim() || null;
-    const sr = document.getElementById('tmSrFreq_' + teamId)?.value.trim() || null;
-    try {
-        const r = await fetch(`/orbat/api/teams/${teamId}/set-frequencies`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lr, sr })
-        });
-        const d = await r.json();
-        if (d.success) location.reload(); else alert(d.error || 'Failed to save frequencies');
-    } catch { alert('Failed to save frequencies'); }
-}
-
-function toggleCtrlMenu(btn) {
-    const list = btn.nextElementSibling;
-    const isOpen = list.classList.contains('open');
-    document.querySelectorAll('.ctrl-menu-list.open').forEach(m => m.classList.remove('open'));
-    if (!isOpen) list.classList.add('open');
-}
-document.addEventListener('click', e => {
-    if (!e.target.closest('.ctrl-menu'))
-        document.querySelectorAll('.ctrl-menu-list.open').forEach(m => m.classList.remove('open'));
-});
-
-async function uploadSquadIcon(squadId, input) {
-    const file = input.files[0];
-    if (!file) return;
-    const fd = new FormData();
-    fd.append('icon', file);
-    try {
-        const r = await fetch(`/orbat/api/squads/${squadId}/icon`, { method: 'POST', body: fd });
-        const d = await r.json();
-        if (d.success) location.reload();
-        else alert(d.error || 'Upload failed');
-    } catch { alert('Upload failed'); }
-}
-
-async function removeSquadIcon(squadId) {
-    if (!confirm('Remove this squad icon?')) return;
-    try {
-        const r = await fetch(`/orbat/api/squads/${squadId}/icon`, { method: 'DELETE' });
-        const d = await r.json();
-        if (d.success) location.reload();
-        else alert(d.error || 'Failed to remove icon');
-    } catch { alert('Failed to remove icon'); }
-}
-
-// ── Drag-to-pan ORBAT canvas ──────────────────────────────────────────────
-(function() {
-    const el = document.querySelector('.org-tree-scroll');
-    if (!el) return;
-    let dragging = false, startX, startY, scrollLeft, scrollTop;
-    el.addEventListener('mousedown', e => {
-        if (e.button !== 0) return;
-        if (e.target.closest('[data-role-id], .team-hdr, button, input, select, a, .btn, [contenteditable]')) return;
-        dragging = true;
-        el.classList.add('is-dragging');
-        startX = e.clientX;
-        startY = e.clientY;
-        scrollLeft = el.scrollLeft;
-        scrollTop = el.scrollTop;
-    });
-    document.addEventListener('mouseup', () => {
-        dragging = false;
-        el.classList.remove('is-dragging');
-    });
-    document.addEventListener('mousemove', e => {
-        if (!dragging) return;
-        e.preventDefault();
-        el.scrollLeft = scrollLeft - (e.clientX - startX);
-        el.scrollTop  = scrollTop  - (e.clientY - startY);
-    }, { passive: false });
-})();
 </script>
 
+<%- include('./_orbat-shared') %>
 <%- include('../partials/footer') %>

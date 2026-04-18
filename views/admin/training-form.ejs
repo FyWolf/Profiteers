@@ -1,37 +1,5 @@
 <%- include('../partials/header') %>
 
-<style>
-.form-wrap { max-width:720px; margin:0 auto; }
-.field { margin-bottom:20px; }
-.field label { display:block; font-size:0.8em; color:var(--khaki); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:7px; }
-.field input, .field textarea, .field select {
-    width:100%; padding:10px 14px;
-    background:rgba(0,0,0,0.4);
-    border:1px solid rgba(107,142,35,0.5);
-    border-radius:7px;
-    color:var(--sand);
-    font-family:var(--body-font);
-    font-size:0.92em;
-    transition:border-color 0.2s;
-}
-.field input:focus, .field textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 8px rgba(252,176,13,0.15); }
-.field textarea { min-height:90px; resize:vertical; }
-.field small { display:block; margin-top:5px; font-size:0.78em; color:var(--khaki); opacity:.7; }
-.color-row { display:flex; gap:12px; align-items:center; }
-.color-row input[type=color] { width:48px; height:42px; border:1px solid rgba(107,142,35,0.5); border-radius:7px; cursor:pointer; padding:2px; background:rgba(0,0,0,0.4); flex-shrink:0; }
-.color-row .color-text { flex:1; }
-.upload-box { padding:14px 16px; background:rgba(52,152,219,0.07); border:1px solid rgba(52,152,219,0.35); border-radius:8px; margin-bottom:14px; }
-.upload-box strong { color:#6bb8f7; display:block; margin-bottom:8px; font-size:0.85em; text-transform:uppercase; letter-spacing:0.5px; }
-.img-preview-box { margin-top:14px; padding:16px; background:rgba(0,0,0,0.3); border:1px solid rgba(107,142,35,0.4); border-radius:8px; text-align:center; }
-.img-preview-box .preview-label { font-size:0.78em; color:var(--khaki); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; }
-.preview-card {
-    background:linear-gradient(135deg,rgba(0,0,0,0.45) 0%,rgba(10,20,10,0.45) 100%);
-    border:1px solid rgba(107,142,35,0.5);
-    border-radius:12px;
-    padding:18px 20px;
-}
-.form-actions { display:flex; gap:12px; margin-top:28px; padding-top:20px; border-top:1px solid rgba(107,142,35,0.25); }
-</style>
 
 <div class="container">
     <header>
@@ -40,7 +8,7 @@
     </header>
 
     <section class="section">
-        <div class="form-wrap">
+        <div class="form-wrap" style="max-width:720px;">
             <form method="POST" action="/admin/trainings/<%= action === 'add' ? 'add' : 'edit/' + training.id %>" enctype="multipart/form-data">
 
                 <div class="field">
