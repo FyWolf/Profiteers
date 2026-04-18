@@ -97,7 +97,8 @@ function renderSquadCard(squad) {
     const roles = rolesBySquad[squad.id] || [];
     const teams = teamsBySquad[squad.id] || [];
     const isDynamic = canManage && operation.orbat_type === 'dynamic';
-    const canEditFreq = canManage || (typeof editorSquadIds !== 'undefined' && editorSquadIds.includes(squad.id));
+    const _editorIds = (typeof editorSquadIds !== 'undefined' && Array.isArray(editorSquadIds)) ? editorSquadIds.map(Number) : [];
+    const canEditFreq = canManage || _editorIds.includes(Number(squad.id));
     const lrBadge = squad.lr_frequency ? `<span title="Long Range" style="font-size:0.68em;background:rgba(0,100,200,0.25);color:#7bb3e0;padding:1px 5px;border-radius:3px;white-space:nowrap;">LR ${esc(squad.lr_frequency)}</span>` : '';
     const srBadge = squad.sr_frequency ? `<span title="Short Range" style="font-size:0.68em;background:rgba(0,180,100,0.25);color:#7de0a5;padding:1px 5px;border-radius:3px;white-space:nowrap;">SR ${esc(squad.sr_frequency)}</span>` : '';
     const squadFreqForm = canEditFreq ? `
@@ -122,13 +123,16 @@ function renderSquadCard(squad) {
     // Team sections
     const teamsHtml = teams.map(team => {
         const teamRoles = roles.filter(r => r.team_id === team.id);
-        const teamMgmtBtns = isDynamic
-            ? `<div style="display:flex;gap:2px;flex-shrink:0;">
-                <button onclick="startEditTeam(${team.id})" class="btn" style="padding:1px 5px;font-size:0.65em;" title="Rename">✏️</button>
-                <button onclick="deleteTeam(${team.id})" class="btn btn-danger" style="padding:1px 5px;font-size:0.65em;" title="Delete team">🗑️</button>
-               </div>`
-            : '';
-        const teamEditForm = isDynamic
+        const teamCtrlMenu = canEditFreq ? `
+            <div class="ctrl-menu">
+                <button class="ctrl-menu-btn" onclick="toggleCtrlMenu(this)">···</button>
+                <div class="ctrl-menu-list">
+                    <button class="ctrl-menu-item" onclick="toggleFreqForm('tm', ${team.id})">Radio Freq</button>
+                    <button class="ctrl-menu-item" onclick="startEditTeam(${team.id})">Rename</button>
+                    ${isDynamic ? `<button class="ctrl-menu-item ctrl-menu-danger" onclick="deleteTeam(${team.id})">Delete team</button>` : ''}
+                </div>
+            </div>` : '';
+        const teamEditForm = canEditFreq
             ? `<div id="editTeamForm_${team.id}" style="display:none;padding:4px 8px;background:rgba(0,0,0,0.25);">
                 <div style="display:flex;gap:4px;align-items:center;">
                     <input type="text" id="editTeamName_${team.id}" value="${esc(team.name)}" style="flex:1;margin:0;font-size:0.82em;padding:3px 6px;">
@@ -153,13 +157,12 @@ function renderSquadCard(squad) {
                 </div>
             </div>` : '';
         return `<div data-team-block="${team.id}">
-            <div class="team-hdr" style="${isDynamic ? 'cursor:grab;' : ''}display:flex;align-items:center;gap:4px;padding:3px 8px;margin-top:4px;background:rgba(0,0,0,0.25);border-left:3px solid ${team.color};">
+            <div class="team-hdr" style="${canEditFreq ? 'cursor:grab;' : ''}display:flex;align-items:center;gap:4px;padding:3px 8px;margin-top:4px;background:rgba(0,0,0,0.25);border-left:3px solid ${team.color};">
                 <div style="flex:1;min-width:0;overflow:hidden;">
                     <div style="font-size:0.7em;font-weight:700;color:${team.color};letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(team.name)}</div>
                     ${teamFreqBadges}
                 </div>
-                ${canEditFreq ? `<button onclick="toggleFreqForm('tm', ${team.id})" class="btn" style="padding:1px 4px;font-size:0.62em;opacity:0.7;" title="Edit Radio Frequencies">📻</button>` : ''}
-                ${teamMgmtBtns}
+                ${teamCtrlMenu}
             </div>
             ${teamEditForm}
             ${teamFreqForm}
