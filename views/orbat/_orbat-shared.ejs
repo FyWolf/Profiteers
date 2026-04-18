@@ -120,6 +120,53 @@ async function submitTeamFrequencies(teamId) {
     } catch { alert('Failed to save frequencies'); }
 }
 
+function startEditSquad(squadId) {
+    const form = document.getElementById('editSquadForm_' + squadId);
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function submitEditSquad(squadId) {
+    const name = document.getElementById('editSquadName_' + squadId).value.trim();
+    const color = document.getElementById('editSquadColor_' + squadId).value;
+    if (!name) return;
+    try {
+        const r = await fetch(`/orbat/api/squads/${squadId}/edit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, color })
+        });
+        const d = await r.json();
+        if (d.success) location.reload(); else alert(d.error || 'Failed to update group');
+    } catch { alert('Failed to update group'); }
+}
+
+async function deleteSquad(squadId) {
+    if (!confirm('Delete this group and all its roles?')) return;
+    try {
+        const r = await fetch(`/orbat/api/squads/${squadId}/delete`, { method: 'POST' });
+        const d = await r.json();
+        if (d.success) location.reload(); else alert(d.error || 'Failed to delete group');
+    } catch { alert('Failed to delete group'); }
+}
+
+async function addRole(squadId) {
+    const input = document.getElementById('newRoleName_' + squadId);
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    const isEditorEl = document.getElementById('newRoleIsEditor_' + squadId);
+    const payload = { roleName: name };
+    if (isEditorEl) payload.isEditor = isEditorEl.checked;
+    try {
+        const r = await fetch(`/orbat/api/squads/${squadId}/add-role`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const d = await r.json();
+        if (d.success) location.reload(); else alert(d.error || 'Failed to add slot');
+    } catch { alert('Failed to add slot'); }
+}
+
 function toggleCtrlMenu(btn) {
     const list = btn.nextElementSibling;
     const isOpen = list.classList.contains('open');
