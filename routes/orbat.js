@@ -943,7 +943,8 @@ router.post('/api/squads/:squadId/add-role', isAuthenticated, async (req, res) =
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
         if (!userIsZeus) {
-            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, req.params.squadId);
+            const canEdit = await isEditorOfSquadOrAncestor(req.session.userId, req.params.squadId)
+                || await isHostOfSquadOperation(req.session.userId, req.params.squadId);
             if (!canEdit) {
                 return res.status(403).json({ success: false, error: 'Permission denied' });
             }
