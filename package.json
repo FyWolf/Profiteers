@@ -20,7 +20,7 @@
     "bcryptjs": "^3.0.3",
     "discord.js": "^14.26.3",
     "dotenv": "^17.4.2",
-    "ejs": "^5.0.1",
+    "ejs": "^5.0.2",
     "express": "^5.2.1",
     "express-fileupload": "^1.4.3",
     "express-mysql-session": "^3.0.3",
