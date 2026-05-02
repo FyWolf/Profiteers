@@ -336,9 +336,10 @@ router.get('/templates/edit/:id', isAdmin, async (req, res) => {
         `, [req.params.id]);
 
         const [roles] = await db.query(`
-            SELECT orp.*
+            SELECT orp.*, st.name AS slot_type_name, st.abbreviation AS slot_type_abbreviation
             FROM orbat_roles orp
             JOIN orbat_squads os ON orp.squad_id = os.id
+            LEFT JOIN slot_types st ON orp.slot_type_id = st.id
             WHERE os.orbat_id = ?
             ORDER BY orp.display_order ASC
         `, [req.params.id]);
@@ -387,6 +388,10 @@ router.get('/templates/edit/:id', isAdmin, async (req, res) => {
             });
         }
 
+        const [slotTypes] = await db.query(
+            'SELECT id, name, abbreviation FROM slot_types ORDER BY display_order ASC, name ASC'
+        );
+
         res.render('orbat/template-edit', {
             title: `Edit ORBAT Template - ${templates[0].name}`,
             template: templates[0],
@@ -395,6 +400,7 @@ router.get('/templates/edit/:id', isAdmin, async (req, res) => {
             rolesBySquad: rolesBySquad,
             teamsBySquad: teamsBySquad,
             assignmentsByRole: assignmentsByRole,
+            slotTypes: slotTypes,
             success: req.query.success || null,
             error: req.query.error || null
         });
@@ -481,14 +487,23 @@ router.post('/squads/edit/:id', isAdmin, async (req, res) => {
 
 router.post('/squads/:id/roles/add', isAdmin, async (req, res) => {
     try {
-        const { role_name, display_order, is_editor } = req.body;
+        const { slot_type_id, display_order, is_editor } = req.body;
 
         const [squads] = await db.query('SELECT orbat_id FROM orbat_squads WHERE id = ?', [req.params.id]);
         const templateId = squads[0]?.orbat_id;
 
+        if (!slot_type_id) {
+            return res.redirect(`/orbat/templates/edit/${templateId}?error=A slot type must be selected`);
+        }
+
+        const [typeRows] = await db.query('SELECT name FROM slot_types WHERE id = ?', [slot_type_id]);
+        if (typeRows.length === 0) {
+            return res.redirect(`/orbat/templates/edit/${templateId}?error=Invalid slot type`);
+        }
+
         await db.query(
-            'INSERT INTO orbat_roles (squad_id, role_name, display_order, is_editor) VALUES (?, ?, ?, ?)',
-            [req.params.id, role_name, display_order || 0, is_editor ? 1 : 0]
+            'INSERT INTO orbat_roles (squad_id, role_name, slot_type_id, display_order, is_editor) VALUES (?, ?, ?, ?, ?)',
+            [req.params.id, typeRows[0].name, slot_type_id, display_order || 0, is_editor ? 1 : 0]
         );
 
         res.redirect(`/orbat/templates/edit/${templateId}?success=Role added`);
@@ -519,7 +534,7 @@ router.post('/roles/delete/:id', isAdmin, async (req, res) => {
 
 router.post('/roles/edit/:id', isAdmin, async (req, res) => {
     try {
-        const { role_name, display_order, is_editor } = req.body;
+        const { slot_type_id, display_order, is_editor } = req.body;
 
         const [roles] = await db.query(`
             SELECT os.orbat_id
@@ -529,15 +544,58 @@ router.post('/roles/edit/:id', isAdmin, async (req, res) => {
         `, [req.params.id]);
         const templateId = roles[0]?.orbat_id;
 
+        if (!slot_type_id) {
+            return res.redirect(`/orbat/templates/edit/${templateId}?error=A slot type must be selected`);
+        }
+
+        const [typeRows] = await db.query('SELECT name FROM slot_types WHERE id = ?', [slot_type_id]);
+        if (typeRows.length === 0) {
+            return res.redirect(`/orbat/templates/edit/${templateId}?error=Invalid slot type`);
+        }
+
         await db.query(
-            'UPDATE orbat_roles SET role_name = ?, display_order = ?, is_editor = ? WHERE id = ?',
-            [role_name, display_order || 0, is_editor ? 1 : 0, req.params.id]
+            'UPDATE orbat_roles SET role_name = ?, slot_type_id = ?, display_order = ?, is_editor = ? WHERE id = ?',
+            [typeRows[0].name, slot_type_id, display_order || 0, is_editor ? 1 : 0, req.params.id]
         );
-        
+
         res.redirect(`/orbat/templates/edit/${templateId}?success=Role updated`);
     } catch (error) {
         console.error('Error updating role:', error);
         res.redirect('/orbat/templates?error=Failed to update role');
+    }
+});
+
+// Link (or re-link) an existing slot to a slot type — used for migrating legacy free-text slots
+router.post('/roles/:id/set-slot-type', isAdmin, async (req, res) => {
+    try {
+        const { slot_type_id } = req.body;
+
+        const [roles] = await db.query(`
+            SELECT os.orbat_id
+            FROM orbat_roles orp
+            JOIN orbat_squads os ON orp.squad_id = os.id
+            WHERE orp.id = ?
+        `, [req.params.id]);
+        const templateId = roles[0]?.orbat_id;
+
+        if (!slot_type_id) {
+            return res.redirect(`/orbat/templates/edit/${templateId}?error=A slot type must be selected`);
+        }
+
+        const [typeRows] = await db.query('SELECT name FROM slot_types WHERE id = ?', [slot_type_id]);
+        if (typeRows.length === 0) {
+            return res.redirect(`/orbat/templates/edit/${templateId}?error=Invalid slot type`);
+        }
+
+        await db.query(
+            'UPDATE orbat_roles SET slot_type_id = ?, role_name = ? WHERE id = ?',
+            [slot_type_id, typeRows[0].name, req.params.id]
+        );
+
+        res.redirect(`/orbat/templates/edit/${templateId}?success=Slot type linked`);
+    } catch (error) {
+        console.error('Error setting slot type:', error);
+        res.redirect('/orbat/templates?error=Failed to link slot type');
     }
 });
 
@@ -602,8 +660,9 @@ router.get('/operation/:operationId', async (req, res) => {
         if (squads.length > 0) {
             const squadIds = squads.map(s => s.id);
             const [roles] = await db.query(`
-                SELECT orp.*
+                SELECT orp.*, st.name AS slot_type_name, st.abbreviation AS slot_type_abbreviation
                 FROM orbat_roles orp
+                LEFT JOIN slot_types st ON orp.slot_type_id = st.id
                 WHERE orp.squad_id IN (?)
                 ORDER BY orp.display_order ASC
             `, [squadIds]);
@@ -950,12 +1009,10 @@ router.post('/api/squads/:squadId/add-role', isAuthenticated, async (req, res) =
             }
         }
 
-        const { roleName, isEditor } = req.body;
-        if (!roleName || !roleName.trim()) {
-            return res.json({ success: false, error: 'Role name is required' });
-        }
+        const [squadRows] = await db.query('SELECT orbat_id FROM orbat_squads WHERE id = ?', [req.params.squadId]);
+        const isTemplateSqd = squadRows.length > 0 && squadRows[0].orbat_id != null;
 
-        const isEditorValue = userIsZeus && isEditor ? 1 : 0;
+        const isEditorValue = userIsZeus && req.body.isEditor ? 1 : 0;
 
         const [maxOrder] = await db.query(
             'SELECT MAX(display_order) as max FROM orbat_roles WHERE squad_id = ?',
@@ -963,12 +1020,35 @@ router.post('/api/squads/:squadId/add-role', isAuthenticated, async (req, res) =
         );
         const nextOrder = (maxOrder[0]?.max ?? -1) + 1;
 
-        const [result] = await db.query(
-            'INSERT INTO orbat_roles (squad_id, role_name, display_order, is_editor) VALUES (?, ?, ?, ?)',
-            [req.params.squadId, roleName.trim(), nextOrder, isEditorValue]
-        );
+        let insertedId;
 
-        res.json({ success: true, roleId: result.insertId });
+        if (isTemplateSqd) {
+            const { slotTypeId } = req.body;
+            if (!slotTypeId) {
+                return res.json({ success: false, error: 'A slot type must be selected' });
+            }
+            const [typeRows] = await db.query('SELECT name FROM slot_types WHERE id = ?', [slotTypeId]);
+            if (typeRows.length === 0) {
+                return res.json({ success: false, error: 'Invalid slot type' });
+            }
+            const [result] = await db.query(
+                'INSERT INTO orbat_roles (squad_id, role_name, slot_type_id, display_order, is_editor) VALUES (?, ?, ?, ?, ?)',
+                [req.params.squadId, typeRows[0].name, slotTypeId, nextOrder, isEditorValue]
+            );
+            insertedId = result.insertId;
+        } else {
+            const { roleName } = req.body;
+            if (!roleName || !roleName.trim()) {
+                return res.json({ success: false, error: 'Role name is required' });
+            }
+            const [result] = await db.query(
+                'INSERT INTO orbat_roles (squad_id, role_name, display_order, is_editor) VALUES (?, ?, ?, ?)',
+                [req.params.squadId, roleName.trim(), nextOrder, isEditorValue]
+            );
+            insertedId = result.insertId;
+        }
+
+        res.json({ success: true, roleId: insertedId });
     } catch (error) {
         console.error('Error adding role:', error);
         res.json({ success: false, error: 'Failed to add role' });
@@ -985,21 +1065,48 @@ router.post('/api/roles/:id/edit', isAuthenticated, async (req, res) => {
             }
         }
 
-        const { roleName, displayOrder, isEditor } = req.body;
-        if (!roleName || !roleName.trim()) {
-            return res.json({ success: false, error: 'Role name is required' });
-        }
+        const [roleRows] = await db.query(
+            'SELECT os.orbat_id FROM orbat_roles r JOIN orbat_squads os ON r.squad_id = os.id WHERE r.id = ?',
+            [req.params.id]
+        );
+        const isTemplateRole = roleRows.length > 0 && roleRows[0].orbat_id != null;
 
-        if (userIsZeus) {
-            await db.query(
-                'UPDATE orbat_roles SET role_name = ?, display_order = ?, is_editor = ? WHERE id = ?',
-                [roleName.trim(), displayOrder || 0, isEditor ? 1 : 0, req.params.id]
-            );
+        const { displayOrder, isEditor, slotTypeId, roleName } = req.body;
+
+        if (isTemplateRole) {
+            if (!slotTypeId) {
+                return res.json({ success: false, error: 'A slot type must be selected' });
+            }
+            const [typeRows] = await db.query('SELECT name FROM slot_types WHERE id = ?', [slotTypeId]);
+            if (typeRows.length === 0) {
+                return res.json({ success: false, error: 'Invalid slot type' });
+            }
+            if (userIsZeus) {
+                await db.query(
+                    'UPDATE orbat_roles SET role_name = ?, slot_type_id = ?, display_order = ?, is_editor = ? WHERE id = ?',
+                    [typeRows[0].name, slotTypeId, displayOrder || 0, isEditor ? 1 : 0, req.params.id]
+                );
+            } else {
+                await db.query(
+                    'UPDATE orbat_roles SET role_name = ?, slot_type_id = ?, display_order = ? WHERE id = ?',
+                    [typeRows[0].name, slotTypeId, displayOrder || 0, req.params.id]
+                );
+            }
         } else {
-            await db.query(
-                'UPDATE orbat_roles SET role_name = ?, display_order = ? WHERE id = ?',
-                [roleName.trim(), displayOrder || 0, req.params.id]
-            );
+            if (!roleName || !roleName.trim()) {
+                return res.json({ success: false, error: 'Role name is required' });
+            }
+            if (userIsZeus) {
+                await db.query(
+                    'UPDATE orbat_roles SET role_name = ?, display_order = ?, is_editor = ? WHERE id = ?',
+                    [roleName.trim(), displayOrder || 0, isEditor ? 1 : 0, req.params.id]
+                );
+            } else {
+                await db.query(
+                    'UPDATE orbat_roles SET role_name = ?, display_order = ? WHERE id = ?',
+                    [roleName.trim(), displayOrder || 0, req.params.id]
+                );
+            }
         }
 
         res.json({ success: true });

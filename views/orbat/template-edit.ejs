@@ -10,6 +10,9 @@ function renderTemplateRoleCard(role, squad) {
     const editorBadge = role.is_editor
         ? `<span style="font-size:0.6em;font-weight:700;background:rgba(52,152,219,0.2);color:#3498DB;border:1px solid #3498DB;padding:1px 4px;border-radius:3px;margin-left:3px;vertical-align:middle;">ED</span>`
         : '';
+    const noTypeBadge = !role.slot_type_id
+        ? `<span title="No slot type linked — click Edit slot to fix" style="font-size:0.6em;font-weight:700;background:rgba(231,76,60,0.18);color:#e74c3c;border:1px solid rgba(231,76,60,0.4);padding:1px 4px;border-radius:3px;margin-left:3px;vertical-align:middle;cursor:help;">⚠ No type</span>`
+        : '';
 
     let avatarHtml = '';
     if (assignment) {
@@ -29,14 +32,14 @@ function renderTemplateRoleCard(role, squad) {
         ? `<a href="/profile/${assignment.user_id}" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;text-decoration:none;overflow:hidden;">
             ${avatarHtml}
             <div style="min-width:0;overflow:hidden;">
-                <div style="font-size:0.77em;font-weight:700;color:${squad.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(role.role_name)}">${esc(role.role_name)}${editorBadge}</div>
+                <div style="font-size:0.77em;font-weight:700;color:${squad.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(role.slot_type_name || role.role_name)}">${esc(role.slot_type_name || role.role_name)}${editorBadge}${noTypeBadge}</div>
                 <div style="font-size:0.72em;color:var(--sand);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nameText}</div>
             </div>
            </a>`
         : `<div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
             ${avatarHtml}
             <div style="min-width:0;overflow:hidden;">
-                <div style="font-size:0.77em;font-weight:700;color:${squad.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(role.role_name)}">${esc(role.role_name)}${editorBadge}</div>
+                <div style="font-size:0.77em;font-weight:700;color:${squad.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(role.slot_type_name || role.role_name)}">${esc(role.slot_type_name || role.role_name)}${editorBadge}${noTypeBadge}</div>
                 <div style="font-size:0.72em;color:var(--khaki);opacity:0.4;font-style:italic;white-space:nowrap;">empty</div>
             </div>
            </div>`;
@@ -60,8 +63,11 @@ function renderTemplateRoleCard(role, squad) {
             </div>
         </div>
         <div id="roleEdit_${role.id}" style="display:none;padding:6px 8px;background:rgba(0,0,0,0.2);border-top:1px solid rgba(255,255,255,0.06);">
-            <input type="text" id="roleEditName_${role.id}" value="${esc(role.role_name)}"
-                   style="width:100%;box-sizing:border-box;padding:4px 8px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;font-size:0.85em;margin:0 0 5px 0;">
+            <select id="roleEditSlotType_${role.id}"
+                    style="width:100%;box-sizing:border-box;padding:4px 8px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;font-size:0.85em;margin:0 0 5px 0;">
+                <option value="">— Select slot type —</option>
+                ${slotTypes.map(t => `<option value="${t.id}" ${t.id == role.slot_type_id ? 'selected' : ''}>${esc(t.name)}${t.abbreviation ? ' (' + esc(t.abbreviation) + ')' : ''}</option>`).join('')}
+            </select>
             <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
                 <label style="display:flex;align-items:center;gap:4px;font-size:0.8em;color:var(--khaki);cursor:pointer;flex:1;white-space:nowrap;" title="Assigned user can manage this squad's assignments">
                     <input type="checkbox" id="roleEditIsEditor_${role.id}" ${role.is_editor ? 'checked' : ''} style="width:14px;height:14px;">
@@ -155,18 +161,25 @@ function renderTemplateSquadCard(squad) {
            </div>
            <button onclick="toggleAddTeam(${squad.id})" class="btn" style="margin-top:5px;width:100%;background:rgba(0,0,0,0.15);border:1px dashed rgba(178,178,125,0.3);font-size:0.75em;padding:3px;">➕ Add Team</button>`;
 
+    const slotTypeOptions = slotTypes.map(t =>
+        `<option value="${t.id}">${esc(t.name)}${t.abbreviation ? ' (' + esc(t.abbreviation) + ')' : ''}</option>`
+    ).join('');
     const addRoleSection = `
         <div style="margin-top: 8px; padding: 8px; border: 2px dashed ${squad.color}; border-radius: 4px; background: rgba(0,0,0,0.2); overflow: hidden;">
-            <div style="display: flex; gap: 6px; align-items: center; min-width: 0;">
-                <input type="text" id="newRoleName_${squad.id}" placeholder="New slot name..."
-                       style="flex: 1; min-width: 0; padding: 6px 8px; background: rgba(40,40,40,0.9); color: var(--sand); border: 1px solid var(--olive); border-radius: 4px; font-size: 0.88em; margin: 0;"
-                       onkeydown="if(event.key==='Enter') addRole(${squad.id})">
+            ${slotTypes.length === 0
+                ? `<div style="font-size:0.8em;color:var(--khaki);opacity:0.6;text-align:center;">No slot types defined — <a href="/admin/slot-types" style="color:var(--accent);">add some first</a></div>`
+                : `<div style="display: flex; gap: 6px; align-items: center; min-width: 0; flex-wrap: wrap;">
+                <select id="newRoleSlotType_${squad.id}"
+                        style="flex: 1; min-width: 120px; padding: 6px 8px; background: rgba(40,40,40,0.9); color: var(--sand); border: 1px solid var(--olive); border-radius: 4px; font-size: 0.85em; margin: 0;">
+                    <option value="">— Select slot type —</option>
+                    ${slotTypeOptions}
+                </select>
                 <label style="display: flex; align-items: center; gap: 4px; font-size: 0.82em; color: var(--khaki); white-space: nowrap; flex-shrink: 0; cursor: pointer;" title="Assigned user can manage this squad's assignments">
                     <input type="checkbox" id="newRoleIsEditor_${squad.id}" style="width: 14px; height: 14px;">
                     Editor
                 </label>
                 <button onclick="addRole(${squad.id})" class="btn" style="flex-shrink: 0; padding: 6px 10px; background: ${squad.color}; color: white; font-size: 0.85em; white-space: nowrap;">➕</button>
-            </div>
+            </div>`}
         </div>`;
 
     const addSubgroupSection = `
@@ -348,7 +361,8 @@ async function deleteSquad(squadId) {
 function showRoleEdit(roleId) {
     document.getElementById('roleView_' + roleId).style.display = 'none';
     document.getElementById('roleEdit_' + roleId).style.display = 'block';
-    document.getElementById('roleEditName_' + roleId).focus();
+    const sel = document.getElementById('roleEditSlotType_' + roleId);
+    if (sel) sel.focus();
 }
 
 function hideRoleEdit(roleId) {
@@ -357,15 +371,15 @@ function hideRoleEdit(roleId) {
 }
 
 async function saveRoleEdit(roleId) {
-    const name = document.getElementById('roleEditName_' + roleId).value.trim();
+    const slotTypeId = document.getElementById('roleEditSlotType_' + roleId).value;
     const displayOrder = document.getElementById('roleEditOrder_' + roleId).value;
     const isEditor = document.getElementById('roleEditIsEditor_' + roleId).checked;
-    if (!name) { alert('Role name cannot be empty'); return; }
+    if (!slotTypeId) { alert('Please select a slot type'); return; }
     try {
         const r = await fetch(`/orbat/api/roles/${roleId}/edit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roleName: name, displayOrder, isEditor })
+            body: JSON.stringify({ slotTypeId: parseInt(slotTypeId), displayOrder, isEditor })
         });
         const d = await r.json();
         if (d.success) location.reload(); else alert(d.error || 'Failed to update slot');
@@ -379,22 +393,6 @@ async function deleteRole(roleId) {
         const d = await r.json();
         if (d.success) location.reload(); else alert(d.error || 'Failed to delete slot');
     } catch { alert('Failed to delete slot'); }
-}
-
-async function addRole(squadId) {
-    const input = document.getElementById('newRoleName_' + squadId);
-    const name = input.value.trim();
-    const isEditor = document.getElementById('newRoleIsEditor_' + squadId).checked;
-    if (!name) { input.focus(); return; }
-    try {
-        const r = await fetch(`/orbat/api/squads/${squadId}/add-role`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roleName: name, isEditor })
-        });
-        const d = await r.json();
-        if (d.success) location.reload(); else alert(d.error || 'Failed to add slot');
-    } catch { alert('Failed to add slot'); }
 }
 
 async function submitAddChildSquad(parentSquadId) {
@@ -520,4 +518,24 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <%- include('./_orbat-shared') %>
+
+<script>
+// Override the shared addRole — template editor uses slot type selects, not free-text inputs
+async function addRole(squadId) {
+    const select = document.getElementById('newRoleSlotType_' + squadId);
+    const slotTypeId = select ? select.value : null;
+    const isEditor = document.getElementById('newRoleIsEditor_' + squadId)?.checked || false;
+    if (!slotTypeId) { if (select) select.focus(); return; }
+    try {
+        const r = await fetch(`/orbat/api/squads/${squadId}/add-role`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slotTypeId: parseInt(slotTypeId), isEditor })
+        });
+        const d = await r.json();
+        if (d.success) location.reload(); else alert(d.error || 'Failed to add slot');
+    } catch { alert('Failed to add slot'); }
+}
+</script>
+
 <%- include('../partials/footer') %>

@@ -1,0 +1,226 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>SLOT TYPES</h1>
+        <div class="subtitle">Predefined orbat position types for fixed templates</div>
+        <div class="stat-bar">
+            <div class="stat-chip">
+                <span class="stat-val"><%= slotTypes.length %></span>
+                <span class="stat-lbl">Types Defined</span>
+            </div>
+            <div class="stat-chip">
+                <span class="stat-val"><%= slotTypes.reduce((s, t) => s + t.usage_count, 0) %></span>
+                <span class="stat-lbl">Orbat Slots Using Types</span>
+            </div>
+        </div>
+    </header>
+
+    <section class="section">
+        <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+        <% if (error)   { %><div class="alert alert-error"><%= error %></div><% } %>
+
+        <!-- Add new slot type -->
+        <div class="panel" style="margin-bottom:18px;">
+            <h3 style="margin:0 0 12px;">ADD SLOT TYPE</h3>
+            <form method="POST" action="/admin/slot-types/add">
+                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
+                    <div style="flex:2;min-width:140px;">
+                        <label style="font-size:0.78em;color:var(--khaki);display:block;margin-bottom:4px;">Name *</label>
+                        <input type="text" name="name" required placeholder="e.g. Rifleman"
+                               style="width:100%;box-sizing:border-box;padding:7px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.88em;">
+                    </div>
+                    <div style="flex:1;min-width:100px;">
+                        <label style="font-size:0.78em;color:var(--khaki);display:block;margin-bottom:4px;">Abbreviation</label>
+                        <input type="text" name="abbreviation" placeholder="e.g. RFL" maxlength="20"
+                               style="width:100%;box-sizing:border-box;padding:7px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.88em;">
+                    </div>
+                    <div style="flex:0 0 auto;">
+                        <button type="submit" class="btn btn-primary" style="padding:8px 18px;">Add Type</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Slot types list -->
+        <% if (slotTypes.length === 0) { %>
+            <div class="empty-state">
+                <div class="empty-icon">🎯</div>
+                <strong>No slot types yet</strong>
+                <p>Add your first slot type above to get started.</p>
+            </div>
+        <% } else { %>
+        <div class="panel" style="padding:0;overflow:hidden;">
+            <div style="padding:8px 14px;border-bottom:1px solid rgba(107,142,35,0.2);font-size:0.72em;color:var(--khaki);opacity:0.6;">
+                Drag rows to reorder
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:1px solid rgba(107,142,35,0.3);">
+                        <th style="padding:10px 6px 10px 14px;text-align:left;width:28px;"></th>
+                        <th style="padding:10px 14px;text-align:left;font-size:0.78em;color:var(--khaki);font-weight:600;">TYPE</th>
+                        <th style="padding:10px 14px;text-align:left;font-size:0.78em;color:var(--khaki);font-weight:600;">ABBR</th>
+                        <th style="padding:10px 14px;text-align:center;font-size:0.78em;color:var(--khaki);font-weight:600;">SUPERIORS</th>
+                        <th style="padding:10px 14px;text-align:center;font-size:0.78em;color:var(--khaki);font-weight:600;">IN USE</th>
+                        <th style="padding:10px 14px;text-align:right;font-size:0.78em;color:var(--khaki);font-weight:600;">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody id="slot-types-tbody">
+                <% slotTypes.forEach(t => { %>
+                    <tr id="row-<%= t.id %>" data-id="<%= t.id %>" style="border-bottom:1px solid rgba(107,142,35,0.12);cursor:default;">
+                        <td style="padding:10px 6px 10px 14px;">
+                            <span class="drag-handle" style="cursor:grab;color:var(--khaki);opacity:0.35;font-size:1.05em;user-select:none;">⠿</span>
+                        </td>
+                        <td style="padding:10px 14px;">
+                            <strong style="font-family:var(--heading-font);font-size:0.85em;color:var(--sand);"><%= t.name %></strong>
+                        </td>
+                        <td style="padding:10px 14px;font-size:0.85em;color:var(--khaki);">
+                            <%= t.abbreviation || '—' %>
+                        </td>
+                        <td style="padding:10px 14px;text-align:center;">
+                            <span class="badge" style="background:rgba(107,142,35,0.2);"><%= t.superior_count %></span>
+                        </td>
+                        <td style="padding:10px 14px;text-align:center;">
+                            <% if (t.usage_count > 0) { %>
+                                <span class="badge" style="background:rgba(252,176,13,0.2);color:var(--accent);"><%= t.usage_count %></span>
+                            <% } else { %>
+                                <span style="color:var(--khaki);font-size:0.8em;opacity:0.5;">0</span>
+                            <% } %>
+                        </td>
+                        <td style="padding:10px 14px;text-align:right;">
+                            <div style="display:inline-flex;gap:6px;justify-content:flex-end;">
+                                <button onclick="toggleEdit(<%= t.id %>)" class="btn" style="padding:4px 10px;font-size:0.78em;">Edit</button>
+                                <button onclick="toggleSuperiors(<%= t.id %>)" class="btn" style="padding:4px 10px;font-size:0.78em;">Chain</button>
+                                <form method="POST" action="/admin/slot-types/delete/<%= t.id %>" style="display:inline;"
+                                      onsubmit="return confirmDelete(<%= t.usage_count %>, '<%= t.name.replace(/'/g, "\\'") %>')">
+                                    <button type="submit" class="btn btn-danger" style="padding:4px 10px;font-size:0.78em;"
+                                            <%= t.usage_count > 0 ? 'disabled title="Cannot delete: type is in use"' : '' %>>Del</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Edit form row -->
+                    <tr id="edit-row-<%= t.id %>" style="display:none;background:rgba(0,0,0,0.25);">
+                        <td colspan="6" style="padding:12px 14px;">
+                            <form method="POST" action="/admin/slot-types/edit/<%= t.id %>">
+                                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
+                                    <div style="flex:2;min-width:140px;">
+                                        <label style="font-size:0.75em;color:var(--khaki);display:block;margin-bottom:3px;">Name *</label>
+                                        <input type="text" name="name" value="<%= t.name %>" required
+                                               style="width:100%;box-sizing:border-box;padding:6px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.88em;">
+                                    </div>
+                                    <div style="flex:1;min-width:100px;">
+                                        <label style="font-size:0.75em;color:var(--khaki);display:block;margin-bottom:3px;">Abbreviation</label>
+                                        <input type="text" name="abbreviation" value="<%= t.abbreviation || '' %>" maxlength="20"
+                                               style="width:100%;box-sizing:border-box;padding:6px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.88em;">
+                                    </div>
+                                    <div style="display:flex;gap:6px;flex:0 0 auto;">
+                                        <button type="submit" class="btn btn-primary" style="padding:6px 14px;">Save</button>
+                                        <button type="button" onclick="toggleEdit(<%= t.id %>)" class="btn" style="padding:6px 10px;">✕</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </td>
+                    </tr>
+
+                    <!-- Superiors form row -->
+                    <tr id="superiors-row-<%= t.id %>" style="display:none;background:rgba(0,0,0,0.2);">
+                        <td colspan="6" style="padding:12px 14px;">
+                            <form method="POST" action="/admin/slot-types/<%= t.id %>/superiors">
+                                <div style="margin-bottom:8px;font-size:0.82em;color:var(--khaki);">
+                                    Direct superiors for <strong style="color:var(--sand);"><%= t.name %></strong>:
+                                </div>
+                                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+                                    <% slotTypes.filter(other => other.id !== t.id).forEach(other => { %>
+                                    <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.85em;cursor:pointer;
+                                                  padding:5px 10px;border:1px solid rgba(107,142,35,0.3);border-radius:4px;
+                                                  background:rgba(40,40,40,0.5);">
+                                        <input type="checkbox" name="superior_ids" value="<%= other.id %>"
+                                               id="sup-<%= t.id %>-<%= other.id %>">
+                                        <%= other.name %><% if (other.abbreviation) { %> (<%= other.abbreviation %>)<% } %>
+                                    </label>
+                                    <% }) %>
+                                </div>
+                                <% if (slotTypes.length <= 1) { %>
+                                    <div style="font-size:0.82em;color:var(--khaki);opacity:0.6;">Add more slot types to define a hierarchy.</div>
+                                <% } %>
+                                <div style="display:flex;gap:6px;">
+                                    <button type="submit" class="btn btn-primary" style="padding:6px 14px;">Save Hierarchy</button>
+                                    <button type="button" onclick="toggleSuperiors(<%= t.id %>)" class="btn" style="padding:6px 10px;">✕</button>
+                                </div>
+                            </form>
+                        </td>
+                    </tr>
+                <% }) %>
+                </tbody>
+            </table>
+        </div>
+        <% } %>
+    </section>
+
+    <div class="mt-2"><a href="/admin" class="btn">← Back to Dashboard</a></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+function toggleEdit(id) {
+    const row = document.getElementById('edit-row-' + id);
+    const supRow = document.getElementById('superiors-row-' + id);
+    if (supRow.style.display !== 'none') supRow.style.display = 'none';
+    row.style.display = row.style.display === 'none' ? '' : 'none';
+}
+
+function toggleSuperiors(id) {
+    const row = document.getElementById('superiors-row-' + id);
+    const editRow = document.getElementById('edit-row-' + id);
+    if (editRow.style.display !== 'none') editRow.style.display = 'none';
+    row.style.display = row.style.display === 'none' ? '' : 'none';
+}
+
+function confirmDelete(usageCount, name) {
+    if (usageCount > 0) return false;
+    return confirm('Delete slot type "' + name + '"? This cannot be undone.');
+}
+
+// Pre-check current superiors
+const currentSuperiors = <%- JSON.stringify(slotTypeCurrentSuperiors) %>;
+Object.entries(currentSuperiors).forEach(([typeId, supIds]) => {
+    supIds.forEach(supId => {
+        const cb = document.getElementById('sup-' + typeId + '-' + supId);
+        if (cb) cb.checked = true;
+    });
+});
+
+// Drag-and-drop reordering
+const tbody = document.getElementById('slot-types-tbody');
+if (tbody) {
+    new Sortable(tbody, {
+        handle: '.drag-handle',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        // Only drag the main data rows, not the inline edit/superior rows
+        filter: '[id^="edit-row-"], [id^="superiors-row-"]',
+        onMove: function(evt) {
+            // Prevent dragging onto edit/superior rows
+            return !evt.related.id.startsWith('edit-row-') && !evt.related.id.startsWith('superiors-row-');
+        },
+        onEnd: async function() {
+            // Collect only the main data rows (those with data-id)
+            const ids = Array.from(tbody.querySelectorAll('tr[data-id]'))
+                             .map(tr => tr.getAttribute('data-id'));
+            try {
+                await fetch('/admin/slot-types/reorder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids })
+                });
+            } catch (e) {
+                console.error('Failed to save order:', e);
+            }
+        }
+    });
+}
+</script>
+
+<%- include('../partials/footer') %>
