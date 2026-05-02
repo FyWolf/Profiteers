@@ -327,6 +327,20 @@
                 </div>
             </div>
 
+            <% if (can('orbat.manage')) { %>
+            <div class="manage-card">
+                <div class="manage-card-top">
+                    <span class="manage-icon">🎯</span>
+                    <div class="manage-badge"><%= stats.slot_types || 0 %><span class="manage-badge-sub">types</span></div>
+                </div>
+                <div class="manage-title">Slot Types</div>
+                <div class="manage-desc">Define predefined position types used in fixed orbat templates, and set chain of command hierarchy.</div>
+                <div class="manage-card-footer">
+                    <a href="/admin/slot-types" class="manage-link primary">Manage</a>
+                </div>
+            </div>
+            <% } %>
+
             <div class="manage-card">
                 <div class="manage-card-top"><span class="manage-icon">🎯</span></div>
                 <div class="manage-title">Operations</div>

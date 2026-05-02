@@ -11,7 +11,8 @@ router.get('/', async (req, res) => {
                 (SELECT COUNT(*) FROM gallery_images)  as images,
                 (SELECT COUNT(*) FROM users)           as users,
                 (SELECT COUNT(*) FROM medals)          as medals,
-                (SELECT COUNT(*) FROM trainings)       as trainings
+                (SELECT COUNT(*) FROM trainings)       as trainings,
+                (SELECT COUNT(*) FROM slot_types)      as slot_types
         `);
 
         let analytics = {
