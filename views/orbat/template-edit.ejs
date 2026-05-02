@@ -248,14 +248,26 @@ function renderTemplateSquadCard(squad) {
 function renderTemplateNode(node, isRoot) {
     const wrapClass = isRoot ? 'org-node' : 'org-col';
     const cardHtml = renderTemplateSquadCard(node);
-    let childrenHtml = '';
-    if (node.children && node.children.length > 0) {
-        childrenHtml = `<div class="org-v-bar"></div><div class="org-row">${node.children.map(child => renderTemplateNode(child, false)).join('')}</div>`;
-    }
+    const hasChildren = node.children && node.children.length > 0;
+    const childrenHtml = `<div class="org-v-bar${hasChildren ? '' : ' org-v-bar--hidden'}"></div>`
+        + `<div class="org-row${hasChildren ? '' : ' squad-drop-empty'}" data-parent-squad-id="${node.id}">`
+        + `${hasChildren ? node.children.map(child => renderTemplateNode(child, false)).join('') : ''}`
+        + `</div>`;
     return `<div class="${wrapClass}" data-squad-id="${node.id}">${cardHtml}${childrenHtml}</div>`;
 }
 %>
 
+
+<style>
+.org-v-bar--hidden { display: none; }
+.squad-dragging .org-v-bar--hidden { display: block; }
+.squad-dragging .squad-drop-empty {
+    min-width: 80px;
+    min-height: 36px;
+    outline: 1px dashed rgba(107,142,35,0.45);
+    border-radius: 4px;
+}
+</style>
 
 <div class="container orbat-wide">
     <header>
@@ -278,7 +290,7 @@ function renderTemplateNode(node, isRoot) {
                         <p style="color: var(--khaki);">No groups yet. Use the panel to add one.</p>
                     </div>
                 <% } else { %>
-                    <div class="org-tree-root">
+                    <div class="org-tree-root" data-parent-squad-id="root">
                         <%- squadTree.map(root => renderTemplateNode(root, true)).join('') %>
                     </div>
                 <% } %>
@@ -493,15 +505,42 @@ document.addEventListener('DOMContentLoaded', () => {
     } // end block scope for squad
     <% }); %>
 
-    // Squad drag-to-reorder
-    [document.querySelector('.org-tree-root'), ...document.querySelectorAll('.org-row')].forEach(container => {
-        if (!container) return;
+    // Squad drag-to-reorder and re-parent
+    const allSquadContainers = [
+        document.querySelector('.org-tree-root'),
+        ...document.querySelectorAll('.org-row[data-parent-squad-id]')
+    ].filter(Boolean);
+
+    allSquadContainers.forEach(container => {
         new Sortable(container, {
             animation: 150,
             ghostClass: 'sortable-ghost',
             handle: '.squad-drag-handle',
-            onEnd: async function() {
-                const ids = Array.from(container.querySelectorAll(':scope > [data-squad-id]'))
+            group: { name: 'squads', put: true },
+            onStart: () => document.body.classList.add('squad-dragging'),
+            onEnd: async function(evt) {
+                document.body.classList.remove('squad-dragging');
+                const squadId = evt.item.getAttribute('data-squad-id');
+                const fromContainer = evt.from;
+                const toContainer = evt.to;
+
+                if (fromContainer !== toContainer) {
+                    const rawParent = toContainer.getAttribute('data-parent-squad-id');
+                    const parentSquadId = rawParent === 'root' ? null : parseInt(rawParent);
+                    try {
+                        const r = await fetch(`/orbat/api/squads/${squadId}/reparent`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ parentSquadId })
+                        });
+                        const d = await r.json();
+                        if (!d.success) alert(d.error || 'Failed to move group');
+                    } catch(e) { console.error('Failed to reparent squad:', e); }
+                    location.reload();
+                    return;
+                }
+
+                const ids = Array.from(toContainer.querySelectorAll(':scope > [data-squad-id]'))
                                  .map(el => el.getAttribute('data-squad-id'));
                 if (ids.length < 2) return;
                 try {

@@ -1356,6 +1356,50 @@ router.post('/api/squads/:squadId/reorder-siblings', isAuthenticated, async (req
     }
 });
 
+router.post('/api/squads/:squadId/reparent', isAdmin, async (req, res) => {
+    try {
+        const squadId = parseInt(req.params.squadId);
+        const { parentSquadId } = req.body;
+        const newParentId = parentSquadId != null ? parseInt(parentSquadId) : null;
+
+        const [squads] = await db.query(
+            'SELECT id, orbat_id FROM orbat_squads WHERE id = ?', [squadId]
+        );
+        if (!squads.length || !squads[0].orbat_id) {
+            return res.json({ success: false, error: 'Squad not found or not a template squad' });
+        }
+        if (newParentId === squadId) {
+            return res.json({ success: false, error: 'A group cannot be its own parent' });
+        }
+
+        if (newParentId !== null) {
+            const [parents] = await db.query(
+                'SELECT id FROM orbat_squads WHERE id = ? AND orbat_id = ?',
+                [newParentId, squads[0].orbat_id]
+            );
+            if (!parents.length) {
+                return res.json({ success: false, error: 'Target parent not in same template' });
+            }
+            // Walk up from newParentId to detect circular reference
+            const visited = new Set();
+            let cur = newParentId;
+            while (cur) {
+                if (cur === squadId) return res.json({ success: false, error: 'Cannot move a group into its own descendant' });
+                if (visited.has(cur)) break;
+                visited.add(cur);
+                const [row] = await db.query('SELECT parent_squad_id FROM orbat_squads WHERE id = ?', [cur]);
+                cur = row[0]?.parent_squad_id || null;
+            }
+        }
+
+        await db.query('UPDATE orbat_squads SET parent_squad_id = ? WHERE id = ?', [newParentId, squadId]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error reparenting squad:', error);
+        res.json({ success: false, error: 'Failed to move group' });
+    }
+});
+
 router.post('/api/roles/:roleId/set-team', isAuthenticated, async (req, res) => {
     try {
         const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
