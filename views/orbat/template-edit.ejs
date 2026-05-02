@@ -32,14 +32,14 @@ function renderTemplateRoleCard(role, squad) {
         ? `<a href="/profile/${assignment.user_id}" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;text-decoration:none;overflow:hidden;">
             ${avatarHtml}
             <div style="min-width:0;overflow:hidden;">
-                <div style="font-size:0.77em;font-weight:700;color:${squad.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(role.role_name)}">${esc(role.role_name)}${editorBadge}${noTypeBadge}</div>
+                <div style="font-size:0.77em;font-weight:700;color:${squad.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(role.slot_type_name || role.role_name)}">${esc(role.slot_type_name || role.role_name)}${editorBadge}${noTypeBadge}</div>
                 <div style="font-size:0.72em;color:var(--sand);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nameText}</div>
             </div>
            </a>`
         : `<div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
             ${avatarHtml}
             <div style="min-width:0;overflow:hidden;">
-                <div style="font-size:0.77em;font-weight:700;color:${squad.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(role.role_name)}">${esc(role.role_name)}${editorBadge}${noTypeBadge}</div>
+                <div style="font-size:0.77em;font-weight:700;color:${squad.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(role.slot_type_name || role.role_name)}">${esc(role.slot_type_name || role.role_name)}${editorBadge}${noTypeBadge}</div>
                 <div style="font-size:0.72em;color:var(--khaki);opacity:0.4;font-style:italic;white-space:nowrap;">empty</div>
             </div>
            </div>`;

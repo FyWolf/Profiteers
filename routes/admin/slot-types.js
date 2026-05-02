@@ -116,20 +116,24 @@ router.post('/delete/:id', async (req, res) => {
 
 // Persist drag-and-drop order
 router.post('/reorder', async (req, res) => {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.json({ success: false, error: 'Invalid order data' });
+    }
+    const conn = await db.getConnection();
     try {
-        const { ids } = req.body;
-        if (!Array.isArray(ids) || ids.length === 0) {
-            return res.json({ success: false, error: 'Invalid order data' });
+        await conn.beginTransaction();
+        for (let idx = 0; idx < ids.length; idx++) {
+            await conn.query('UPDATE slot_types SET display_order = ? WHERE id = ?', [idx, parseInt(ids[idx])]);
         }
-        const updates = ids.map((id, idx) => db.query(
-            'UPDATE slot_types SET display_order = ? WHERE id = ?',
-            [idx, parseInt(id)]
-        ));
-        await Promise.all(updates);
+        await conn.commit();
         res.json({ success: true });
     } catch (error) {
+        await conn.rollback();
         console.error('Error reordering slot types:', error);
         res.json({ success: false, error: 'Failed to save order' });
+    } finally {
+        conn.release();
     }
 });
 
@@ -139,7 +143,6 @@ router.post('/:id/superiors', async (req, res) => {
     try {
         const [rows] = await conn.query('SELECT id FROM slot_types WHERE id = ?', [req.params.id]);
         if (rows.length === 0) {
-            conn.release();
             return res.redirect('/admin/slot-types?error=Slot type not found');
         }
 
@@ -151,18 +154,18 @@ router.post('/:id/superiors', async (req, res) => {
         await conn.query('DELETE FROM slot_type_superiors WHERE slot_type_id = ?', [req.params.id]);
 
         if (selectedIds.length > 0) {
-            const rows = selectedIds.map(supId => [parseInt(req.params.id), supId]);
-            await conn.query('INSERT IGNORE INTO slot_type_superiors (slot_type_id, superior_type_id) VALUES ?', [rows]);
+            const superiorData = selectedIds.map(supId => [parseInt(req.params.id), supId]);
+            await conn.query('INSERT IGNORE INTO slot_type_superiors (slot_type_id, superior_type_id) VALUES ?', [superiorData]);
         }
 
         await conn.commit();
-        conn.release();
         res.redirect('/admin/slot-types?success=Hierarchy updated');
     } catch (error) {
         await conn.rollback();
-        conn.release();
         console.error('Error updating slot type superiors:', error);
         res.redirect('/admin/slot-types?error=Failed to update hierarchy');
+    } finally {
+        conn.release();
     }
 });
 
