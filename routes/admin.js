@@ -18,6 +18,7 @@ router.use('/trainings',  hasPermission('trainings.manage'), require('./admin/tr
 router.use('/roles',      hasPermission('roles.manage'),     require('./admin/roles'));
 router.use('/info',       hasPermission('info.manage'),       require('./admin/info'));
 router.use('/presence',    require('./admin/presence'));
-router.use('/slot-types', hasPermission('orbat.manage'), require('./admin/slot-types'));
+router.use('/slot-types',  hasPermission('orbat.manage'),       require('./admin/slot-types'));
+router.use('/attendance', hasPermission('attendance.manage'), require('./admin/attendance'));
 
 module.exports = router;

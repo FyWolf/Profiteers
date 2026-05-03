@@ -35,7 +35,11 @@
                         <input type="text" name="abbreviation" placeholder="e.g. RFL" maxlength="20"
                                style="width:100%;box-sizing:border-box;padding:7px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.88em;">
                     </div>
-                    <div style="flex:0 0 auto;">
+                    <div style="flex:0 0 auto;display:flex;align-items:center;gap:10px;">
+                        <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.82em;color:var(--khaki);cursor:pointer;white-space:nowrap;">
+                            <input type="checkbox" name="is_leader" style="accent-color:var(--accent);">
+                            Leader
+                        </label>
                         <button type="submit" class="btn btn-primary" style="padding:8px 18px;">Add Type</button>
                     </div>
                 </div>
@@ -60,6 +64,7 @@
                         <th style="padding:10px 6px 10px 14px;text-align:left;width:28px;"></th>
                         <th style="padding:10px 14px;text-align:left;font-size:0.78em;color:var(--khaki);font-weight:600;">TYPE</th>
                         <th style="padding:10px 14px;text-align:left;font-size:0.78em;color:var(--khaki);font-weight:600;">ABBR</th>
+                        <th style="padding:10px 14px;text-align:center;font-size:0.78em;color:var(--khaki);font-weight:600;">LEADER</th>
                         <th style="padding:10px 14px;text-align:center;font-size:0.78em;color:var(--khaki);font-weight:600;">SUPERIORS</th>
                         <th style="padding:10px 14px;text-align:center;font-size:0.78em;color:var(--khaki);font-weight:600;">IN USE</th>
                         <th style="padding:10px 14px;text-align:right;font-size:0.78em;color:var(--khaki);font-weight:600;">ACTIONS</th>
@@ -76,6 +81,13 @@
                         </td>
                         <td style="padding:10px 14px;font-size:0.85em;color:var(--khaki);">
                             <%= t.abbreviation || '—' %>
+                        </td>
+                        <td style="padding:10px 14px;text-align:center;">
+                            <% if (t.is_leader) { %>
+                                <span class="badge" style="background:rgba(252,176,13,0.2);color:var(--accent);font-size:0.72em;">LEADER</span>
+                            <% } else { %>
+                                <span style="color:var(--khaki);font-size:0.8em;opacity:0.4;">—</span>
+                            <% } %>
                         </td>
                         <td style="padding:10px 14px;text-align:center;">
                             <span class="badge" style="background:rgba(107,142,35,0.2);"><%= t.superior_count %></span>
@@ -102,7 +114,7 @@
 
                     <!-- Edit form row -->
                     <tr id="edit-row-<%= t.id %>" style="display:none;background:rgba(0,0,0,0.25);">
-                        <td colspan="6" style="padding:12px 14px;">
+                        <td colspan="7" style="padding:12px 14px;">
                             <form method="POST" action="/admin/slot-types/edit/<%= t.id %>">
                                 <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
                                     <div style="flex:2;min-width:140px;">
@@ -115,7 +127,11 @@
                                         <input type="text" name="abbreviation" value="<%= t.abbreviation || '' %>" maxlength="20"
                                                style="width:100%;box-sizing:border-box;padding:6px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.88em;">
                                     </div>
-                                    <div style="display:flex;gap:6px;flex:0 0 auto;">
+                                    <div style="display:flex;gap:6px;flex:0 0 auto;align-items:center;">
+                                        <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.82em;color:var(--khaki);cursor:pointer;white-space:nowrap;">
+                                            <input type="checkbox" name="is_leader" <%= t.is_leader ? 'checked' : '' %> style="accent-color:var(--accent);">
+                                            Leader
+                                        </label>
                                         <button type="submit" class="btn btn-primary" style="padding:6px 14px;">Save</button>
                                         <button type="button" onclick="toggleEdit(<%= t.id %>)" class="btn" style="padding:6px 10px;">✕</button>
                                     </div>
@@ -126,7 +142,7 @@
 
                     <!-- Superiors form row -->
                     <tr id="superiors-row-<%= t.id %>" style="display:none;background:rgba(0,0,0,0.2);">
-                        <td colspan="6" style="padding:12px 14px;">
+                        <td colspan="7" style="padding:12px 14px;">
                             <form method="POST" action="/admin/slot-types/<%= t.id %>/superiors">
                                 <div style="margin-bottom:8px;font-size:0.82em;color:var(--khaki);">
                                     Direct superiors for <strong style="color:var(--sand);"><%= t.name %></strong>:

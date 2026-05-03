@@ -1362,33 +1362,39 @@ router.post('/api/squads/:squadId/reparent', isAdmin, async (req, res) => {
         const { parentSquadId } = req.body;
         const newParentId = parentSquadId != null ? parseInt(parentSquadId) : null;
 
+        if (isNaN(squadId) || (newParentId !== null && isNaN(newParentId))) {
+            return res.json({ success: false, error: 'Invalid ID' });
+        }
+        if (newParentId === squadId) {
+            return res.json({ success: false, error: 'A group cannot be its own parent' });
+        }
+
         const [squads] = await db.query(
             'SELECT id, orbat_id FROM orbat_squads WHERE id = ?', [squadId]
         );
         if (!squads.length || !squads[0].orbat_id) {
             return res.json({ success: false, error: 'Squad not found or not a template squad' });
         }
-        if (newParentId === squadId) {
-            return res.json({ success: false, error: 'A group cannot be its own parent' });
-        }
 
         if (newParentId !== null) {
-            const [parents] = await db.query(
-                'SELECT id FROM orbat_squads WHERE id = ? AND orbat_id = ?',
-                [newParentId, squads[0].orbat_id]
+            // Load the full template hierarchy once to validate membership and detect cycles in-memory
+            const [allSquads] = await db.query(
+                'SELECT id, parent_squad_id FROM orbat_squads WHERE orbat_id = ?',
+                [squads[0].orbat_id]
             );
-            if (!parents.length) {
+            const parentMap = new Map(allSquads.map(s => [s.id, s.parent_squad_id]));
+
+            if (!parentMap.has(newParentId)) {
                 return res.json({ success: false, error: 'Target parent not in same template' });
             }
-            // Walk up from newParentId to detect circular reference
+
             const visited = new Set();
             let cur = newParentId;
             while (cur) {
                 if (cur === squadId) return res.json({ success: false, error: 'Cannot move a group into its own descendant' });
                 if (visited.has(cur)) break;
                 visited.add(cur);
-                const [row] = await db.query('SELECT parent_squad_id FROM orbat_squads WHERE id = ?', [cur]);
-                cur = row[0]?.parent_squad_id || null;
+                cur = parentMap.get(cur) || null;
             }
         }
 

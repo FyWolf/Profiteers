@@ -5,6 +5,7 @@ const sanitizeHtml = require('sanitize-html');
 const db = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
 const { isZeus, checkZeusStatus } = require('../middleware/zeus');
+const { getLeaderScope } = require('./attendance');
 
 function canDeleteOp(req, res, next) {
     if (!req.isAuthenticated()) {
@@ -233,7 +234,26 @@ router.get('/:id', async (req, res) => {
             canManage = await checkZeusStatus(req.session.userId)
                 || (operation && parseInt(operation.host_id) === parseInt(req.session.userId));
         }
-        
+
+        // Post-op attendance banner flags
+        let attendanceBanner = null;
+        const now = Math.floor(Date.now() / 1000);
+        if (operation.orbat_type === 'fixed' && operation.start_time && operation.start_time < now) {
+            const isAttendanceAdmin = req.session.userId && Array.isArray(req.user?.permissions) && req.user.permissions.includes('attendance.manage');
+            if (isAttendanceAdmin) {
+                attendanceBanner = 'admin';
+            } else if (req.session.userId) {
+                const { isLeader } = await getLeaderScope(req.session.userId, operation.id, db);
+                if (isLeader) {
+                    const [[{ count }]] = await db.query(
+                        'SELECT COUNT(*) AS count FROM orbat_attendance WHERE operation_id = ? AND submitted_by = ?',
+                        [operation.id, req.session.userId]
+                    );
+                    attendanceBanner = count > 0 ? 'submitted' : 'pending';
+                }
+            }
+        }
+
         res.render('operations/view', {
             title: `${operation.title} - Profiteers PMC`,
             operation: operation,
@@ -241,7 +261,8 @@ router.get('/:id', async (req, res) => {
             attendees: attendees,
             userAttendance: userAttendance,
             news: news,
-            canManage: canManage
+            canManage: canManage,
+            attendanceBanner
         });
     } catch (error) {
         console.error('Error loading operation:', error);

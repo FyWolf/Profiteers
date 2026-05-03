@@ -1,0 +1,96 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>ATTENDANCE OVERVIEW</h1>
+        <div class="subtitle"><%= operation.title %></div>
+        <%
+        const allRecords = squads.flatMap(s => s.records);
+        const counts = { present: 0, excused: 0, awol: 0 };
+        allRecords.forEach(r => { if (counts[r.status] !== undefined) counts[r.status]++; });
+        const total = allRecords.length;
+        %>
+        <div class="stat-bar">
+            <div class="stat-chip">
+                <span class="stat-val" style="color:#4caf6e;"><%= counts.present %></span>
+                <span class="stat-lbl">Present</span>
+            </div>
+            <div class="stat-chip">
+                <span class="stat-val" style="color:#5dade2;"><%= counts.excused %></span>
+                <span class="stat-lbl">Excused</span>
+            </div>
+            <div class="stat-chip">
+                <span class="stat-val" style="color:#e86070;"><%= counts.awol %></span>
+                <span class="stat-lbl">AWOL</span>
+            </div>
+            <div class="stat-chip">
+                <span class="stat-val"><%= total %></span>
+                <span class="stat-lbl">Total</span>
+            </div>
+        </div>
+    </header>
+
+    <% if (squads.length === 0) { %>
+        <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <strong>No attendance records yet</strong>
+            <p>No attendance has been submitted for this operation.</p>
+        </div>
+    <% } else { %>
+
+        <% squads.forEach(squad => {
+            const sqCounts = { present: 0, excused: 0, awol: 0 };
+            squad.records.forEach(r => { if (sqCounts[r.status] !== undefined) sqCounts[r.status]++; });
+        %>
+        <div class="panel" style="margin-bottom:18px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+                <h3 style="margin:0;font-size:0.92em;color:var(--accent);letter-spacing:0.06em;"><%= squad.squad_name %></h3>
+                <div style="display:flex;gap:8px;">
+                    <span style="font-size:0.78em;color:#4caf6e;"><%= sqCounts.present %> present</span>
+                    <span style="font-size:0.78em;color:var(--khaki);opacity:0.5;">·</span>
+                    <span style="font-size:0.78em;color:#5dade2;"><%= sqCounts.excused %> excused</span>
+                    <span style="font-size:0.78em;color:var(--khaki);opacity:0.5;">·</span>
+                    <span style="font-size:0.78em;color:#e86070;"><%= sqCounts.awol %> AWOL</span>
+                </div>
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:1px solid rgba(107,142,35,0.3);">
+                        <th style="padding:8px 10px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">PLAYER</th>
+                        <th style="padding:8px 10px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">SLOT</th>
+                        <th style="padding:8px 10px;text-align:center;font-size:0.75em;color:var(--khaki);font-weight:600;">STATUS</th>
+                        <th style="padding:8px 10px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">NOTES</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <% squad.records.forEach(r => { %>
+                    <tr style="border-bottom:1px solid rgba(107,142,35,0.1);">
+                        <td style="padding:9px 10px;font-size:0.88em;color:var(--sand);">
+                            <%= r.discord_global_name || r.username || '—' %>
+                        </td>
+                        <td style="padding:9px 10px;font-size:0.82em;color:var(--khaki);">
+                            <% if (r.slot_type_abbr) { %><span class="badge" style="background:rgba(107,142,35,0.2);"><%= r.slot_type_abbr %></span> <% } %><%= r.slot_type_name %>
+                        </td>
+                        <td style="padding:9px 10px;text-align:center;">
+                            <% const statusColors = { present: '#4caf6e', late: 'var(--accent)', excused: '#5dade2', awol: '#e86070' }; %>
+                            <span class="badge" style="color:<%= statusColors[r.status] || 'var(--khaki)' %>;background:rgba(40,40,40,0.6);border:1px solid <%= statusColors[r.status] || 'rgba(107,142,35,0.3)' %>;">
+                                <%= r.status === 'awol' ? 'AWOL' : r.status.charAt(0).toUpperCase() + r.status.slice(1) %>
+                            </span>
+                        </td>
+                        <td style="padding:9px 10px;font-size:0.82em;color:var(--khaki);"><%= r.notes || '' %></td>
+                    </tr>
+                <% }); %>
+                </tbody>
+            </table>
+        </div>
+        <% }); %>
+
+    <% } %>
+
+    <div style="display:flex;gap:10px;margin-top:6px;">
+        <a href="/operations/<%= operation.id %>/post-op" class="btn btn-primary" style="padding:9px 18px;">Submit / Edit Attendance</a>
+        <a href="/operations/<%= operation.id %>" class="btn" style="padding:9px 18px;">← Back to Op</a>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

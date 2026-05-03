@@ -341,6 +341,20 @@
             </div>
             <% } %>
 
+            <% if (can('attendance.manage')) { %>
+            <div class="manage-card">
+                <div class="manage-card-top">
+                    <span class="manage-icon">📋</span>
+                    <div class="manage-badge"><%= stats.attendance_records || 0 %><span class="manage-badge-sub">records</span></div>
+                </div>
+                <div class="manage-title">Attendance</div>
+                <div class="manage-desc">View post-operation attendance records submitted by squad and platoon leaders.</div>
+                <div class="manage-card-footer">
+                    <a href="/admin/attendance" class="manage-link primary">View Report</a>
+                </div>
+            </div>
+            <% } %>
+
             <div class="manage-card">
                 <div class="manage-card-top"><span class="manage-icon">🎯</span></div>
                 <div class="manage-title">Operations</div>
