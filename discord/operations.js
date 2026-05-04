@@ -287,7 +287,22 @@ async function postOperationNews(client, operation, newsContent, author, ping) {
             }
         }
 
-        const cleanContent = htmlToMarkdown(newsContent) || null;
+        const fileRegex = /<a[^>]*href=["']([^"']+)["'][^>]*>/gi;
+        let fileMatch;
+        while ((fileMatch = fileRegex.exec(newsContent)) !== null) {
+            const href = fileMatch[1];
+            if (href.startsWith('/uploads/')) {
+                try {
+                    const filePath = path.join(__dirname, '../public', href);
+                    const buffer = fs.readFileSync(filePath);
+                    const safeName = safeAttachmentName(path.basename(href));
+                    discordFiles.push(new AttachmentBuilder(buffer, { name: safeName }));
+                } catch (e) {
+                }
+            }
+        }
+
+        const cleanContent = htmlToMarkdown(newsContent.replace(/<a[^>]*href=["']\/uploads\/[^"']*["'][^>]*>.*?<\/a>/gi, '')) || null;
 
         const embed = new EmbedBuilder()
             .setTitle('📰 Operation Update')

@@ -19,7 +19,7 @@ const NEWS_ALLOWED_TAGS = [
     'h1', 'h2', 'h3', 'blockquote', 'a', 'img', 'span', 'div'
 ];
 const NEWS_ALLOWED_ATTRS = {
-    'a': ['href', 'target', 'rel'],
+    'a': ['href', 'target', 'rel', 'class'],
     'img': ['src', 'alt', 'width', 'height'],
     'span': ['style'],
     'div': ['style'],
@@ -541,6 +541,61 @@ router.post('/manage/delete/:id', canDeleteOp, async (req, res) => {
     } catch (error) {
         console.error('Error deleting operation:', error);
         res.redirect('/operations/manage/list?error=Failed to delete operation');
+    }
+});
+
+router.post('/:id/news/file', isAuthenticated, async (req, res) => {
+    try {
+        const [opCheck] = await db.query('SELECT host_id FROM operations WHERE id = ?', [req.params.id]);
+        if (!opCheck.length) return res.json({ success: false, error: 'Operation not found' });
+
+        const isZeusUser = await checkZeusStatus(req.session.userId);
+        const isHost = parseInt(opCheck[0].host_id) === parseInt(req.session.userId);
+        if (!isZeusUser && !isHost) return res.status(403).json({ success: false, error: 'Access denied' });
+
+        if (!req.files || !req.files.file) return res.json({ success: false, error: 'No file uploaded' });
+
+        const file = req.files.file;
+        const blockedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+        if (blockedTypes.includes(file.mimetype)) return res.json({ success: false, error: 'Use the image button for images' });
+
+        const fileExt = path.extname(file.name).replace(/[^a-z0-9.]/gi, '').toLowerCase();
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const fileName = `op${req.params.id}_${Date.now()}_${safeName}`;
+        const uploadPath = path.join(__dirname, '../public/uploads/', fileName);
+        await file.mv(uploadPath);
+
+        res.json({ success: true, url: '/uploads/' + fileName, name: file.name });
+    } catch (error) {
+        console.error('Error uploading news file:', error);
+        res.json({ success: false, error: 'Upload failed' });
+    }
+});
+
+router.post('/:id/news/image', isAuthenticated, async (req, res) => {
+    try {
+        const [opCheck] = await db.query('SELECT host_id FROM operations WHERE id = ?', [req.params.id]);
+        if (!opCheck.length) return res.json({ success: false, error: 'Operation not found' });
+
+        const isZeusUser = await checkZeusStatus(req.session.userId);
+        const isHost = parseInt(opCheck[0].host_id) === parseInt(req.session.userId);
+        if (!isZeusUser && !isHost) return res.status(403).json({ success: false, error: 'Access denied' });
+
+        if (!req.files || !req.files.image) return res.json({ success: false, error: 'No file uploaded' });
+
+        const file = req.files.image;
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedTypes.includes(file.mimetype)) return res.json({ success: false, error: 'Invalid file type' });
+
+        const fileExt = path.extname(file.name).replace(/[^a-z0-9.]/gi, '').toLowerCase();
+        const fileName = `news_${req.params.id}_${Date.now()}${fileExt}`;
+        const uploadPath = path.join(__dirname, '../public/images/news/', fileName);
+        await file.mv(uploadPath);
+
+        res.json({ success: true, url: '/images/news/' + fileName });
+    } catch (error) {
+        console.error('Error uploading news image:', error);
+        res.json({ success: false, error: 'Upload failed' });
     }
 });
 

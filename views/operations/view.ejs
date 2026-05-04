@@ -128,6 +128,11 @@ function timestampToUTC(timestamp) {
                         <h3 style="color:#9B59B6;margin-bottom:12px;font-size:0.95em;">📢 Post News Update</h3>
                         <form id="newsForm">
                             <div id="editor" style="min-height:160px;background:white;color:black;padding:12px;border-radius:4px;margin-bottom:12px;"></div>
+                            <input type="file" id="newsFileInput" style="display:none;" accept="*/*">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                                <button type="button" class="btn" style="font-size:0.85em;padding:6px 12px;white-space:nowrap;" onclick="document.getElementById('newsFileInput').click()">📎 Attach file</button>
+                                <span id="newsFileName" style="font-size:0.82em;color:var(--khaki);opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+                            </div>
                             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
                                 <label style="display:flex;align-items:center;gap:6px;font-size:0.88em;color:var(--khaki);cursor:pointer;white-space:nowrap;">
                                     <input type="checkbox" id="newsPing" style="accent-color:#9B59B6;">
@@ -325,23 +330,66 @@ async function setAttendance(status) {
 const quill = new Quill('#editor', {
     theme: 'snow',
     modules: {
-        toolbar: [
-            ['bold', 'italic', 'underline', 'strike'],
-            ['blockquote', 'code-block'],
-            [{ 'header': 1 }, { 'header': 2 }],
-            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-            [{ 'color': [] }, { 'background': [] }],
-            ['link', 'image'],
-            ['clean']
-        ]
+        toolbar: {
+            container: [
+                ['bold', 'italic', 'underline', 'strike'],
+                ['blockquote', 'code-block'],
+                [{ 'header': 1 }, { 'header': 2 }],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                [{ 'color': [] }, { 'background': [] }],
+                ['link', 'image'],
+                ['clean']
+            ],
+            handlers: {
+                image: function() {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = async () => {
+                        const file = input.files[0];
+                        if (!file) return;
+                        const formData = new FormData();
+                        formData.append('image', file);
+                        try {
+                            const res = await fetch('/operations/<%= operation.id %>/news/image', { method: 'POST', body: formData });
+                            const data = await res.json();
+                            if (data.success) {
+                                const range = quill.getSelection(true);
+                                quill.insertEmbed(range.index, 'image', data.url);
+                                quill.setSelection(range.index + 1);
+                            } else {
+                                alert('Image upload failed: ' + (data.error || 'Unknown error'));
+                            }
+                        } catch (err) {
+                            alert('Image upload failed');
+                        }
+                    };
+                    input.click();
+                }
+            }
+        }
     }
+});
+
+document.getElementById('newsFileInput').addEventListener('change', () => {
+    const file = document.getElementById('newsFileInput').files[0];
+    document.getElementById('newsFileName').textContent = file ? file.name : '';
 });
 
 document.getElementById('newsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const content = quill.root.innerHTML;
+    let content = quill.root.innerHTML;
     if (!content || content === '<p><br></p>') { alert('Please enter some content'); return; }
     try {
+        const fileInput = document.getElementById('newsFileInput');
+        if (fileInput.files[0]) {
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            const upRes = await fetch('/operations/<%= operation.id %>/news/file', { method: 'POST', body: formData });
+            const upData = await upRes.json();
+            if (!upData.success) { alert('File upload failed: ' + (upData.error || 'Unknown error')); return; }
+            content += `<p><a href="${upData.url}" target="_blank" class="news-attachment">📎 ${upData.name}</a></p>`;
+        }
         const ping = document.getElementById('newsPing')?.checked || false;
         const response = await fetch('/operations/<%= operation.id %>/news', {
             method: 'POST',

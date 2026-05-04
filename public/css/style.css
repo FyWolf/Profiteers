@@ -1593,4 +1593,10 @@ emoji-picker.dark { color-scheme: dark; }
 
 /* ── Modpack view ── */
 .mod-row:hover { background: rgba(209,143,33,0.08) !important; }
+
+/* ── Operation news attachments ── */
+.news-content a[href^="/uploads/"],
+.news-attachment { display:inline-flex; align-items:center; gap:6px; margin-top:6px; padding:6px 12px; background:rgba(107,142,35,0.1); border:1px solid rgba(107,142,35,0.35); border-radius:6px; color:var(--accent); font-size:0.88em; text-decoration:none; transition:background 0.15s, border-color 0.15s; word-break:break-all; }
+.news-content a[href^="/uploads/"]:hover,
+.news-attachment:hover { background:rgba(107,142,35,0.2); border-color:var(--accent); color:var(--sand); }
 th[onclick]:hover { color: var(--accent) !important; }
