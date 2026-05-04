@@ -340,7 +340,7 @@ async function sendOperationReminder(client, operation, timeUntil) {
             .addFields(
                 {
                     name: '🕐 Start Time',
-                    value: `<t:${operation.start_timestamp}:R>`,
+                    value: `<t:${operation.start_time}:R>`,
                     inline: false
                 },
                 {
