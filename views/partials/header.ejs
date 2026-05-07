@@ -58,12 +58,6 @@ const __articleMod   = locals.articleModified  || null;
     <meta property="article:modified_time"  content="<%= __articleMod %>">
     <% } %>
 
-    <%# ─── Twitter / X ────────────────────────────────────────────── %>
-    <meta name="twitter:card"        content="summary_large_image">
-    <meta name="twitter:title"       content="<%= __title %>">
-    <% if (__description) { %><meta name="twitter:description" content="<%= __description %>"><% } %>
-    <meta name="twitter:image"       content="<%= __image %>">
-
     <%# ─── JSON-LD structured data ────────────────────────────────── %>
     <% if (__jsonLd) { %>
     <script type="application/ld+json"><%- typeof __jsonLd === 'string' ? __jsonLd : JSON.stringify(__jsonLd) %></script>

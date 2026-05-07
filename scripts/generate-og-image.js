@@ -46,7 +46,7 @@ const SAND      = '#f4f3e8';
           text-anchor="middle" letter-spacing="6">PROFITEERS PMC</text>
     <text x="${W / 2}" y="${H - 60}" font-size="22" font-weight="400"
           fill="#b2b27d" text-anchor="middle" letter-spacing="3">
-      LGBTQ+ ARMA 3 MILSIM UNIT
+      LGBTQ+ ARMA 3 TACTICAL UNIT
     </text>
   </g>
 </svg>`;

@@ -4,7 +4,7 @@
 
 const SITE_NAME = 'Profiteers PMC';
 const DEFAULT_DESCRIPTION =
-    'Profiteers PMC — LGBTQ+ inclusive Arma 3 milsim unit. Operations, ORBAT, modpacks and tooling.';
+    'Profiteers PMC — LGBTQ+ inclusive Arma 3 tactical unit. Operations, ORBAT, modpacks and tooling.';
 const DEFAULT_IMAGE = '/images/og-image.png';
 
 // Paths that should never be indexed (admin tools, account pages, auth flows).

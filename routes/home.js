@@ -12,11 +12,11 @@ router.get('/', (req, res) => {
         name:       'Profiteers PMC',
         url:        siteUrl || undefined,
         logo:       (siteUrl || '') + '/logo.png',
-        description:'LGBTQ+ inclusive Arma 3 milsim unit running scheduled cooperative operations.',
+        description:'LGBTQ+ inclusive Arma 3 tactical unit running scheduled cooperative operations.',
     };
     res.render('index', {
-        title: 'Profiteers PMC — LGBTQ+ Arma 3 Milsim Unit',
-        description: 'Profiteers PMC is an LGBTQ+ inclusive Arma 3 milsim unit. Join our scheduled operations, browse our ORBAT, modpacks and tools.',
+        title: 'Profiteers PMC — LGBTQ+ Arma 3 Tactical Unit',
+        description: 'Profiteers PMC is an LGBTQ+ inclusive Arma 3 tactical unit. Join our scheduled operations, browse our ORBAT, modpacks and tools.',
         jsonLd: orgJsonLd,
     });
 });
@@ -37,14 +37,14 @@ router.get('/join', async (req, res) => {
 
         res.render('join', {
             title: 'Join Profiteers PMC',
-            description: 'How to join Profiteers PMC — requirements, training pipeline, and the application process for our Arma 3 milsim unit.',
+            description: 'How to join Profiteers PMC — requirements, training pipeline, and the application process for our LGBTQ+ Arma 3 tactical unit.',
             trainings: trainings
         });
     } catch (error) {
         console.error('Error loading trainings:', error);
         res.render('join', {
             title: 'Join Profiteers PMC',
-            description: 'How to join Profiteers PMC — requirements, training pipeline, and the application process for our Arma 3 milsim unit.',
+            description: 'How to join Profiteers PMC — requirements, training pipeline, and the application process for our LGBTQ+ Arma 3 tactical unit.',
             trainings: []
         });
     }
