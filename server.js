@@ -21,6 +21,7 @@ if (missing.length > 0) {
 
 const { attachUser } = require('./middleware/auth');
 const { trackPageView } = require('./middleware/analytics');
+const { attachSeoDefaults } = require('./middleware/seo');
 const passport = require('./config/passport.js');
 
 
@@ -106,8 +107,10 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use(attachUser);
+app.use(attachSeoDefaults);
 app.use(trackPageView);
 
+app.use('/', require('./routes/sitemap'));
 app.use('/', homeRoutes);
 app.use('/', authRoutes);
 app.use('/auth', discordAuthRoutes);

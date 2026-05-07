@@ -78,7 +78,8 @@ router.get('/upcoming', async (req, res) => {
         const [operations] = await db.query(query, params);
         
         res.render('operations/upcoming', {
-            title: 'Upcoming Operations - Profiteers PMC',
+            title: 'Upcoming Operations — Profiteers PMC',
+            description: 'Browse upcoming Profiteers PMC Arma 3 operations. RSVP, view briefings, and join the next mission.',
             operations: operations,
             search: search
         });
@@ -120,7 +121,8 @@ router.get('/all', async (req, res) => {
         const [operations] = await db.query(query, params);
         
         res.render('operations/all', {
-            title: 'All Operations - Profiteers PMC',
+            title: 'All Operations — Profiteers PMC',
+            description: 'Complete archive of past and upcoming Profiteers PMC Arma 3 operations.',
             operations: operations,
             search: search
         });
@@ -234,8 +236,37 @@ router.get('/:id', async (req, res) => {
                 || (operation && parseInt(operation.host_id) === parseInt(req.session.userId));
         }
         
+        const siteUrl = (process.env.WEBSITE_URL || '').replace(/\/$/, '');
+        const plainDesc = (operation.description || '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 200);
+        const ogImage = operation.banner_url
+            ? (operation.banner_url.startsWith('http') ? operation.banner_url : (siteUrl + operation.banner_url))
+            : null;
+        const eventJsonLd = {
+            '@context': 'https://schema.org',
+            '@type':    'Event',
+            name:        operation.title,
+            description: plainDesc || undefined,
+            startDate:   operation.start_time ? new Date(operation.start_time * 1000).toISOString() : undefined,
+            endDate:     operation.end_time   ? new Date(operation.end_time   * 1000).toISOString() : undefined,
+            eventAttendanceMode: 'https://schema.org/OnlineEventAttendanceMode',
+            eventStatus: 'https://schema.org/EventScheduled',
+            image:       ogImage || undefined,
+            organizer:   { '@type': 'Organization', name: 'Profiteers PMC', url: siteUrl || undefined },
+            location:    { '@type': 'VirtualLocation', url: siteUrl + '/operations/' + operation.id },
+        };
+
         res.render('operations/view', {
-            title: `${operation.title} - Profiteers PMC`,
+            title: `${operation.title} — Profiteers PMC`,
+            description: plainDesc || `Operation briefing for ${operation.title}.`,
+            image: ogImage || undefined,
+            ogType: 'article',
+            articlePublished: operation.created_at ? new Date(operation.created_at).toISOString() : undefined,
+            articleModified:  operation.updated_at ? new Date(operation.updated_at).toISOString() : undefined,
+            jsonLd: eventJsonLd,
             operation: operation,
             attendanceCounts: attendanceCounts,
             attendees: attendees,

@@ -1,9 +1,75 @@
+<%
+// ─── SEO & embed metadata ────────────────────────────────────────────────
+// Defaults come from middleware via res.locals (site.url, site.name, etc.).
+// Pages can override by passing description/image/canonical/ogType/noIndex
+// when including this partial. Anything not passed falls back to defaults.
+const __site         = locals.site || {};
+const __siteUrl      = __site.url      || '';
+const __siteName     = __site.name     || 'Profiteers PMC';
+const __defaultDesc  = __site.defaultDescription || '';
+const __defaultImg   = __site.defaultImage       || '/logo.png';
+
+const __title        = locals.title || __siteName;
+const __description  = locals.description || __defaultDesc;
+const __ogType       = locals.ogType      || 'website';
+const __noIndex      = !!locals.noIndex;
+let   __canonical    = locals.canonical || ((typeof currentPath !== 'undefined' && currentPath) ? currentPath : '/');
+if (__siteUrl && __canonical && __canonical.startsWith('/')) __canonical = __siteUrl + __canonical;
+
+let   __image        = locals.image || __defaultImg;
+if (__siteUrl && __image && __image.startsWith('/')) __image = __siteUrl + __image;
+
+const __jsonLd       = locals.jsonLd || null;
+const __articlePub   = locals.articlePublished || null;
+const __articleMod   = locals.articleModified  || null;
+%>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
+    <title><%= __title %></title>
+
+    <%# ─── SEO ─────────────────────────────────────────────────────── %>
+    <% if (__description) { %>
+    <meta name="description" content="<%= __description %>">
+    <% } %>
+    <% if (__noIndex) { %>
+    <meta name="robots" content="noindex, nofollow">
+    <% } else { %>
+    <meta name="robots" content="index, follow">
+    <% } %>
+    <link rel="canonical" href="<%= __canonical %>">
+    <meta name="theme-color" content="#1a2a1a">
+
+    <%# ─── Open Graph (Facebook, Discord, Slack, LinkedIn, …) ─────── %>
+    <meta property="og:site_name"  content="<%= __siteName %>">
+    <meta property="og:type"       content="<%= __ogType %>">
+    <meta property="og:title"      content="<%= __title %>">
+    <% if (__description) { %><meta property="og:description" content="<%= __description %>"><% } %>
+    <meta property="og:url"        content="<%= __canonical %>">
+    <meta property="og:image"      content="<%= __image %>">
+    <meta property="og:image:alt"  content="<%= __siteName %>">
+    <meta property="og:locale"     content="en_US">
+    <% if (__ogType === 'article' && __articlePub) { %>
+    <meta property="article:published_time" content="<%= __articlePub %>">
+    <% } %>
+    <% if (__ogType === 'article' && __articleMod) { %>
+    <meta property="article:modified_time"  content="<%= __articleMod %>">
+    <% } %>
+
+    <%# ─── Twitter / X ────────────────────────────────────────────── %>
+    <meta name="twitter:card"        content="summary_large_image">
+    <meta name="twitter:title"       content="<%= __title %>">
+    <% if (__description) { %><meta name="twitter:description" content="<%= __description %>"><% } %>
+    <meta name="twitter:image"       content="<%= __image %>">
+
+    <%# ─── JSON-LD structured data ────────────────────────────────── %>
+    <% if (__jsonLd) { %>
+    <script type="application/ld+json"><%- typeof __jsonLd === 'string' ? __jsonLd : JSON.stringify(__jsonLd) %></script>
+    <% } %>
+
+    <link rel="icon" href="/favicon.ico" sizes="any">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
     <script>
