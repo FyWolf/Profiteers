@@ -318,6 +318,17 @@
             </div>
             <% } %>
 
+            <% if (can('map.plans.admin')) { %>
+            <div class="manage-card">
+                <div class="manage-card-top"><span class="manage-icon">🗺</span></div>
+                <div class="manage-title">Map Plans &amp; Terrains</div>
+                <div class="manage-desc">Manage user-created map plans, transfer ownership, and import terrain zips.</div>
+                <div class="manage-card-footer">
+                    <a href="/admin/map-plans" class="manage-link primary">Manage</a>
+                </div>
+            </div>
+            <% } %>
+
             <div class="manage-card">
                 <div class="manage-card-top"><span class="manage-icon">📋</span></div>
                 <div class="manage-title">ORBATs</div>

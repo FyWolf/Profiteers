@@ -16,6 +16,7 @@
   "author": "Profiteers PMC",
   "license": "MIT",
   "dependencies": {
+    "adm-zip": "^0.5.17",
     "axios": "^1.15.2",
     "bcryptjs": "^3.0.3",
     "discord.js": "^14.26.3",

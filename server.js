@@ -36,6 +36,7 @@ const orbatRoutes = require('./routes/orbat');
 const loaRoutes = require('./routes/loa');
 const operationsRoutes = require('./routes/operations');
 const operationsMapRoutes = require('./routes/operations-map');
+const mapPlansRoutes = require('./routes/map-plans');
 const { discordClient, initializeDiscord } = require('./discord');
 const modpacksRoutes = require('./routes/modpacks');
 const infoRoutes = require('./routes/info');
@@ -57,11 +58,21 @@ app.use(helmet({
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(fileUpload({
+// Default file-upload middleware with a 10 MB cap. Routes that need to accept
+// larger uploads (e.g. terrain zips) are listed here as exceptions and mount
+// their own per-route fileUpload middleware with different limits.
+const FILE_UPLOAD_EXCEPTIONS = [
+    '/admin/map-plans/terrains/import',
+];
+const defaultFileUpload = fileUpload({
     limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024 },
     abortOnLimit: true,
     createParentPath: false
-}));
+});
+app.use((req, res, next) => {
+    if (FILE_UPLOAD_EXCEPTIONS.includes(req.path)) return next();
+    return defaultFileUpload(req, res, next);
+});
 
 const sessionStore = new MySQLStore({
     host:     process.env.DB_HOST || 'localhost',
@@ -106,6 +117,7 @@ app.use('/profile', profileRoutes);
 app.use('/admin', adminRoutes);
 app.use('/operations', operationsMapRoutes);
 app.use('/operations', operationsRoutes);
+app.use('/plans', mapPlansRoutes);
 app.use('/orbat', orbatRoutes);
 app.use('/loa', loaRoutes);
 app.use('/roster', rosterRoutes);
