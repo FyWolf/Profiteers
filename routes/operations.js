@@ -225,7 +225,7 @@ router.get('/:id', async (req, res) => {
                 u.discord_avatar,
                 u.discord_id
             FROM operation_news opn
-            JOIN users u ON opn.posted_by = u.id
+            LEFT JOIN users u ON opn.posted_by = u.id
             WHERE opn.operation_id = ?
             ORDER BY opn.posted_at DESC
         `, [req.params.id]);
