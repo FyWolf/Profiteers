@@ -24,7 +24,6 @@ function stopReminderScheduler() {
 async function checkUpcomingOperations(client) {
     const now = Math.floor(Date.now() / 1000);
     const oneHourLater = now + (65 * 60);
-    const fifteenMinLater = now + (20 * 60);
 
     try {
         const [operations] = await db.query(`
@@ -49,7 +48,7 @@ async function checkUpcomingOperations(client) {
                 }
             }
 
-            if (minutesUntil >= 10 && minutesUntil <= 20) {
+            if (minutesUntil >= 11 && minutesUntil <= 15) {
                 const reminderKey = `${operation.id}-15m`;
                 if (!sentReminders.has(reminderKey)) {
                     await sendOperationReminder(client, operation, 'in 15 minutes');
