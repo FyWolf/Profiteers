@@ -431,6 +431,35 @@ html, body {
 /* ─── Drawing preview ────────────────────────────────────────────── */
 .preview-line { stroke-dasharray: 6 4; opacity: 0.6; }
 
+/* ─── Measure tool labels ────────────────────────────────────────── */
+.leaflet-div-icon.measure-label-wrap { background: none; border: none; }
+.measure-seg-inner, .measure-total-inner {
+    position: absolute;
+    background: rgba(0,0,0,0.82);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font: 700 11px 'Roboto Mono', monospace;
+    border-radius: 3px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.55);
+    white-space: nowrap;
+    pointer-events: none;
+}
+.measure-seg-inner {
+    transform: translate(-50%, -50%);
+    padding: 1px 6px;
+}
+.measure-total-inner {
+    left: 12px; top: -12px;
+    padding: 3px 8px;
+    line-height: 1.35;
+}
+.measure-total-inner .tot {
+    color: var(--olive-light);
+    border-top: 1px solid rgba(252,176,13,0.35);
+    margin-top: 2px;
+    padding-top: 2px;
+}
+
 /* ─── Layer-edit modal ───────────────────────────────────────────── */
 #layer-modal {
     display: none; position: fixed; inset: 0; z-index: 3000;
@@ -730,9 +759,9 @@ html, body {
 
     <!-- Map -->
     <div id="map-wrap">
-        <!-- Drawing toolbar (edit mode only) -->
-        <% if (canEdit) { %>
+        <!-- Drawing toolbar -->
         <div id="toolbar">
+            <% if (canEdit) { %>
             <button class="tb-btn active" id="tb-select" title="Select / pan (Esc)">✦ Select</button>
             <button class="tb-btn" id="tb-nato"   title="Place NATO marker (M)">📍 Marker</button>
             <div class="tb-sep"></div>
@@ -742,6 +771,10 @@ html, body {
             <button class="tb-btn" id="tb-circle" title="Draw circle (C) — click center then edge">⊙ Circle</button>
             <button class="tb-btn" id="tb-text"   title="Place text label (T)">T Text</button>
             <div class="tb-sep"></div>
+            <% } %>
+            <button class="tb-btn" id="tb-measure" title="Measure distance (D) — click points, right-click to finish, Esc clears">📏 Measure</button>
+            <% if (canEdit) { %>
+            <div class="tb-sep"></div>
             <div id="color-picker-wrap">
                 <label>Color</label>
                 <input type="color" id="draw-color" value="#e74c3c" title="Stroke / fill color">
@@ -750,8 +783,8 @@ html, body {
             <input type="range" id="draw-weight" min="1" max="8" value="2" title="Line weight">
             <div class="tb-sep"></div>
             <button class="tb-btn" id="tb-undo" title="Undo last point (Backspace while drawing)">↩ Undo</button>
+            <% } %>
         </div>
-        <% } %>
 
         <div id="map">
             <div id="map-placeholder">
@@ -795,6 +828,7 @@ html, body {
                 <div class="hint-row"><span class="hint-key">R</span><span class="hint-desc">Draw rectangle</span></div>
                 <div class="hint-row"><span class="hint-key">C</span><span class="hint-desc">Draw circle</span></div>
                 <div class="hint-row"><span class="hint-key">T</span><span class="hint-desc">Place text label</span></div>
+                <div class="hint-row"><span class="hint-key">D</span><span class="hint-desc">Measure distance</span></div>
                 <div class="hint-sep">While drawing (Line / Polygon)</div>
                 <div class="hint-row"><span class="hint-key">Click</span><span class="hint-desc">Add a point</span></div>
                 <div class="hint-row"><span class="hint-key">Right-click</span><span class="hint-desc">Finish shape</span></div>
@@ -1226,6 +1260,13 @@ let circCenter  = null;   // center for circle
 let previewRect = null;
 let previewCirc = null;
 
+// Measure tool state
+let measurePoints   = [];
+let measureLine     = null;
+let measurePreview  = null;
+let measureLabels   = [];
+let measureFinished = false;
+
 // Selected annotation
 let selectedId      = null;
 let selectedLayerId = null;
@@ -1334,12 +1375,10 @@ function initMap() {
 
     map.on('move zoom moveend zoomend', updateMinimap);
 
-    if (CAN_EDIT) {
-        map.on('click',        onMapClick);
-        map.on('dblclick',     onMapDblClick);
-        map.on('mousemove',    onMapMouseMove);
-        map.on('contextmenu',  onMapContextMenu);
-    }
+    map.on('click',        onMapClick);
+    map.on('dblclick',     onMapDblClick);
+    map.on('mousemove',    onMapMouseMove);
+    map.on('contextmenu',  onMapContextMenu);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -1463,7 +1502,7 @@ async function loadWorldConfig(worldName) {
         // Fit map to world bounds
         const maxDeg    = worldConfig.worldSize / METERS_PER_DEGREE;
         const mapBounds = L.latLngBounds([0, 0], [maxDeg, maxDeg]);
-        map.setMaxBounds(mapBounds.pad(0.05));
+        map.setMaxBounds(mapBounds.pad(1));
         map.setMinZoom(worldConfig.minZoom);
         map.setMaxZoom(worldConfig.maxZoom);
         map.fitBounds(mapBounds);
@@ -2279,7 +2318,8 @@ function setDrawMode(mode) {
 
     document.querySelectorAll('.tb-btn').forEach(b => b.classList.remove('active'));
     const id = { select:'tb-select', nato_marker:'tb-nato', polyline:'tb-line',
-                 polygon:'tb-poly', rectangle:'tb-rect', circle:'tb-circle', text:'tb-text' }[mode];
+                 polygon:'tb-poly', rectangle:'tb-rect', circle:'tb-circle', text:'tb-text',
+                 measure:'tb-measure' }[mode];
     document.getElementById(id)?.classList.add('active');
 
     const mapEl = document.getElementById('map');
@@ -2299,6 +2339,80 @@ function cancelDrawing() {
     if (previewLine)  { map.removeLayer(previewLine);  previewLine  = null; }
     if (previewRect)  { map.removeLayer(previewRect);  previewRect  = null; }
     if (previewCirc)  { map.removeLayer(previewCirc);  previewCirc  = null; }
+    clearMeasure();
+}
+
+/* ─── Measure tool ──────────────────────────────────────────────── */
+function formatMeters(m) {
+    if (m >= 1000) return (m / 1000).toFixed(2) + ' km';
+    return Math.round(m) + ' m';
+}
+
+function makeMeasureLabel(latlng, html, isTotal) {
+    return L.marker(latlng, {
+        icon: L.divIcon({
+            html: `<div class="${isTotal ? 'measure-total-inner' : 'measure-seg-inner'}">${html}</div>`,
+            className: 'measure-label-wrap',
+            iconSize: [0, 0],
+            iconAnchor: [0, 0],
+        }),
+        interactive: false,
+        keyboard: false,
+    }).addTo(map);
+}
+
+function clearMeasure() {
+    if (measureLine)    { map.removeLayer(measureLine);    measureLine    = null; }
+    if (measurePreview) { map.removeLayer(measurePreview); measurePreview = null; }
+    measureLabels.forEach(m => map.removeLayer(m));
+    measureLabels   = [];
+    measurePoints   = [];
+    measureFinished = false;
+}
+
+function refreshMeasure(cursorLatLng) {
+    if (measureLine)    { map.removeLayer(measureLine);    measureLine    = null; }
+    if (measurePreview) { map.removeLayer(measurePreview); measurePreview = null; }
+    measureLabels.forEach(m => map.removeLayer(m));
+    measureLabels = [];
+
+    if (measurePoints.length === 0) return;
+
+    if (measurePoints.length >= 2) {
+        measureLine = L.polyline(measurePoints, {
+            color: '#fcb00d', weight: 3, opacity: 0.95, interactive: false,
+        }).addTo(map);
+    }
+
+    if (cursorLatLng) {
+        const last = measurePoints[measurePoints.length - 1];
+        measurePreview = L.polyline([last, cursorLatLng], {
+            color: '#fcb00d', weight: 2, dashArray: '5 4', opacity: 0.7, interactive: false,
+        }).addTo(map);
+    }
+
+    let total = 0;
+    for (let i = 1; i < measurePoints.length; i++) {
+        const a = measurePoints[i - 1];
+        const b = measurePoints[i];
+        const d = map.distance(a, b);
+        total += d;
+        const mid = L.latLng((a.lat + b.lat) / 2, (a.lng + b.lng) / 2);
+        measureLabels.push(makeMeasureLabel(mid, formatMeters(d), false));
+    }
+
+    if (cursorLatLng) {
+        const last = measurePoints[measurePoints.length - 1];
+        const d = map.distance(last, cursorLatLng);
+        const liveTotal = total + d;
+        const html = measurePoints.length >= 2
+            ? `<div>seg ${formatMeters(d)}</div><div class="tot">total ${formatMeters(liveTotal)}</div>`
+            : formatMeters(d);
+        measureLabels.push(makeMeasureLabel(cursorLatLng, html, true));
+    } else if (measurePoints.length >= 2) {
+        const last = measurePoints[measurePoints.length - 1];
+        measureLabels.push(makeMeasureLabel(last, `total ${formatMeters(total)}`, true));
+    }
 }
 
 function onMapClick(e) {
@@ -2312,6 +2426,16 @@ function onMapClick(e) {
         placeSquadMarker(e.latlng, squadPlacingSquad);
         return;
     }
+
+    // Measure tool — doesn't need a layer, available in view mode too
+    if (drawMode === 'measure') {
+        if (measureFinished) clearMeasure();
+        measurePoints.push(e.latlng);
+        refreshMeasure(e.latlng);
+        return;
+    }
+
+    if (!CAN_EDIT) return;
 
     if (!activeLayerId) {
         alert('Please select or create a layer first.');
@@ -2384,6 +2508,13 @@ function onMapClick(e) {
 }
 
 function finishDrawing() {
+    if (drawMode === 'measure') {
+        if (measurePoints.length >= 2) {
+            measureFinished = true;
+            refreshMeasure(null);
+        }
+        return;
+    }
     if (drawMode === 'polyline' && drawPoints.length >= 2) {
         const coords = drawPoints.map(p => { const a = latLngToArma(p); return [a.x, a.y]; });
         saveAnnotation('polyline',
@@ -2406,7 +2537,7 @@ function onMapDblClick(e) {
 }
 
 function onMapContextMenu(e) {
-    if (drawMode === 'polyline' || drawMode === 'polygon') {
+    if (drawMode === 'polyline' || drawMode === 'polygon' || drawMode === 'measure') {
         L.DomEvent.stop(e);
         finishDrawing();
     }
@@ -2414,6 +2545,10 @@ function onMapContextMenu(e) {
 
 function onMapMouseMove(e) {
     const ll = e.latlng;
+
+    if (drawMode === 'measure' && measurePoints.length > 0 && !measureFinished) {
+        refreshMeasure(ll);
+    }
 
     if ((drawMode === 'polyline' || drawMode === 'polygon') && drawPoints.length > 0) {
         refreshPreviewLine(ll);
@@ -2667,8 +2802,18 @@ async function saveLayerModal() {
    KEYBOARD SHORTCUTS
    ═══════════════════════════════════════════════════════════════════════ */
 document.addEventListener('keydown', e => {
-    if (!CAN_EDIT) return;
     if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+
+    // Measure shortcuts — available to all users (edit + view mode)
+    if (e.key === 'd' || e.key === 'D') { setDrawMode('measure'); return; }
+    if (e.key === 'Escape' && drawMode === 'measure') { setDrawMode('select'); return; }
+    if (e.key === 'Backspace' && drawMode === 'measure' && measurePoints.length > 0) {
+        measurePoints.pop();
+        refreshMeasure(null);
+        return;
+    }
+
+    if (!CAN_EDIT) return;
 
     switch (e.key) {
         case 'Escape':     setDrawMode('select'); closeNATOModal(); cancelSquadPlacement(); break;
@@ -2690,6 +2835,11 @@ document.addEventListener('keydown', e => {
 /* ═══════════════════════════════════════════════════════════════════════
    WIRE UP UI EVENTS
    ═══════════════════════════════════════════════════════════════════════ */
+// Measure tool — works in view mode too. Toggle off if already active.
+document.getElementById('tb-measure')?.addEventListener('click', () => {
+    setDrawMode(drawMode === 'measure' ? 'select' : 'measure');
+});
+
 if (CAN_EDIT) {
     document.getElementById('btn-add-layer')?.addEventListener('click', () => openLayerModal('add'));
 
