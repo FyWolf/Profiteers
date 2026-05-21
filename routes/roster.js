@@ -246,6 +246,19 @@ async function runRosterSync() {
             memberLabels.length > 0 ? JSON.stringify(memberLabels) : null
         ]);
 
+        await db.query(`
+            UPDATE users SET
+                discord_username = ?,
+                discord_global_name = ?,
+                discord_avatar = ?
+            WHERE discord_id = ?
+        `, [
+            member.user.username,
+            member.user.global_name || member.user.username,
+            member.user.avatar,
+            member.user.id
+        ]);
+
         syncedCount++;
     }
 
