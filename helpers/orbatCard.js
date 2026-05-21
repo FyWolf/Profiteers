@@ -109,7 +109,9 @@ function createCardBuilder(rolesBySquad, teamsBySquad) {
            <button onclick="toggleAddTeam(${squad.id})" class="btn" style="margin-top:5px;width:100%;background:rgba(0,0,0,0.15);border:1px dashed rgba(178,178,125,0.3);font-size:0.75em;padding:3px;">➕ Add Team</button>`
             : '';
 
-        const addRoleSection = canDynamic ? `
+        const addRoleSection = opts.addRoleOverrideHtml !== undefined
+            ? opts.addRoleOverrideHtml
+            : canDynamic ? `
         <div style="margin-top:8px;padding:8px;border:2px dashed ${squad.color};border-radius:4px;background:rgba(0,0,0,0.2);overflow:hidden;">
             <div style="display:flex;gap:6px;align-items:center;min-width:0;">
                 <input type="text" id="newRoleName_${squad.id}" placeholder="New slot name..."
