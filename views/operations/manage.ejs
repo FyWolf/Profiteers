@@ -9,7 +9,10 @@
     <section class="section">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
             <h2 style="margin: 0;">All Operations</h2>
-            <a href="/operations/manage/create" class="btn btn-primary">➕ Create New Operation</a>
+            <div style="display: flex; gap: 10px;">
+                <a href="/operations/manage/blocks" class="btn">🔒 Locked Periods</a>
+                <a href="/operations/manage/create" class="btn btn-primary">➕ Create New Operation</a>
+            </div>
         </div>
 
         <% if (success) { %>

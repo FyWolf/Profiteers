@@ -371,6 +371,128 @@ router.get('/manage/list', isZeus, async (req, res) => {
     }
 });
 
+// Locked period date range -> [start_unix, end_unix) in UTC.
+// start_date 00:00 UTC inclusive, end_date 23:59:59 UTC inclusive
+// (i.e. end_date+1 day 00:00 UTC exclusive).
+function lockedPeriodRangeUnix(startDateStr, endDateStr) {
+    const [sy, sm, sd] = startDateStr.split('-').map(Number);
+    const [ey, em, ed] = endDateStr.split('-').map(Number);
+    return {
+        start_unix: Math.floor(Date.UTC(sy, sm - 1, sd) / 1000),
+        end_unix: Math.floor(Date.UTC(ey, em - 1, ed + 1) / 1000),
+    };
+}
+
+router.get('/manage/overlaps', isZeus, async (req, res) => {
+    try {
+        const start = parseInt(req.query.start, 10);
+        const end = parseInt(req.query.end, 10);
+        const excludeId = req.query.exclude_id ? parseInt(req.query.exclude_id, 10) : null;
+
+        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+            return res.json({ success: true, overlaps: [], blocks: [] });
+        }
+
+        const params = [end, start];
+        let sql = `
+            SELECT id, title, start_time, end_time, operation_type, is_published
+            FROM operations
+            WHERE start_time < ? AND end_time > ?
+        `;
+        if (excludeId) {
+            sql += ' AND id <> ?';
+            params.push(excludeId);
+        }
+        sql += ' ORDER BY start_time ASC';
+
+        const [overlaps] = await db.query(sql, params);
+
+        const [lockedRows] = await db.query(`
+            SELECT id, label,
+                   DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date,
+                   DATE_FORMAT(end_date,   '%Y-%m-%d') AS end_date
+            FROM locked_periods
+            ORDER BY start_date ASC
+        `);
+
+        const blocks = lockedRows
+            .map(row => {
+                const range = lockedPeriodRangeUnix(row.start_date, row.end_date);
+                return { ...row, ...range };
+            })
+            .filter(b => b.start_unix < end && b.end_unix > start);
+
+        res.json({ success: true, overlaps, blocks });
+    } catch (error) {
+        console.error('Error checking overlaps:', error);
+        res.status(500).json({ success: false, overlaps: [], blocks: [] });
+    }
+});
+
+router.get('/manage/blocks', isZeus, async (req, res) => {
+    try {
+        const [blocks] = await db.query(`
+            SELECT lp.id, lp.label,
+                   DATE_FORMAT(lp.start_date, '%Y-%m-%d') AS start_date,
+                   DATE_FORMAT(lp.end_date,   '%Y-%m-%d') AS end_date,
+                   lp.created_at,
+                   u.username AS created_by_username,
+                   u.discord_global_name AS created_by_global_name
+            FROM locked_periods lp
+            LEFT JOIN users u ON lp.created_by = u.id
+            ORDER BY lp.start_date ASC, lp.id ASC
+        `);
+
+        res.render('operations/blocks', {
+            title: 'Locked Periods - Profiteers PMC',
+            blocks,
+            success: req.query.success || null,
+            error: req.query.error || null,
+        });
+    } catch (error) {
+        console.error('Error loading locked periods:', error);
+        res.redirect('/operations/manage/list?error=Failed to load locked periods');
+    }
+});
+
+router.post('/manage/blocks/create', isZeus, async (req, res) => {
+    try {
+        const { start_date, end_date, label } = req.body;
+        const labelTrim = (label || '').trim();
+        const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+
+        if (!start_date || !end_date || !dateRe.test(start_date) || !dateRe.test(end_date)) {
+            return res.redirect('/operations/manage/blocks?error=Invalid dates');
+        }
+        if (!labelTrim) {
+            return res.redirect('/operations/manage/blocks?error=Label is required');
+        }
+        if (end_date < start_date) {
+            return res.redirect('/operations/manage/blocks?error=End date must be on or after start date');
+        }
+
+        await db.query(`
+            INSERT INTO locked_periods (start_date, end_date, label, created_by)
+            VALUES (?, ?, ?, ?)
+        `, [start_date, end_date, labelTrim.slice(0, 200), req.session.userId]);
+
+        res.redirect('/operations/manage/blocks?success=Locked period created');
+    } catch (error) {
+        console.error('Error creating locked period:', error);
+        res.redirect('/operations/manage/blocks?error=Failed to create locked period');
+    }
+});
+
+router.post('/manage/blocks/delete/:id', isZeus, async (req, res) => {
+    try {
+        await db.query('DELETE FROM locked_periods WHERE id = ?', [req.params.id]);
+        res.redirect('/operations/manage/blocks?success=Locked period removed');
+    } catch (error) {
+        console.error('Error deleting locked period:', error);
+        res.redirect('/operations/manage/blocks?error=Failed to delete locked period');
+    }
+});
+
 router.get('/manage/create', isZeus, async (req, res) => {
     try {
         const [users] = await db.query(`
@@ -401,7 +523,7 @@ router.get('/manage/create', isZeus, async (req, res) => {
 
 router.post('/manage/create', isZeus, async (req, res) => {
     try {
-        const { title, description, start_time, end_time, banner_url, orbat_type, orbat_template_id, host_id, operation_type, modpack_id, map_world } = req.body;
+        const { title, description, start_time, end_time, banner_url, is_published, orbat_type, orbat_template_id, host_id, operation_type, modpack_id, map_world } = req.body;
         let finalBannerUrl = banner_url || '/images/operations/default-banner.jpg';
 
         if (req.files && req.files.banner_upload) {
@@ -428,7 +550,7 @@ router.post('/manage/create', isZeus, async (req, res) => {
         const finalOperationType = operation_type || 'main';
         const finalModpackId = modpack_id ? parseInt(modpack_id) : null;
         const finalMapWorld = (map_world && /^[a-zA-Z0-9_-]+$/.test(map_world.trim())) ? map_world.trim() : null;
-        const published = true;
+        const published = parseBoolean(is_published);
 
         const [result] = await db.query(`
             INSERT INTO operations
