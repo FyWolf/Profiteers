@@ -260,7 +260,7 @@ router.post('/:id/map/annotations', requireEdit, async (req, res) => {
     try {
         const { layer_id, type, geometry, properties } = req.body;
 
-        const VALID_TYPES = ['nato_marker', 'polyline', 'polygon', 'rectangle', 'circle', 'text', 'squad_marker'];
+        const VALID_TYPES = ['nato_marker', 'arma_marker', 'polyline', 'polygon', 'rectangle', 'circle', 'text', 'squad_marker'];
         if (!VALID_TYPES.includes(type)) return res.json({ success: false, error: 'Invalid type' });
         if (!layer_id || !geometry)      return res.json({ success: false, error: 'layer_id and geometry required' });
 

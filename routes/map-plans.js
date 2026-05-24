@@ -4,6 +4,13 @@ const router  = express.Router();
 const db      = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
 
+// Real-time collaboration broadcast helper. Lazy-loaded to avoid a circular
+// dep (plans-collab requires this file for resolveAccess).
+function emitCollab(req, event, payload) {
+    try { require('../services/plans-collab').broadcast(req, event, payload); }
+    catch (e) { /* socket layer not ready or absent — fail silent */ }
+}
+
 // ─── Access resolution ─────────────────────────────────────────────────────
 //
 // Roles, in descending order of authority:
@@ -400,10 +407,12 @@ router.post('/:id/layers', requireEdit, async (req, res) => {
              VALUES (?, ?, ?, ?, ?)`,
             [req.params.id, name.trim(), color || '#3498DB', countRows[0].n, req.session.userId]
         );
-        res.json({ success: true, layer: {
+        const layer = {
             id: r.insertId, name: name.trim(), color: color || '#3498DB',
             is_visible: 1, is_public: 1, display_order: countRows[0].n, annotations: []
-        }});
+        };
+        emitCollab(req, 'layer:create', { layer });
+        res.json({ success: true, layer });
     } catch (err) {
         console.error('Plan create layer error:', err);
         res.json({ success: false, error: 'Failed to create layer' });
@@ -425,6 +434,13 @@ router.patch('/:id/layers/:layerId', requireEdit, async (req, res) => {
             `UPDATE map_plan_layers SET ${fields.join(', ')} WHERE id = ? AND plan_id = ?`,
             vals
         );
+        const patch = {};
+        if (name          !== undefined) patch.name          = name.trim();
+        if (color         !== undefined) patch.color         = color;
+        if (is_visible    !== undefined) patch.is_visible    = is_visible ? 1 : 0;
+        if (is_public     !== undefined) patch.is_public     = is_public  ? 1 : 0;
+        if (display_order !== undefined) patch.display_order = display_order;
+        emitCollab(req, 'layer:update', { id: parseInt(req.params.layerId), patch });
         res.json({ success: true });
     } catch (err) {
         console.error('Plan update layer error:', err);
@@ -436,6 +452,7 @@ router.delete('/:id/layers/:layerId', requireEdit, async (req, res) => {
     try {
         await db.query('DELETE FROM map_plan_layers WHERE id = ? AND plan_id = ?',
             [req.params.layerId, req.params.id]);
+        emitCollab(req, 'layer:delete', { id: parseInt(req.params.layerId) });
         res.json({ success: true });
     } catch (err) {
         console.error('Plan delete layer error:', err);
@@ -444,7 +461,7 @@ router.delete('/:id/layers/:layerId', requireEdit, async (req, res) => {
 });
 
 // ─── Annotations ───────────────────────────────────────────────────────────
-const VALID_ANN_TYPES = ['nato_marker','polyline','polygon','rectangle','circle','text','squad_marker'];
+const VALID_ANN_TYPES = ['nato_marker','arma_marker','polyline','polygon','rectangle','circle','text','squad_marker'];
 
 router.post('/:id/annotations', requireEdit, async (req, res) => {
     try {
@@ -466,6 +483,13 @@ router.post('/:id/annotations', requireEdit, async (req, res) => {
              properties ? JSON.stringify(properties) : null,
              req.session.userId]
         );
+        emitCollab(req, 'annotation:create', {
+            annotation: {
+                id: r.insertId, layer_id, type,
+                geometry, properties: properties || null,
+                created_by: req.session.userId
+            }
+        });
         res.json({ success: true, id: r.insertId });
     } catch (err) {
         console.error('Plan create annotation error:', err);
@@ -485,6 +509,10 @@ router.patch('/:id/annotations/:annId', requireEdit, async (req, res) => {
             `UPDATE map_plan_annotations SET ${fields.join(', ')} WHERE id = ? AND plan_id = ?`,
             vals
         );
+        const patch = {};
+        if (geometry   !== undefined) patch.geometry   = geometry;
+        if (properties !== undefined) patch.properties = properties;
+        emitCollab(req, 'annotation:update', { id: parseInt(req.params.annId), patch });
         res.json({ success: true });
     } catch (err) {
         console.error('Plan update annotation error:', err);
@@ -496,6 +524,7 @@ router.delete('/:id/annotations/:annId', requireEdit, async (req, res) => {
     try {
         await db.query('DELETE FROM map_plan_annotations WHERE id = ? AND plan_id = ?',
             [req.params.annId, req.params.id]);
+        emitCollab(req, 'annotation:delete', { id: parseInt(req.params.annId) });
         res.json({ success: true });
     } catch (err) {
         console.error('Plan delete annotation error:', err);

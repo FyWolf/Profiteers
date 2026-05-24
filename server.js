@@ -6,6 +6,7 @@
 }
 
 const express = require('express');
+const http = require('http');
 const helmet = require('helmet');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
@@ -87,7 +88,7 @@ const sessionStore = new MySQLStore({
     expiration: 30 * 24 * 60 * 60 * 1000,
 });
 
-app.use(session({
+const sessionMiddleware = session({
     secret: process.env.SESSION_SECRET,
     resave: true,
     saveUninitialized: false,
@@ -101,10 +102,13 @@ app.use(session({
         httpOnly: true,
         maxAge: 30 * 24 * 60 * 60 * 1000
     }
-}));
+});
+app.use(sessionMiddleware);
 
-app.use(passport.initialize());
-app.use(passport.session());
+const passportInit    = passport.initialize();
+const passportSession = passport.session();
+app.use(passportInit);
+app.use(passportSession);
 
 app.use(attachUser);
 app.use(attachSeoDefaults);
@@ -139,7 +143,19 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
+    // Client disconnected mid-multipart-upload (busboy reports
+    // "Unexpected end of form"). The connection is gone, so there is no
+    // point rendering an error page. Log quietly and bail.
+    if (err && err.message === 'Unexpected end of form') {
+        console.warn('Aborted upload from', req.ip, req.method, req.originalUrl);
+        if (!res.headersSent) {
+            try { res.status(400).end(); } catch (_) {}
+        }
+        return;
+    }
+
     console.error('Error:', err);
+    if (res.headersSent) return next(err);
     res.status(500).render('error', {
         title: '500 - Internal Server Error',
         message: '500 - Internal Server Error',
@@ -148,7 +164,13 @@ app.use((err, req, res, next) => {
     });
 });
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+
+// Real-time collaboration for the Map Plan editor (Socket.IO).
+const plansCollab = require('./services/plans-collab');
+plansCollab.init(server, sessionMiddleware, passportInit, passportSession);
+
+server.listen(PORT, () => {
     console.log(`
 ╔═══════════════════════════════════════════════════╗
 ║         PROFITEERS PMC WEBSITE                    ║

@@ -183,6 +183,47 @@ html, body {
 #draw-color { width: 22px; height: 22px; border: none; border-radius: 3px; cursor: pointer; padding: 0; background: none; }
 #draw-weight { width: 60px; accent-color: var(--accent); }
 
+/* ─── Basic Arma marker picker ───────────────────────────────────── */
+#arma-marker-popover {
+    position: absolute; top: 50px; left: 10px; z-index: 905;
+    display: none;
+    background: linear-gradient(135deg, rgba(20,32,20,0.97) 0%, rgba(15,26,15,0.97) 100%);
+    border: 1px solid var(--olive); border-radius: 7px;
+    padding: 7px 9px 9px;
+    box-shadow: 0 4px 18px var(--shadow);
+    backdrop-filter: blur(6px);
+}
+#arma-marker-popover.open { display: block; }
+.arma-pop-head {
+    font-size: 0.7em; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin-bottom: 5px; font-family: 'Orbitron', sans-serif;
+}
+#arma-marker-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 30px);
+    gap: 4px;
+}
+.arma-mk-btn {
+    width: 30px; height: 30px;
+    background: rgba(15,26,15,0.7);
+    border: 1px solid var(--border); border-radius: 4px;
+    cursor: pointer; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+}
+.arma-mk-btn:hover { border-color: var(--olive); background: rgba(107,142,35,0.18); }
+.arma-mk-btn.active { border-color: var(--accent); background: var(--accent-dim); box-shadow: 0 0 6px rgba(252,176,13,0.4); }
+.arma-mk-btn svg { display: block; }
+.arma-mk-marker { background: none !important; border: none !important; }
+.arma-mk-marker .am-label {
+    background: rgba(15,24,15,0.85); border: 1px solid;
+    border-radius: 2px; padding: 1px 5px; margin-top: 1px;
+    font: 700 10px 'Roboto Mono', monospace;
+    white-space: nowrap;
+    text-shadow: 0 0 3px rgba(0,0,0,0.8);
+}
+
 /* ─── Cursor states ──────────────────────────────────────────────── */
 #map.draw-mode         { cursor: crosshair !important; }
 #map.draw-mode.placing { cursor: cell !important; }
@@ -763,7 +804,8 @@ html, body {
         <div id="toolbar">
             <% if (canEdit) { %>
             <button class="tb-btn active" id="tb-select" title="Select / pan (Esc)">✦ Select</button>
-            <button class="tb-btn" id="tb-nato"   title="Place NATO marker (M)">📍 Marker</button>
+            <button class="tb-btn" id="tb-nato"   title="Place NATO marker (M)">📍 NATO</button>
+            <button class="tb-btn" id="tb-arma"   title="Place basic Arma marker (B)">● Marker</button>
             <div class="tb-sep"></div>
             <button class="tb-btn" id="tb-line"   title="Draw line (L) — click points, right-click to finish">╱ Line</button>
             <button class="tb-btn" id="tb-poly"   title="Draw polygon (P) — click points, right-click to finish">⬟ Polygon</button>
@@ -785,6 +827,14 @@ html, body {
             <button class="tb-btn" id="tb-undo" title="Undo last point (Backspace while drawing)">↩ Undo</button>
             <% } %>
         </div>
+
+        <% if (canEdit) { %>
+        <!-- Basic Arma marker type picker (anchored under toolbar) -->
+        <div id="arma-marker-popover">
+            <div class="arma-pop-head">Marker type</div>
+            <div id="arma-marker-grid"></div>
+        </div>
+        <% } %>
 
         <div id="map">
             <div id="map-placeholder">
@@ -823,12 +873,17 @@ html, body {
                 <div class="hint-sep">Tools</div>
                 <div class="hint-row"><span class="hint-key">Esc</span><span class="hint-desc">Select / pan</span></div>
                 <div class="hint-row"><span class="hint-key">M</span><span class="hint-desc">Place NATO marker</span></div>
+                <div class="hint-row"><span class="hint-key">B</span><span class="hint-desc">Place basic Arma marker</span></div>
                 <div class="hint-row"><span class="hint-key">L</span><span class="hint-desc">Draw line</span></div>
                 <div class="hint-row"><span class="hint-key">P</span><span class="hint-desc">Draw polygon</span></div>
                 <div class="hint-row"><span class="hint-key">R</span><span class="hint-desc">Draw rectangle</span></div>
                 <div class="hint-row"><span class="hint-key">C</span><span class="hint-desc">Draw circle</span></div>
                 <div class="hint-row"><span class="hint-key">T</span><span class="hint-desc">Place text label</span></div>
                 <div class="hint-row"><span class="hint-key">D</span><span class="hint-desc">Measure distance</span></div>
+                <div class="hint-sep">Layers</div>
+                <div class="hint-row"><span class="hint-key">N</span><span class="hint-desc">New layer</span></div>
+                <div class="hint-row"><span class="hint-key">Tab</span><span class="hint-desc">Next layer</span></div>
+                <div class="hint-row"><span class="hint-key">Shift+Tab</span><span class="hint-desc">Previous layer</span></div>
                 <div class="hint-sep">While drawing (Line / Polygon)</div>
                 <div class="hint-row"><span class="hint-key">Click</span><span class="hint-desc">Add a point</span></div>
                 <div class="hint-row"><span class="hint-key">Right-click</span><span class="hint-desc">Finish shape</span></div>
@@ -837,6 +892,7 @@ html, body {
                 <div class="hint-row"><span class="hint-key">Esc</span><span class="hint-desc">Cancel drawing</span></div>
                 <div class="hint-sep">Selection</div>
                 <div class="hint-row"><span class="hint-key">Click shape</span><span class="hint-desc">Select &amp; edit</span></div>
+                <div class="hint-row"><span class="hint-key">Right-click shape</span><span class="hint-desc">Switch to that shape's layer</span></div>
                 <div class="hint-row"><span class="hint-key">Del</span><span class="hint-desc">Delete selected</span></div>
             </div>
         </div>
@@ -886,6 +942,17 @@ html, body {
                     <div style="display:flex;align-items:center;gap:8px">
                         <input type="range" id="pr-rotation" min="0" max="359" value="0" style="flex:1">
                         <span id="pr-rotation-val" style="color:var(--olive-light);font-size:0.8em;min-width:34px;text-align:right">0°</span>
+                    </div>
+                </div>
+                <div class="prop-row" id="pr-arma-type-row" style="display:none">
+                    <label>Marker type</label>
+                    <select id="pr-arma-type"></select>
+                </div>
+                <div class="prop-row" id="pr-scale-row" style="display:none">
+                    <label>Scale</label>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <input type="range" id="pr-scale" min="0.4" max="3" step="0.1" value="1" style="flex:1">
+                        <span id="pr-scale-val" style="color:var(--olive-light);font-size:0.8em;min-width:30px;text-align:right">1.0</span>
                     </div>
                 </div>
             </div>
@@ -1299,6 +1366,10 @@ async function apiFetch(url, method = 'GET', body = null) {
     if (typeof MAP_API_TOKEN_QS === 'string' && MAP_API_TOKEN_QS) {
         url += (url.includes('?') ? '&' : '?') + MAP_API_TOKEN_QS;
     }
+    // Real-time collab: tell the server which socket initiated this mutation
+    // so it can broadcast to everyone *except* us. Set by the plans editor
+    // once its socket connects.
+    if (window.PLAN_SOCKET_ID) opts.headers['x-socket-id'] = window.PLAN_SOCKET_ID;
     const res = await fetch(url, opts);
     return res.json();
 }
@@ -1349,6 +1420,91 @@ function makeTextIcon(text, color) {
         ">${text || '?'}</div>`,
         iconSize:   null,
         iconAnchor: [0, 12],
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BASIC ARMA MARKERS  (mil_* / hd_* — the simple icons natively supported
+   by createMarker + setMarkerType). The `id` value is exactly what gets
+   handed to setMarkerType during SQF export.
+   ═══════════════════════════════════════════════════════════════════════ */
+// Real Arma 3 marker textures (extracted PNGs in /images/arma-markers/).
+// Each entry's `id` is exactly what gets passed to setMarkerType on export.
+// The PNGs are mostly black-on-transparent silhouettes; we tint them with a
+// CSS mask using the user's draw color, mirroring Arma's setMarkerColor.
+const ARMA_MARKERS = [
+    // ── Military (clean) ─────────────────────────────────────────────
+    { id: 'mil_dot',       label: 'Dot' },
+    { id: 'mil_box',       label: 'Box' },
+    { id: 'mil_circle',    label: 'Circle' },
+    { id: 'mil_triangle',  label: 'Triangle' },
+    { id: 'mil_arrow',     label: 'Arrow' },
+    { id: 'mil_arrow2',    label: 'Arrow 2' },
+    { id: 'mil_destroy',   label: 'Destroy' },
+    { id: 'mil_warning',   label: 'Warning' },
+    { id: 'mil_unknown',   label: 'Unknown' },
+    { id: 'mil_flag',      label: 'Flag' },
+    { id: 'mil_join',      label: 'Join' },
+    { id: 'mil_objective', label: 'Objective' },
+    { id: 'mil_pickup',    label: 'Pickup' },
+    { id: 'mil_end',       label: 'End' },
+    { id: 'mil_start',     label: 'Start' },
+    { id: 'mil_marker',    label: 'Marker' },
+    { id: 'mil_ambush',    label: 'Ambush' },
+    // ── Hand-drawn (sketchy) ─────────────────────────────────────────
+    { id: 'hd_dot',        label: 'Dot (HD)' },
+    { id: 'hd_arrow',      label: 'Arrow (HD)' },
+    { id: 'hd_unknown',    label: 'Unknown (HD)' },
+    { id: 'hd_objective',  label: 'Objective (HD)' },
+    { id: 'hd_warning',    label: 'Warning (HD)' },
+    { id: 'hd_destroy',    label: 'Destroy (HD)' },
+    { id: 'hd_pickup',     label: 'Pickup (HD)' },
+    { id: 'hd_join',       label: 'Join (HD)' },
+    { id: 'hd_start',      label: 'Start (HD)' },
+    { id: 'hd_end',        label: 'End (HD)' },
+    { id: 'hd_flag',       label: 'Flag (HD)' },
+    { id: 'hd_ambush',     label: 'Ambush (HD)' }
+];
+
+const ARMA_MARKER_BASE = '/images/arma-markers';
+
+// Default marker type for new placements; the picker writes to this.
+let currentArmaMarker = 'mil_dot';
+
+// Render a tinted Arma marker as a <div> using a CSS mask. The PNG is mostly
+// monochrome on transparent, so masking with `background-color = userColor`
+// reproduces Arma's setMarkerColor behaviour.
+function armaMarkerHTML(id, color, size) {
+    const s   = size || 24;
+    const url = `${ARMA_MARKER_BASE}/${id}.png`;
+    return `<div class="arma-mk-img" style="
+        width:${s}px;height:${s}px;
+        background-color:${color};
+        -webkit-mask:url(${url}) center/contain no-repeat;
+                mask:url(${url}) center/contain no-repeat;
+    "></div>`;
+}
+
+function makeArmaIcon(markerType, color, label, scale, rotation) {
+    const s     = Math.round(24 * (scale || 1));
+    const tint  = color || '#000000';
+    const rot   = rotation || 0;
+    const inner = armaMarkerHTML(markerType, tint, s);
+    const rotated = rot
+        ? `<div style="transform:rotate(${rot}deg);transform-origin:${s/2}px ${s/2}px;width:${s}px;height:${s}px;">${inner}</div>`
+        : inner;
+    const html = label
+        ? `<div class="arma-mk-marker" style="display:flex;flex-direction:column;align-items:center;">
+             ${rotated}
+             <div class="am-label" style="border-color:${tint};color:${tint};">${label}</div>
+           </div>`
+        : rotated;
+    const labelH = label ? 16 : 0;
+    return L.divIcon({
+        className: 'arma-mk-marker',
+        html,
+        iconSize:   [s, s + labelH],
+        iconAnchor: [s / 2, s / 2],
     });
 }
 
@@ -1499,11 +1655,10 @@ async function loadWorldConfig(worldName) {
             canvas.parentElement.style.pointerEvents = 'none';
         } catch (_) { /* layer not ready yet — CSS rule below acts as fallback */ }
 
-        // Fit map to world bounds
+        // Fit map to world bounds on first load, but don't constrain pan/zoom
+        // afterwards — users want to scroll freely outside the terrain.
         const maxDeg    = worldConfig.worldSize / METERS_PER_DEGREE;
         const mapBounds = L.latLngBounds([0, 0], [maxDeg, maxDeg]);
-        map.setMaxBounds(mapBounds.pad(1));
-        map.setMinZoom(worldConfig.minZoom);
         map.setMaxZoom(worldConfig.maxZoom);
         map.fitBounds(mapBounds);
 
@@ -1869,6 +2024,22 @@ function renderAnnotation(ann) {
                 else setSaveStatus('error', 'Error saving position');
             });
         }
+    } else if (ann.type === 'arma_marker') {
+        const [ax, ay] = ann.geometry.coordinates;
+        feature = L.marker(armaToLatLng(ax, ay), {
+            icon: makeArmaIcon(p.markerType || 'mil_dot', p.color || '#000000', p.label, p.scale || 1, p.rotation || 0),
+            draggable: !!CAN_EDIT,
+        });
+        if (CAN_EDIT) {
+            feature.on('dragend', async () => {
+                const a2 = latLngToArma(feature.getLatLng());
+                const newGeom = { type: 'Point', coordinates: [a2.x, a2.y] };
+                setSaveStatus('saving', 'Saving…');
+                const r = await apiFetch(`${MAP_API_BASE}/annotations/${ann.id}`, 'PATCH', { geometry: newGeom });
+                if (r.success) { ann.geometry = newGeom; setSaveStatus('saved', 'Saved'); }
+                else setSaveStatus('error', 'Error saving position');
+            });
+        }
     } else if (ann.type === 'text') {
         const [ax, ay] = ann.geometry.coordinates;
         feature = L.marker(armaToLatLng(ax, ay), { icon: makeTextIcon(p.label, p.color || '#F5C518') });
@@ -1900,12 +2071,20 @@ function renderAnnotation(ann) {
         return;
     }
 
-    if (p.label && ann.type !== 'nato_marker' && ann.type !== 'text') {
+    if (p.label && ann.type !== 'nato_marker' && ann.type !== 'text' && ann.type !== 'arma_marker') {
         feature.bindTooltip(p.label, { permanent: true, direction: 'center', className: 'leaflet-tooltip-dark' });
     }
 
     if (CAN_EDIT) {
         feature.on('click', e => { L.DomEvent.stop(e); selectAnnotation(ann.id, ann.layer_id); });
+        // Right-click → make this feature's layer the active layer.
+        feature.on('contextmenu', e => {
+            L.DomEvent.stop(e);
+            if (activeLayerId !== ann.layer_id) {
+                setActiveLayer(ann.layer_id);
+                renderLayerPanel();
+            }
+        });
     }
 
     feature.addTo(l.group);
@@ -1942,10 +2121,13 @@ function selectAnnotation(annId, layerId) {
     if (prLayer) prLayer.value = layerId;
 
     const showWeight   = ['polyline','polygon','rectangle','circle'].includes(type);
-    const showRotation = type === 'nato_marker';
+    const showRotation = type === 'nato_marker' || type === 'arma_marker';
+    const showArmaType = type === 'arma_marker';
     document.getElementById('pr-weight-row').style.display   = showWeight   ? '' : 'none';
     document.getElementById('pr-dash-row').style.display     = showWeight   ? '' : 'none';
     document.getElementById('pr-rotation-row').style.display = showRotation ? '' : 'none';
+    document.getElementById('pr-arma-type-row').style.display = showArmaType ? '' : 'none';
+    document.getElementById('pr-scale-row').style.display     = showArmaType ? '' : 'none';
     if (showWeight) {
         document.getElementById('pr-weight').value = String(p.weight || 2);
         document.getElementById('pr-dash').value   = p.dashArray || '';
@@ -1954,6 +2136,15 @@ function selectAnnotation(annId, layerId) {
         const rot = p.rotation || 0;
         document.getElementById('pr-rotation').value   = rot;
         document.getElementById('pr-rotation-val').textContent = rot + '°';
+    }
+    if (showArmaType) {
+        const sel = document.getElementById('pr-arma-type');
+        sel.innerHTML = ARMA_MARKERS.map(m =>
+            `<option value="${m.id}" ${m.id === (p.markerType || 'hd_dot') ? 'selected' : ''}>${m.label} (${m.id})</option>`
+        ).join('');
+        const sc = parseFloat(p.scale || 1);
+        document.getElementById('pr-scale').value = sc;
+        document.getElementById('pr-scale-val').textContent = sc.toFixed(1);
     }
 
     document.getElementById('props-panel').classList.add('open');
@@ -1988,6 +2179,11 @@ async function saveAnnotationProps() {
     }
     if (type === 'nato_marker') {
         newProps.rotation = parseInt(document.getElementById('pr-rotation').value) || 0;
+    }
+    if (type === 'arma_marker') {
+        newProps.markerType = document.getElementById('pr-arma-type').value;
+        newProps.scale      = parseFloat(document.getElementById('pr-scale').value) || 1;
+        newProps.rotation   = parseInt(document.getElementById('pr-rotation').value) || 0;
     }
 
     const newLayerId = parseInt(document.getElementById('pr-layer').value);
@@ -2248,6 +2444,17 @@ function generateSQF() {
                 const [ax, ay] = ann.geometry.coordinates;
                 // Export text as a small dot marker with the label text set
                 icons.push([String(id), ax, ay, 'hd_dot', colorToArma(p.color || '#F5C518'), p.label || '', 0, 0.6]);
+
+            } else if (ann.type === 'arma_marker') {
+                const [ax, ay] = ann.geometry.coordinates;
+                icons.push([
+                    String(id), ax, ay,
+                    p.markerType || 'hd_dot',
+                    colorToArma(p.color || '#e74c3c'),
+                    p.label || '',
+                    p.rotation || 0,
+                    p.scale || 1
+                ]);
             }
         }
     }
@@ -2317,10 +2524,14 @@ function setDrawMode(mode) {
     drawMode = mode;
 
     document.querySelectorAll('.tb-btn').forEach(b => b.classList.remove('active'));
-    const id = { select:'tb-select', nato_marker:'tb-nato', polyline:'tb-line',
-                 polygon:'tb-poly', rectangle:'tb-rect', circle:'tb-circle', text:'tb-text',
-                 measure:'tb-measure' }[mode];
+    const id = { select:'tb-select', nato_marker:'tb-nato', arma_marker:'tb-arma',
+                 polyline:'tb-line', polygon:'tb-poly', rectangle:'tb-rect',
+                 circle:'tb-circle', text:'tb-text', measure:'tb-measure' }[mode];
     document.getElementById(id)?.classList.add('active');
+
+    // Show/hide the basic-marker type picker.
+    const pop = document.getElementById('arma-marker-popover');
+    if (pop) pop.classList.toggle('open', mode === 'arma_marker');
 
     const mapEl = document.getElementById('map');
     mapEl.classList.toggle('draw-mode', mode !== 'select');
@@ -2452,6 +2663,12 @@ function onMapClick(e) {
         case 'nato_marker':
             pendingNATOLatLng = ll;
             openNATOModal(ll);
+            break;
+
+        case 'arma_marker':
+            saveAnnotation('arma_marker',
+                { type: 'Point', coordinates: [a.x, a.y] },
+                { markerType: currentArmaMarker, color: drawColor, label: '', scale: 1, rotation: 0 });
             break;
 
         case 'text': {
@@ -2815,14 +3032,29 @@ document.addEventListener('keydown', e => {
 
     if (!CAN_EDIT) return;
 
+    // Tab / Shift+Tab cycle through layers (must preventDefault to keep focus).
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        const sorted = Object.values(layers).sort((a, b) => a.meta.display_order - b.meta.display_order);
+        if (!sorted.length) return;
+        const idx = Math.max(0, sorted.findIndex(l => l.meta.id === activeLayerId));
+        const step = e.shiftKey ? -1 : 1;
+        const next = sorted[(idx + step + sorted.length) % sorted.length];
+        setActiveLayer(next.meta.id);
+        renderLayerPanel();
+        return;
+    }
+
     switch (e.key) {
         case 'Escape':     setDrawMode('select'); closeNATOModal(); cancelSquadPlacement(); break;
         case 'm': case 'M': setDrawMode('nato_marker'); break;
+        case 'b': case 'B': setDrawMode('arma_marker'); break;
         case 'l': case 'L': setDrawMode('polyline'); break;
         case 'p': case 'P': setDrawMode('polygon'); break;
         case 'r': case 'R': setDrawMode('rectangle'); break;
         case 'c': case 'C': setDrawMode('circle'); break;
         case 't': case 'T': setDrawMode('text'); break;
+        case 'n': case 'N': openLayerModal('add'); break;
         case 'Backspace':
             if (drawPoints.length > 0) {
                 drawPoints.pop();
@@ -2845,11 +3077,36 @@ if (CAN_EDIT) {
 
     document.getElementById('tb-select')?.addEventListener('click', () => setDrawMode('select'));
     document.getElementById('tb-nato')?.addEventListener('click',   () => setDrawMode('nato_marker'));
+    document.getElementById('tb-arma')?.addEventListener('click',   () => setDrawMode('arma_marker'));
     document.getElementById('tb-line')?.addEventListener('click',   () => setDrawMode('polyline'));
     document.getElementById('tb-poly')?.addEventListener('click',   () => setDrawMode('polygon'));
     document.getElementById('tb-rect')?.addEventListener('click',   () => setDrawMode('rectangle'));
     document.getElementById('tb-circle')?.addEventListener('click', () => setDrawMode('circle'));
     document.getElementById('tb-text')?.addEventListener('click',   () => setDrawMode('text'));
+
+    // Build the basic-marker picker grid once.
+    (function initArmaMarkerPicker() {
+        const grid = document.getElementById('arma-marker-grid');
+        if (!grid) return;
+        const draw = () => {
+            const c = (document.getElementById('draw-color')?.value) || '#e74c3c';
+            grid.innerHTML = ARMA_MARKERS.map(m => `
+                <button type="button" class="arma-mk-btn ${m.id === currentArmaMarker ? 'active' : ''}"
+                        data-mk="${m.id}" title="${m.label} (${m.id})">
+                    ${armaMarkerHTML(m.id, c, 22)}
+                </button>
+            `).join('');
+            grid.querySelectorAll('.arma-mk-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentArmaMarker = btn.dataset.mk;
+                    grid.querySelectorAll('.arma-mk-btn').forEach(b =>
+                        b.classList.toggle('active', b.dataset.mk === currentArmaMarker));
+                });
+            });
+        };
+        draw();
+        document.getElementById('draw-color')?.addEventListener('input', draw);
+    })();
     document.getElementById('tb-undo')?.addEventListener('click',   () => {
         if (drawPoints.length > 0) {
             drawPoints.pop();
@@ -2892,6 +3149,12 @@ if (CAN_EDIT) {
                 rec.feature.setIcon(makeNATOIcon(p.sidc || '130110000000000000000000000000', p.label, deg));
             }
         }
+    });
+
+    // Scale slider live label for basic Arma markers.
+    document.getElementById('pr-scale')?.addEventListener('input', e => {
+        const v = parseFloat(e.target.value) || 1;
+        document.getElementById('pr-scale-val').textContent = v.toFixed(1);
     });
 
     // Controls hint panel toggle
