@@ -1524,9 +1524,12 @@ function initMap() {
     map.on('mousemove', e => {
         if (!worldConfig) return;
         const a = latLngToArma(e.latlng);
-        const x = Math.round(Math.max(0, a.x)).toString().padStart(5, '0');
-        const y = Math.round(Math.max(0, a.y)).toString().padStart(5, '0');
-        document.getElementById('coords').textContent = `X: ${x}  Y: ${y}`;
+        // In-game Arma grid reference: 3 digits Easting + 3 digits Northing,
+        // each in 100 m bins. Widens to 4 digits for maps larger than 99.9 km.
+        const digits = Math.max(3, Math.ceil(Math.log10(worldConfig.worldSize / 100 + 1)));
+        const gx = Math.floor(Math.max(0, a.x) / 100).toString().padStart(digits, '0');
+        const gy = Math.floor(Math.max(0, a.y) / 100).toString().padStart(digits, '0');
+        document.getElementById('coords').textContent = `${gx}${gy}`;
     });
 
     map.on('move zoom moveend zoomend', updateMinimap);
