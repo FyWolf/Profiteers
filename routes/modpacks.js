@@ -69,6 +69,71 @@ router.get('/', async (req, res) => {
     }
 });
 
+// Estimate the total download size of a preset without saving it to the list.
+// Parses an uploaded .html preset, then fetches each mod's size from the Steam
+// Workshop on the fly and returns the totals as JSON.
+router.post('/check-size', async (req, res) => {
+    try {
+        let htmlContent = null;
+
+        if (req.files && req.files.modpack_file) {
+            const file = req.files.modpack_file;
+            if (!file.name.endsWith('.html') && !file.name.endsWith('.htm')) {
+                return res.json({ success: false, error: 'Only .html Arma 3 preset files are supported' });
+            }
+            htmlContent = file.data.toString('utf8');
+        } else if (req.body && req.body.html && req.body.html.trim()) {
+            htmlContent = req.body.html;
+        }
+
+        if (!htmlContent) {
+            return res.json({ success: false, error: 'Please provide an Arma 3 preset (.html) file' });
+        }
+
+        const parsed = parseArmaPreset(htmlContent);
+        if (parsed.mods.length === 0) {
+            return res.json({ success: false, error: 'No mods found. Make sure this is a valid Arma 3 Launcher preset.' });
+        }
+
+        if (!indexer.apiKey) {
+            return res.json({ success: false, error: 'Steam API is not configured on the server' });
+        }
+
+        const workshopIds = parsed.mods.map(m => m.workshopId);
+        const batchSize = 20;
+        let totalSize = 0, found = 0, missing = 0;
+
+        for (let i = 0; i < workshopIds.length; i += batchSize) {
+            const batch = workshopIds.slice(i, i + batchSize);
+            const details = await indexer.fetchBatchDetails(batch);
+
+            for (const id of batch) {
+                const detail = details[id.toString()];
+                const size = detail ? parseInt(detail.file_size) || 0 : 0;
+                if (size > 0) { totalSize += size; found++; }
+                else missing++;
+            }
+
+            if (i + batchSize < workshopIds.length) {
+                await new Promise(r => setTimeout(r, 1200));
+            }
+        }
+
+        res.json({
+            success: true,
+            name: parsed.name,
+            modCount: parsed.mods.length,
+            found,
+            missing,
+            totalSize,
+            totalSizeFormatted: formatSize(totalSize)
+        });
+    } catch (error) {
+        console.error('Error checking modpack size:', error);
+        res.json({ success: false, error: 'Failed to check modpack size' });
+    }
+});
+
 router.get('/:id', async (req, res) => {
     try {
         const [modpacks] = await db.query(`
