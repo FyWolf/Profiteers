@@ -638,6 +638,7 @@ router.get('/operation/:operationId', async (req, res) => {
                 canManage: false,
                 canClaim: false,
                 orbatPublished: false,
+                editorSquadIds: [],
                 buildSquadCard: createCardBuilder({}, {})
             });
         }
