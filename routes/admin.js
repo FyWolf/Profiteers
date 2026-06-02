@@ -20,5 +20,6 @@ router.use('/info',       hasPermission('info.manage'),       require('./admin/i
 router.use('/presence',    require('./admin/presence'));
 router.use('/slot-types', hasPermission('orbat.manage'), require('./admin/slot-types'));
 router.use('/map-plans', hasPermission('map.plans.admin'), require('./admin/map-plans'));
+router.use('/logs',       hasPermission('logs.view'),      require('./admin/logs'));
 
 module.exports = router;

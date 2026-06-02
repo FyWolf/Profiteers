@@ -22,6 +22,7 @@ if (missing.length > 0) {
 
 const { attachUser } = require('./middleware/auth');
 const { trackPageView } = require('./middleware/analytics');
+const { actionLogger } = require('./middleware/action-log');
 const { attachSeoDefaults } = require('./middleware/seo');
 const passport = require('./config/passport.js');
 
@@ -113,6 +114,7 @@ app.use(passportSession);
 app.use(attachUser);
 app.use(attachSeoDefaults);
 app.use(trackPageView);
+app.use(actionLogger);
 
 app.use('/', require('./routes/sitemap'));
 app.use('/', homeRoutes);

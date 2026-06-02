@@ -1,0 +1,237 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>ACTION LOG</h1>
+        <div class="subtitle">Audit trail — who did what, where &amp; when</div>
+    </header>
+
+    <section class="section">
+
+        <%# ── Filter bar ─────────────────────────────────────────── %>
+        <form method="GET" action="/admin/logs" class="log-filters">
+            <input type="text" name="q" value="<%= filters.search %>" placeholder="Search action, path or user…" class="log-input" style="flex:2 1 220px;">
+
+            <select name="category" class="log-input">
+                <option value="">All categories</option>
+                <% categories.forEach(c => { %>
+                    <option value="<%= c %>" <%= filters.category === c ? 'selected' : '' %>><%= c %></option>
+                <% }) %>
+            </select>
+
+            <select name="user" class="log-input">
+                <option value="">All users</option>
+                <% actors.forEach(a => { %>
+                    <option value="<%= a.user_id %>" <%= String(filters.user) === String(a.user_id) ? 'selected' : '' %>><%= a.name %></option>
+                <% }) %>
+            </select>
+
+            <select name="method" class="log-input">
+                <% ['', 'POST', 'PATCH', 'PUT', 'DELETE'].forEach(m => { %>
+                    <option value="<%= m %>" <%= filters.method === m ? 'selected' : '' %>><%= m || 'All methods' %></option>
+                <% }) %>
+            </select>
+
+            <select name="status" class="log-input">
+                <option value="" <%= filters.status === '' ? 'selected' : '' %>>All results</option>
+                <option value="success" <%= filters.status === 'success' ? 'selected' : '' %>>Success</option>
+                <option value="failed" <%= filters.status === 'failed' ? 'selected' : '' %>>Failed / denied</option>
+            </select>
+
+            <button type="submit" class="create-btn">Filter</button>
+            <a href="/admin/logs" class="btn">Reset</a>
+        </form>
+
+        <div style="margin:14px 0 10px; color:var(--khaki); font-size:0.85em; opacity:0.8;">
+            <strong style="color:var(--accent);"><%= total.toLocaleString() %></strong> action<%= total === 1 ? '' : 's' %> recorded
+            <% if (totalPages > 1) { %> · page <%= page %> of <%= totalPages %><% } %>
+        </div>
+
+        <% if (logs.length === 0) { %>
+            <div style="text-align:center; padding:48px 20px; color:var(--khaki); opacity:0.6;">
+                <div style="font-size:3em; margin-bottom:12px;">📜</div>
+                <strong>No actions match these filters</strong>
+            </div>
+        <% } else { %>
+        <div style="overflow-x:auto;">
+        <table class="roles-table log-table">
+            <thead>
+                <tr>
+                    <th>When</th>
+                    <th>Who</th>
+                    <th>Action</th>
+                    <th>Category</th>
+                    <th>Target</th>
+                    <th>Where</th>
+                    <th>Result</th>
+                </tr>
+            </thead>
+            <tbody>
+                <%
+                // Parse a JSON column whether mysql2 returns it as an object or a string.
+                const asObj = (v) => {
+                    if (v == null) return null;
+                    if (typeof v === 'object') return v;
+                    try { return JSON.parse(v); } catch (e) { return null; }
+                };
+                %>
+                <% logs.forEach((log, i) => {
+                    const when = new Date(log.created_at);
+                    const ok = log.success === 1 || log.success === true;
+                    let bodyStr = '';
+                    if (log.body) {
+                        try { bodyStr = typeof log.body === 'string' ? log.body : JSON.stringify(log.body); } catch (e) { bodyStr = ''; }
+                    }
+                    const changes = asObj(log.changes);
+                    const before  = asObj(log.before_data);
+                    const after   = asObj(log.after_data);
+                    const isDelete = before && !after && !changes;
+                    const hasDiff = !!(changes || isDelete);
+                    const fmt = (v) => {
+                        if (v === null || v === undefined) return '∅';
+                        if (typeof v === 'object') { try { return JSON.stringify(v); } catch (e) { return String(v); } }
+                        const s = String(v);
+                        return s.length > 160 ? s.slice(0, 160) + '…' : s;
+                    };
+                %>
+                <tr>
+                    <td style="white-space:nowrap;">
+                        <span title="<%= when.toISOString() %>"><%= when.toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) %></span>
+                    </td>
+                    <td>
+                        <% if (log.actor_name) { %>
+                            <div class="role-name" style="font-size:0.92em;"><%= log.actor_name %></div>
+                        <% } else { %>
+                            <span style="opacity:0.6;">— anonymous —</span>
+                        <% } %>
+                        <% if (log.ip) { %><div class="role-desc" style="font-size:0.72em;"><%= log.ip %></div><% } %>
+                    </td>
+                    <td>
+                        <div style="font-weight:500;"><%= log.action_label %></div>
+                        <% if (hasDiff) { %>
+                            <button type="button" class="log-diff-toggle" onclick="toggleDiff(<%= i %>)">
+                                <%= isDelete ? '🗑 view deleted record' : `🔍 ${Object.keys(changes).length} field${Object.keys(changes).length === 1 ? '' : 's'} changed` %>
+                            </button>
+                        <% } else if (bodyStr) { %>
+                            <div class="log-body" title="<%= bodyStr.replace(/"/g, '&quot;') %>"><%= bodyStr.length > 90 ? bodyStr.slice(0, 90) + '…' : bodyStr %></div>
+                        <% } %>
+                    </td>
+                    <td><span class="count-chip"><%= log.category || '—' %></span></td>
+                    <td style="white-space:nowrap;">
+                        <% if (log.target_type) { %>
+                            <span style="color:var(--khaki);"><%= log.target_type %></span><% if (log.target_id) { %> <strong>#<%= log.target_id %></strong><% } %>
+                        <% } else { %>—<% } %>
+                    </td>
+                    <td>
+                        <span class="log-method log-method-<%= log.method.toLowerCase() %>"><%= log.method %></span>
+                        <code class="log-path" title="<%= log.path %>"><%= log.path.length > 40 ? log.path.slice(0, 40) + '…' : log.path %></code>
+                    </td>
+                    <td style="white-space:nowrap;">
+                        <span class="log-status <%= ok ? 'log-ok' : 'log-fail' %>"><%= log.status_code %></span>
+                    </td>
+                </tr>
+                <% if (hasDiff) { %>
+                <tr id="diff-<%= i %>" class="log-diff-row" style="display:none;">
+                    <td colspan="7">
+                        <% if (isDelete) { %>
+                            <div class="log-diff-title">Deleted record</div>
+                            <table class="log-diff-table">
+                                <% Object.keys(before).forEach(k => { %>
+                                <tr><th><%= k %></th><td class="diff-from"><%= fmt(before[k]) %></td></tr>
+                                <% }) %>
+                            </table>
+                        <% } else { %>
+                            <div class="log-diff-title">Changes</div>
+                            <table class="log-diff-table">
+                                <tr><th>Field</th><th>Before</th><th>After</th></tr>
+                                <% Object.keys(changes).forEach(k => { %>
+                                <tr>
+                                    <th><%= k %></th>
+                                    <td class="diff-from"><%= fmt(changes[k].from) %></td>
+                                    <td class="diff-to"><%= fmt(changes[k].to) %></td>
+                                </tr>
+                                <% }) %>
+                            </table>
+                        <% } %>
+                    </td>
+                </tr>
+                <% } %>
+                <% }) %>
+            </tbody>
+        </table>
+        </div>
+
+        <%# ── Pagination ────────────────────────────────────────────── %>
+        <% if (totalPages > 1) {
+            const qs = (p) => {
+                const u = new URLSearchParams();
+                if (filters.search)   u.set('q', filters.search);
+                if (filters.category) u.set('category', filters.category);
+                if (filters.method)   u.set('method', filters.method);
+                if (filters.user)     u.set('user', filters.user);
+                if (filters.status)   u.set('status', filters.status);
+                u.set('page', p);
+                return '/admin/logs?' + u.toString();
+            };
+        %>
+        <div class="log-pagination">
+            <% if (page > 1) { %><a href="<%= qs(page - 1) %>" class="btn">← Prev</a><% } %>
+            <span style="color:var(--khaki); opacity:0.8; align-self:center;">Page <%= page %> / <%= totalPages %></span>
+            <% if (page < totalPages) { %><a href="<%= qs(page + 1) %>" class="btn">Next →</a><% } %>
+        </div>
+        <% } %>
+        <% } %>
+    </section>
+
+    <div style="margin-bottom:30px;">
+        <a href="/admin" class="btn">← Back to Dashboard</a>
+    </div>
+</div>
+
+<style>
+.log-filters { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+.log-input {
+    background: var(--camo-dark, #1a1d16); border: 1px solid var(--olive, #3a4a2a);
+    color: var(--text-primary, #e8e6df); padding: 8px 10px; border-radius: 4px;
+    font-size: 0.85em; flex: 1 1 150px; min-width: 120px; box-sizing: border-box;
+}
+.log-table th, .log-table td { vertical-align: top; font-size: 0.85em; }
+.log-method {
+    display:inline-block; font-size:0.7em; font-weight:700; padding:2px 6px;
+    border-radius:3px; letter-spacing:0.5px;
+}
+.log-method-post   { background:rgba(76,175,80,0.18);  color:#7fd183; }
+.log-method-patch  { background:rgba(209,143,33,0.18); color:#e0a23c; }
+.log-method-put    { background:rgba(209,143,33,0.18); color:#e0a23c; }
+.log-method-delete { background:rgba(231,76,60,0.18);  color:#e88; }
+.log-path { font-size:0.78em; color:var(--khaki); opacity:0.85; margin-left:6px; }
+.log-body {
+    font-size:0.72em; color:var(--khaki); opacity:0.7; margin-top:3px;
+    font-family: monospace; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.log-status { font-weight:700; font-size:0.85em; }
+.log-ok   { color:#7fd183; }
+.log-fail { color:#e88; }
+.log-pagination { display:flex; gap:12px; justify-content:center; margin-top:18px; }
+.log-diff-toggle {
+    margin-top:4px; background:rgba(209,143,33,0.12); border:1px solid var(--olive,#3a4a2a);
+    color:var(--accent,#d18f21); font-size:0.72em; padding:2px 8px; border-radius:4px; cursor:pointer;
+}
+.log-diff-toggle:hover { background:rgba(209,143,33,0.22); }
+.log-diff-row > td { background:rgba(0,0,0,0.25); padding:12px 16px; }
+.log-diff-title { font-size:0.72em; letter-spacing:1px; text-transform:uppercase; color:var(--khaki); opacity:0.8; margin-bottom:8px; }
+.log-diff-table { width:100%; border-collapse:collapse; font-size:0.8em; }
+.log-diff-table th { text-align:left; color:var(--khaki); font-weight:600; padding:4px 10px 4px 0; vertical-align:top; white-space:nowrap; }
+.log-diff-table td { padding:4px 10px; vertical-align:top; font-family:monospace; word-break:break-word; }
+.log-diff-table tr { border-top:1px solid rgba(255,255,255,0.05); }
+.diff-from { color:#e88; }
+.diff-to   { color:#7fd183; }
+</style>
+<script>
+function toggleDiff(i) {
+    const row = document.getElementById('diff-' + i);
+    if (row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+}
+</script>
+
+<%- include('../partials/footer') %>

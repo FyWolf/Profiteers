@@ -389,6 +389,17 @@
                 </div>
             </div>
 
+            <% if (can('logs.view')) { %>
+            <div class="manage-card">
+                <div class="manage-card-top"><span class="manage-icon">📜</span></div>
+                <div class="manage-title">Action Log</div>
+                <div class="manage-desc">Full audit trail of every action taken on the site — who did what, where and when.</div>
+                <div class="manage-card-footer">
+                    <a href="/admin/logs" class="manage-link primary">View Log</a>
+                </div>
+            </div>
+            <% } %>
+
         </div>
     </section>
 </div>
