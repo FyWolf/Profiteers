@@ -104,6 +104,9 @@
                         return '<span class="diff-empty">empty</span>';
                     if (value === true)  return '<span class="diff-bool-y">✓ Yes</span>';
                     if (value === false) return '<span class="diff-bool-n">✗ No</span>';
+                    // Resolve foreign-key ids (user_id, slot_type_id, …) to a name.
+                    const fkName = nameForField(key, value);
+                    if (fkName) return `<span class="kv-name">${esc(fkName)}</span> <span class="kv-id">#${esc(value)}</span>`;
                     const str = typeof value === 'object' ? JSON.stringify(value) : String(value);
                     if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(str))
                         return `<span class="diff-swatch" style="background:${esc(str)}"></span> <span class="diff-mono">${esc(str)}</span>`;
@@ -156,9 +159,14 @@
                         <% } %>
                     </td>
                     <td><span class="count-chip"><%= log.category || '—' %></span></td>
-                    <td style="white-space:nowrap;">
+                    <td>
                         <% if (log.target_type) { %>
-                            <span style="color:var(--khaki);"><%= humanizeKey(log.target_type) %></span><% if (log.target_id) { %> <strong>#<%= log.target_id %></strong><% } %>
+                            <span style="color:var(--khaki);"><%= humanizeKey(log.target_type) %></span>
+                            <% if (log.targetName) { %>
+                                <div><strong class="kv-name"><%= log.targetName %></strong> <span class="kv-id">#<%= log.target_id %></span></div>
+                            <% } else if (log.target_id) { %>
+                                <strong>#<%= log.target_id %></strong>
+                            <% } %>
                         <% } else { %>—<% } %>
                     </td>
                     <td>

@@ -1676,6 +1676,8 @@ th[onclick]:hover { color: var(--accent) !important; }
 .kv-value  { color:var(--sand); }
 .kv-before { color:#ff9b9b; }
 .kv-after  { color:var(--olive-light); }
+.kv-name   { color:var(--sand); font-weight:600; }
+.kv-id     { color:var(--khaki); opacity:0.6; font-size:0.88em; font-family:monospace; }
 
 /* Value formatting helpers */
 .diff-empty  { color:var(--khaki); opacity:0.45; font-style:italic; }
