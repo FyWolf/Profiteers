@@ -68,31 +68,74 @@
             </thead>
             <tbody>
                 <%
+                // ── Display helpers (shared across all rows) ──────────────────
                 // Parse a JSON column whether mysql2 returns it as an object or a string.
                 const asObj = (v) => {
                     if (v == null) return null;
                     if (typeof v === 'object') return v;
                     try { return JSON.parse(v); } catch (e) { return null; }
                 };
+                const esc = (s) => String(s).replace(/[&<>"']/g, c => (
+                    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+                ));
+                // snake_case / camelCase column → readable label, with acronyms.
+                const ACR = { id:'ID', url:'URL', ip:'IP', lr:'LR', sr:'SR', loa:'LOA', orbat:'ORBAT', tfar:'TFAR', acl:'ACL', html:'HTML' };
+                const humanizeKey = (key) => String(key)
+                    .replace(/_/g, ' ')
+                    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+                    .split(' ').filter(Boolean)
+                    .map((w, idx) => {
+                        const lw = w.toLowerCase();
+                        if (ACR[lw]) return ACR[lw];
+                        return idx === 0 ? lw.charAt(0).toUpperCase() + lw.slice(1) : lw;
+                    }).join(' ');
+                const isBoolKey = (key) =>
+                    /^(is|has|can)([A-Z]|_)/.test(key) ||
+                    /(_published|_enabled|_active|_visible|_pinned)$/i.test(key);
+                // Format a single value as readable, escaped HTML.
+                const fmtVal = (key, value) => {
+                    if (isBoolKey(key)) {
+                        if (value === true || value === 1 || value === '1' || value === 'on' || value === 'true')
+                            return '<span class="diff-bool-y">✓ Yes</span>';
+                        if (value === false || value === 0 || value === '0' || value === 'false' || value === 'off' || value === null || value === '')
+                            return '<span class="diff-bool-n">✗ No</span>';
+                    }
+                    if (value === null || value === undefined || value === '')
+                        return '<span class="diff-empty">empty</span>';
+                    if (value === true)  return '<span class="diff-bool-y">✓ Yes</span>';
+                    if (value === false) return '<span class="diff-bool-n">✗ No</span>';
+                    const str = typeof value === 'object' ? JSON.stringify(value) : String(value);
+                    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(str))
+                        return `<span class="diff-swatch" style="background:${esc(str)}"></span> <span class="diff-mono">${esc(str)}</span>`;
+                    if (/(_at|_date|date|time)$/i.test(key)) {
+                        let d = null;
+                        if (/^\d{9,13}$/.test(str)) d = new Date(str.length > 10 ? Number(str) : Number(str) * 1000);
+                        else if (/^\d{4}-\d{2}-\d{2}/.test(str)) { const t = new Date(str); if (!isNaN(t)) d = t; }
+                        if (d && !isNaN(d))
+                            return `<span title="${esc(str)}">${esc(d.toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }))}</span>`;
+                    }
+                    if (str.length > 200) return `<span title="${esc(str)}">${esc(str.slice(0, 200))}…</span>`;
+                    return esc(str);
+                };
                 %>
                 <% logs.forEach((log, i) => {
                     const when = new Date(log.created_at);
                     const ok = log.success === 1 || log.success === true;
-                    let bodyStr = '';
-                    if (log.body) {
-                        try { bodyStr = typeof log.body === 'string' ? log.body : JSON.stringify(log.body); } catch (e) { bodyStr = ''; }
-                    }
                     const changes = asObj(log.changes);
                     const before  = asObj(log.before_data);
                     const after   = asObj(log.after_data);
+                    const bodyObj = asObj(log.body);
                     const isDelete = before && !after && !changes;
-                    const hasDiff = !!(changes || isDelete);
-                    const fmt = (v) => {
-                        if (v === null || v === undefined) return '∅';
-                        if (typeof v === 'object') { try { return JSON.stringify(v); } catch (e) { return String(v); } }
-                        const s = String(v);
-                        return s.length > 160 ? s.slice(0, 160) + '…' : s;
-                    };
+                    const hasBody  = bodyObj && Object.keys(bodyObj).length > 0;
+                    const hasDetail = !!(changes || isDelete || hasBody);
+                    // Fields to show for a deleted record (skip empty columns to cut noise).
+                    const deletedFields = isDelete
+                        ? Object.keys(before).filter(k => before[k] !== null && before[k] !== '')
+                        : [];
+                    let toggleLabel = '';
+                    if (changes)       toggleLabel = `🔍 ${Object.keys(changes).length} field${Object.keys(changes).length === 1 ? '' : 's'} changed`;
+                    else if (isDelete) toggleLabel = '🗑 View deleted record';
+                    else if (hasBody)  toggleLabel = '📋 View submitted data';
                 %>
                 <tr>
                     <td style="white-space:nowrap;">
@@ -108,50 +151,70 @@
                     </td>
                     <td>
                         <div style="font-weight:500;"><%= log.action_label %></div>
-                        <% if (hasDiff) { %>
-                            <button type="button" class="log-diff-toggle" onclick="toggleDiff(<%= i %>)">
-                                <%= isDelete ? '🗑 view deleted record' : `🔍 ${Object.keys(changes).length} field${Object.keys(changes).length === 1 ? '' : 's'} changed` %>
-                            </button>
-                        <% } else if (bodyStr) { %>
-                            <div class="log-body" title="<%= bodyStr.replace(/"/g, '&quot;') %>"><%= bodyStr.length > 90 ? bodyStr.slice(0, 90) + '…' : bodyStr %></div>
+                        <% if (hasDetail) { %>
+                            <button type="button" class="log-diff-toggle" onclick="toggleDiff(<%= i %>)"><%= toggleLabel %></button>
                         <% } %>
                     </td>
                     <td><span class="count-chip"><%= log.category || '—' %></span></td>
                     <td style="white-space:nowrap;">
                         <% if (log.target_type) { %>
-                            <span style="color:var(--khaki);"><%= log.target_type %></span><% if (log.target_id) { %> <strong>#<%= log.target_id %></strong><% } %>
+                            <span style="color:var(--khaki);"><%= humanizeKey(log.target_type) %></span><% if (log.target_id) { %> <strong>#<%= log.target_id %></strong><% } %>
                         <% } else { %>—<% } %>
                     </td>
                     <td>
-                        <span class="log-method log-method-<%= log.method.toLowerCase() %>"><%= log.method %></span>
-                        <code class="log-path" title="<%= log.path %>"><%= log.path.length > 40 ? log.path.slice(0, 40) + '…' : log.path %></code>
+                        <div>
+                            <span class="log-method log-method-<%= log.method.toLowerCase() %>"><%= log.method %></span>
+                            <code class="log-path" title="<%= log.path %>"><%= log.path.length > 40 ? log.path.slice(0, 40) + '…' : log.path %></code>
+                        </div>
+                        <% if (log.destination) { %>
+                            <a class="log-goto" href="<%= log.destination %>" target="_blank" rel="noopener" title="Open the page where this happened">Open ↗</a>
+                        <% } %>
                     </td>
                     <td style="white-space:nowrap;">
                         <span class="log-status <%= ok ? 'log-ok' : 'log-fail' %>"><%= log.status_code %></span>
                     </td>
                 </tr>
-                <% if (hasDiff) { %>
-                <tr id="diff-<%= i %>" class="log-diff-row" style="display:none;">
+                <% if (hasDetail) { %>
+                <tr id="diff-<%= i %>" class="log-detail-row" hidden>
                     <td colspan="7">
-                        <% if (isDelete) { %>
-                            <div class="log-diff-title">Deleted record</div>
-                            <table class="log-diff-table">
-                                <% Object.keys(before).forEach(k => { %>
-                                <tr><th><%= k %></th><td class="diff-from"><%= fmt(before[k]) %></td></tr>
-                                <% }) %>
-                            </table>
-                        <% } else { %>
-                            <div class="log-diff-title">Changes</div>
-                            <table class="log-diff-table">
-                                <tr><th>Field</th><th>Before</th><th>After</th></tr>
+                        <% if (changes) { %>
+                        <div class="log-detail">
+                            <div class="log-detail-title">🔍 Changed fields</div>
+                            <table class="log-kv log-kv--diff">
+                                <thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead>
+                                <tbody>
                                 <% Object.keys(changes).forEach(k => { %>
-                                <tr>
-                                    <th><%= k %></th>
-                                    <td class="diff-from"><%= fmt(changes[k].from) %></td>
-                                    <td class="diff-to"><%= fmt(changes[k].to) %></td>
-                                </tr>
+                                    <tr>
+                                        <th class="kv-field"><%= humanizeKey(k) %></th>
+                                        <td class="kv-before"><%- fmtVal(k, changes[k].from) %></td>
+                                        <td class="kv-after"><%- fmtVal(k, changes[k].to) %></td>
+                                    </tr>
                                 <% }) %>
+                                </tbody>
                             </table>
+                        </div>
+                        <% } else if (isDelete) { %>
+                        <div class="log-detail">
+                            <div class="log-detail-title">🗑 Deleted record</div>
+                            <table class="log-kv">
+                                <tbody>
+                                <% deletedFields.forEach(k => { %>
+                                    <tr><th class="kv-field"><%= humanizeKey(k) %></th><td class="kv-value"><%- fmtVal(k, before[k]) %></td></tr>
+                                <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                        <% } else if (hasBody) { %>
+                        <div class="log-detail">
+                            <div class="log-detail-title">📋 Submitted data</div>
+                            <table class="log-kv">
+                                <tbody>
+                                <% Object.keys(bodyObj).forEach(k => { %>
+                                    <tr><th class="kv-field"><%= humanizeKey(k) %></th><td class="kv-value"><%- fmtVal(k, bodyObj[k]) %></td></tr>
+                                <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
                         <% } %>
                     </td>
                 </tr>
@@ -188,49 +251,10 @@
     </div>
 </div>
 
-<style>
-.log-filters { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
-.log-input {
-    background: var(--camo-dark, #1a1d16); border: 1px solid var(--olive, #3a4a2a);
-    color: var(--text-primary, #e8e6df); padding: 8px 10px; border-radius: 4px;
-    font-size: 0.85em; flex: 1 1 150px; min-width: 120px; box-sizing: border-box;
-}
-.log-table th, .log-table td { vertical-align: top; font-size: 0.85em; }
-.log-method {
-    display:inline-block; font-size:0.7em; font-weight:700; padding:2px 6px;
-    border-radius:3px; letter-spacing:0.5px;
-}
-.log-method-post   { background:rgba(76,175,80,0.18);  color:#7fd183; }
-.log-method-patch  { background:rgba(209,143,33,0.18); color:#e0a23c; }
-.log-method-put    { background:rgba(209,143,33,0.18); color:#e0a23c; }
-.log-method-delete { background:rgba(231,76,60,0.18);  color:#e88; }
-.log-path { font-size:0.78em; color:var(--khaki); opacity:0.85; margin-left:6px; }
-.log-body {
-    font-size:0.72em; color:var(--khaki); opacity:0.7; margin-top:3px;
-    font-family: monospace; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-}
-.log-status { font-weight:700; font-size:0.85em; }
-.log-ok   { color:#7fd183; }
-.log-fail { color:#e88; }
-.log-pagination { display:flex; gap:12px; justify-content:center; margin-top:18px; }
-.log-diff-toggle {
-    margin-top:4px; background:rgba(209,143,33,0.12); border:1px solid var(--olive,#3a4a2a);
-    color:var(--accent,#d18f21); font-size:0.72em; padding:2px 8px; border-radius:4px; cursor:pointer;
-}
-.log-diff-toggle:hover { background:rgba(209,143,33,0.22); }
-.log-diff-row > td { background:rgba(0,0,0,0.25); padding:12px 16px; }
-.log-diff-title { font-size:0.72em; letter-spacing:1px; text-transform:uppercase; color:var(--khaki); opacity:0.8; margin-bottom:8px; }
-.log-diff-table { width:100%; border-collapse:collapse; font-size:0.8em; }
-.log-diff-table th { text-align:left; color:var(--khaki); font-weight:600; padding:4px 10px 4px 0; vertical-align:top; white-space:nowrap; }
-.log-diff-table td { padding:4px 10px; vertical-align:top; font-family:monospace; word-break:break-word; }
-.log-diff-table tr { border-top:1px solid rgba(255,255,255,0.05); }
-.diff-from { color:#e88; }
-.diff-to   { color:#7fd183; }
-</style>
 <script>
 function toggleDiff(i) {
     const row = document.getElementById('diff-' + i);
-    if (row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+    if (row) row.hidden = !row.hidden;
 }
 </script>
 

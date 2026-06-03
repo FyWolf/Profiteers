@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/database');
+const { resolveDestination } = require('../../middleware/action-log');
 
 const PAGE_SIZE = 50;
 
@@ -38,25 +39,32 @@ router.get('/', async (req, res) => {
         const [logs] = await db.query(
             `SELECT
                 l.*,
-                COALESCE(u.discord_global_name, u.username, l.username) AS actor_name,
+                COALESCE(rm.nickname, u.discord_global_name, u.username, l.username) AS actor_name,
                 u.discord_id   AS actor_discord_id,
                 u.discord_avatar AS actor_avatar
              FROM admin_action_logs l
              LEFT JOIN users u ON l.user_id = u.id
+             LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
              ${whereSql}
              ORDER BY l.created_at DESC, l.id DESC
              LIMIT ? OFFSET ?`,
             [...params, PAGE_SIZE, offset]
         );
 
+        // Best-effort link to the page where each action can be viewed.
+        for (const log of logs) {
+            log.destination = resolveDestination(log);
+        }
+
         // Filter option sources
         const [categories] = await db.query(
             `SELECT DISTINCT category FROM admin_action_logs WHERE category IS NOT NULL ORDER BY category ASC`
         );
         const [actors] = await db.query(
-            `SELECT DISTINCT l.user_id, COALESCE(u.discord_global_name, u.username, l.username) AS name
+            `SELECT DISTINCT l.user_id, COALESCE(rm.nickname, u.discord_global_name, u.username, l.username) AS name
              FROM admin_action_logs l
              LEFT JOIN users u ON l.user_id = u.id
+             LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
              WHERE l.user_id IS NOT NULL
              ORDER BY name ASC`
         );

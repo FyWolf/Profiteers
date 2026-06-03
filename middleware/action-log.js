@@ -445,9 +445,22 @@ async function actionLogger(req, res, next) {
             const action = resolveAction(req.method, pattern);
 
             const userId = req.user ? req.user.id : null;
-            const username = req.user
-                ? (req.user.username || req.user.discord_global_name || null)
-                : null;
+            // Prefer the user's Discord guild nickname (server display name) over
+            // their global display name, and only fall back to the account
+            // username (@handle) as a last resort.
+            let username = null;
+            if (req.user) {
+                username = req.user.discord_global_name || req.user.username || null;
+                if (req.user.discord_id) {
+                    try {
+                        const [rm] = await db.query(
+                            'SELECT nickname FROM roster_members WHERE discord_id = ? LIMIT 1',
+                            [req.user.discord_id]
+                        );
+                        if (rm.length && rm[0].nickname) username = rm[0].nickname;
+                    } catch (_) { /* roster table may not exist yet */ }
+                }
+            }
 
             // Best-effort target id from the most specific route param.
             const params = req.params || {};
@@ -553,4 +566,54 @@ async function actionLogger(req, res, next) {
     }
 })();
 
-module.exports = { actionLogger, ACTIONS };
+// ─── "Where it happened" link resolver ───────────────────────────────────────
+// Maps a logged action back to the relevant *viewable* page so the log viewer
+// can offer an "Open" button. The stored `path` is the mutation endpoint (often
+// not viewable), so we map by mounted-route prefix to a sensible GET page,
+// substituting ids pulled from the actual path. Returns a URL or null.
+function paramsFromPath(route, path) {
+    if (!route || !path) return {};
+    try {
+        const { re, names } = compilePattern(route);
+        const m = re.exec(String(path).split('?')[0]);
+        if (!m) return {};
+        const out = {};
+        names.forEach((n, i) => { out[n] = m[i + 1]; });
+        return out;
+    } catch (_) { return {}; }
+}
+
+function resolveDestination(log) {
+    const route = log.route || '';
+    const p = paramsFromPath(route, log.path);
+
+    // Operation-scoped actions (ORBAT on an op, publish, etc.) → the op page.
+    if (p.operationId) return `/operations/${p.operationId}`;
+
+    if (route.startsWith('/operations')) {
+        if (route.startsWith('/operations/manage/blocks')) return '/operations/manage/blocks';
+        if (route.startsWith('/operations/manage/delete')) return '/operations/manage/list';
+        if (route.includes('/news/delete')) return '/operations/all';
+        return p.id ? `/operations/${p.id}` : '/operations/manage/list';
+    }
+    if (route.startsWith('/modpacks'))        return p.id ? `/modpacks/${p.id}` : '/modpacks';
+    if (route.startsWith('/plans'))           return p.id ? `/plans/${p.id}` : '/plans';
+    if (route.startsWith('/admin/map-plans')) return p.id ? `/plans/${p.id}` : '/admin/map-plans';
+    if (route.startsWith('/orbat/templates')) return p.id ? `/orbat/templates/edit/${p.id}` : '/orbat/templates';
+    if (route.startsWith('/orbat'))           return '/orbat/templates';
+    if (route.startsWith('/admin/roles'))     return p.id ? `/admin/roles/${p.id}/edit` : '/admin/roles';
+    if (route.startsWith('/admin/users'))     return '/admin/users';
+    if (route.startsWith('/admin/tools'))     return '/admin/tools';
+    if (route.startsWith('/admin/medals'))    return '/admin/medals';
+    if (route.startsWith('/admin/trainings')) return '/admin/trainings';
+    if (route.startsWith('/admin/slot-types'))return '/admin/slot-types';
+    if (route.startsWith('/admin/gallery'))   return '/admin/gallery';
+    if (route.startsWith('/admin/info'))      return '/admin/info/servers';
+    if (route.startsWith('/loa'))             return '/loa/all';
+    if (route.startsWith('/lore'))            return '/lore/admin';
+    if (route.startsWith('/roster'))          return '/roster';
+
+    return null;
+}
+
+module.exports = { actionLogger, ACTIONS, resolveDestination };
