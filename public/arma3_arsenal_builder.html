@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arma 3 Arsenal Whitelist Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+    --camo-dark:#1a2a1a; --camo-mid:#2e3b2e; --olive:#6b8e23; --olive-light:#8ab23a;
+    --khaki:#b2b27d; --sand:#f4f3e8; --accent:#fcb00d; --shadow:rgba(0,0,0,0.6);
+    --red:#e05555; --green:#52c85a;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+    font-family:'Roboto Mono','Courier New',monospace;
+    background:linear-gradient(135deg,var(--camo-dark) 0%,var(--camo-mid) 100%);
+    color:var(--sand); min-height:100vh; padding:0;
+}
+.container{max-width:1500px;margin:0 auto;padding:18px;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+header{
+    background:linear-gradient(135deg,rgba(0,0,0,0.6) 0%,rgba(30,40,30,0.8) 100%);
+    border-bottom:3px solid var(--accent); border-radius:14px;
+    padding:22px 28px; margin-bottom:18px; box-shadow:0 8px 32px var(--shadow);
+}
+header .top{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;}
+h1{font-family:'Orbitron',sans-serif;font-size:1.9em;color:var(--accent);
+   text-shadow:0 0 14px rgba(252,176,13,0.5);letter-spacing:1.5px;}
+.subtitle{color:var(--khaki);font-size:0.9em;margin-top:6px;}
+
+.panel{
+    background:rgba(0,0,0,0.35); border:1px solid rgba(107,142,35,0.4);
+    border-radius:12px; padding:18px 20px; margin-bottom:18px;
+}
+.panel h2{
+    font-family:'Orbitron',sans-serif;font-size:0.95em;color:var(--sand);
+    letter-spacing:1.5px;margin-bottom:14px;text-transform:uppercase;
+    display:flex;align-items:center;gap:8px;
+}
+.panel h2 .step{
+    background:var(--accent);color:#1a2a1a;border-radius:50%;width:24px;height:24px;
+    display:inline-flex;align-items:center;justify-content:center;font-size:0.85em;font-weight:700;flex:0 0 auto;
+}
+
+/* Buttons */
+.btn{
+    font-family:'Roboto Mono',monospace;font-weight:700;font-size:0.85em;cursor:pointer;
+    border:1px solid var(--olive);background:rgba(107,142,35,0.15);color:var(--sand);
+    padding:9px 16px;border-radius:8px;transition:.15s;letter-spacing:.5px;
+}
+.btn:hover{background:rgba(107,142,35,0.35);border-color:var(--olive-light);}
+.btn.primary{background:linear-gradient(135deg,var(--olive),var(--olive-light));color:#fff;border:none;}
+.btn.primary:hover{filter:brightness(1.12);}
+.btn.accent{background:var(--accent);color:#1a2a1a;border:none;}
+.btn.accent:hover{filter:brightness(1.1);}
+.btn.ghost{background:transparent;}
+.btn.sm{padding:5px 10px;font-size:0.76em;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+textarea,input[type=text],input[type=file]{
+    font-family:'Roboto Mono',monospace;background:rgba(0,0,0,0.45);
+    border:1px solid rgba(107,142,35,0.5);border-radius:8px;color:var(--sand);
+    padding:10px 12px;font-size:0.85em;width:100%;
+}
+textarea:focus,input[type=text]:focus{outline:none;border-color:var(--accent);}
+textarea{resize:vertical;min-height:90px;}
+
+.load-row{display:flex;gap:18px;flex-wrap:wrap;align-items:stretch;}
+.load-col{flex:1 1 320px;display:flex;flex-direction:column;gap:8px;}
+.load-col label{font-size:0.78em;color:var(--khaki);text-transform:uppercase;letter-spacing:1px;}
+.muted{color:var(--khaki);font-size:0.8em;opacity:.85;line-height:1.5;}
+.or-sep{display:flex;align-items:center;color:var(--khaki);font-weight:700;opacity:.6;}
+
+#stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+.stat-chip{
+    background:rgba(107,142,35,0.12);border:1px solid rgba(107,142,35,0.35);
+    border-radius:20px;padding:5px 14px;font-size:0.8em;
+}
+.stat-chip b{color:var(--accent);}
+
+/* Workspace */
+#workspace{display:none;}
+.work-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:18px;align-items:start;}
+@media(max-width:980px){.work-grid{grid-template-columns:1fr;}}
+
+.col-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.col-title h3{font-family:'Orbitron',sans-serif;font-size:0.9em;letter-spacing:1px;color:var(--sand);}
+.count-badge{background:rgba(252,176,13,0.15);border:1px solid rgba(252,176,13,0.4);
+    color:var(--accent);border-radius:20px;padding:3px 11px;font-size:0.8em;font-weight:700;}
+
+/* Filters */
+.filterbar{display:flex;flex-direction:column;gap:12px;margin-bottom:14px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.chip{
+    cursor:pointer;user-select:none;font-size:0.74em;padding:4px 11px;border-radius:16px;
+    border:1px solid rgba(107,142,35,0.4);background:rgba(0,0,0,0.3);color:var(--khaki);transition:.12s;
+}
+.chip:hover{border-color:var(--olive-light);color:var(--sand);}
+.chip.on{background:var(--accent);color:#1a2a1a;border-color:var(--accent);font-weight:700;}
+.chip .c{opacity:.7;font-weight:400;margin-left:4px;}
+.chip.on .c{opacity:.85;}
+.filter-label{font-size:0.72em;color:var(--khaki);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;}
+
+/* Lists */
+.list{
+    border:1px solid rgba(107,142,35,0.3);border-radius:10px;background:rgba(0,0,0,0.25);
+    max-height:540px;overflow-y:auto;
+}
+.row{
+    display:flex;align-items:center;gap:10px;padding:7px 12px;cursor:pointer;
+    border-bottom:1px solid rgba(107,142,35,0.08);font-size:0.83em;transition:background .1s;
+}
+.row:hover{background:rgba(107,142,35,0.1);}
+.row.sel{background:rgba(252,176,13,0.07);}
+.row .nm{flex:1;word-break:break-all;color:var(--sand);}
+.row .tag{font-size:0.66em;padding:1px 7px;border-radius:10px;white-space:nowrap;flex:0 0 auto;}
+.tag.cat{background:rgba(107,142,35,0.18);color:var(--olive-light);}
+.tag.src{background:rgba(252,176,13,0.12);color:var(--accent);opacity:.85;}
+.row .add{flex:0 0 auto;color:var(--green);font-weight:700;font-size:1.1em;width:18px;text-align:center;}
+.row.sel .add{color:var(--accent);}
+.row .rm{color:var(--red);font-weight:700;cursor:pointer;flex:0 0 auto;padding:0 4px;}
+.empty{padding:26px;text-align:center;color:var(--khaki);opacity:.6;font-size:0.85em;}
+.cap-note{padding:8px 12px;font-size:0.75em;color:var(--khaki);background:rgba(0,0,0,0.3);
+    border-top:1px solid rgba(107,142,35,0.15);text-align:center;}
+
+.bulkbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
+.qty-ctrl{display:inline-flex;align-items:center;gap:6px;margin-left:auto;}
+.qty-ctrl label{font-size:0.72em;color:var(--khaki);text-transform:uppercase;letter-spacing:1px;}
+.qty-ctrl input{width:58px;text-align:center;padding:5px 6px;font-size:0.78em;}
+.row .qty-inp{
+    flex:0 0 auto;width:58px;text-align:center;padding:3px 5px;font-size:0.76em;
+    background:rgba(0,0,0,0.45);border:1px solid rgba(107,142,35,0.4);border-radius:6px;
+    color:var(--accent);font-family:'Roboto Mono',monospace;
+}
+.row .qty-inp:focus{outline:none;border-color:var(--accent);}
+
+/* Export */
+.seg{display:inline-flex;border:1px solid rgba(107,142,35,0.4);border-radius:8px;overflow:hidden;flex-wrap:wrap;}
+.seg button{background:transparent;color:var(--khaki);border:none;padding:7px 12px;
+    font-family:'Roboto Mono',monospace;font-size:0.76em;cursor:pointer;}
+.seg button.on{background:var(--accent);color:#1a2a1a;font-weight:700;}
+#exportOut{min-height:120px;font-size:0.78em;}
+
+.preset-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;}
+.note{font-size:0.74em;color:var(--khaki);opacity:.8;line-height:1.5;margin-top:8px;}
+.kbd{background:rgba(0,0,0,0.5);border:1px solid rgba(107,142,35,0.4);border-radius:4px;padding:1px 6px;font-size:0.85em;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--olive);color:#fff;padding:10px 22px;border-radius:24px;font-weight:700;
+    box-shadow:0 6px 20px var(--shadow);opacity:0;transition:.25s;pointer-events:none;z-index:50;font-size:0.85em;}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="container">
+
+    <header>
+        <div class="top">
+            <div>
+                <h1>ARSENAL WHITELIST BUILDER</h1>
+                <div class="subtitle">Sift a giant modded arsenal export down to a clean mission whitelist.</div>
+            </div>
+            <a href="/tools" class="btn ghost">← Tools</a>
+        </div>
+    </header>
+
+    <!-- STEP 1: LOAD -->
+    <div class="panel">
+        <h2><span class="step">1</span> Load your arsenal export</h2>
+        <div class="load-row">
+            <div class="load-col">
+                <label>Load a file (.txt / .sqf)</label>
+                <input type="file" id="fileInput" accept=".txt,.sqf,.json,.csv">
+                <div class="muted">Pick the exported arsenal file. Big files (1&nbsp;MB+) are fine.</div>
+            </div>
+            <div class="or-sep">OR</div>
+            <div class="load-col">
+                <label>Paste the export</label>
+                <textarea id="pasteInput" placeholder='[["USP_CRYE_JPC_ASLT",any],["rhs_weap_m4a1",any], ... ]'></textarea>
+            </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+            <button class="btn primary" id="parseBtn">Parse arsenal →</button>
+            <button class="btn ghost" id="clearBtn">Clear</button>
+        </div>
+        <div class="muted" style="margin-top:10px;">
+            Accepts the standard arsenal format <code>[["classname",any],…]</code>, a flat
+            <code>["a","b"]</code> array, or just one classname per line. Everything runs in your browser —
+            nothing is uploaded.
+        </div>
+        <div id="stats"></div>
+    </div>
+
+    <!-- STEP 2: WORKSPACE -->
+    <div id="workspace">
+        <div class="work-grid">
+
+            <!-- AVAILABLE -->
+            <div class="panel" style="margin-bottom:0;">
+                <div class="col-title">
+                    <h3>📦 AVAILABLE ITEMS</h3>
+                    <span class="count-badge" id="availCount">0</span>
+                </div>
+
+                <div class="filterbar">
+                    <input type="text" id="search" placeholder="🔎 Search classname… (e.g. m4, opscore, aor2)">
+                    <div>
+                        <div class="filter-label">Category (best-guess)</div>
+                        <div class="chips" id="catChips"></div>
+                    </div>
+                    <div>
+                        <div class="filter-label">Mod / source</div>
+                        <div class="chips" id="srcChips"></div>
+                    </div>
+                </div>
+
+                <div class="bulkbar">
+                    <button class="btn accent sm" id="addAllBtn">➕ Add all matching</button>
+                    <button class="btn sm" id="removeAllBtn">➖ Remove all matching</button>
+                </div>
+
+                <div class="list" id="availList"></div>
+            </div>
+
+            <!-- SELECTED -->
+            <div class="panel" style="margin-bottom:0;">
+                <div class="col-title">
+                    <h3>✅ YOUR WHITELIST</h3>
+                    <span class="count-badge" id="selCount">0</span>
+                </div>
+
+                <div class="bulkbar">
+                    <button class="btn sm" id="clearSelBtn">🗑 Clear whitelist</button>
+                    <button class="btn sm" id="sortSelBtn">↕ Sort A–Z</button>
+                    <span class="qty-ctrl">
+                        <label for="defaultQty">Qty</label>
+                        <input type="text" id="defaultQty" value="any" title="Default quantity for items you add — a number, or 'any'">
+                        <button class="btn sm" id="applyQtyBtn" title="Set every item in the whitelist to this quantity">Set all</button>
+                    </span>
+                </div>
+
+                <div class="list" id="selList" style="max-height:300px;"></div>
+
+                <!-- EXPORT -->
+                <h2 style="margin-top:20px;"><span class="step">2</span> Export</h2>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+                    <div class="seg" id="fmtSeg">
+                        <button data-fmt="virtual">Virtual Arsenal [[c,any]]</button>
+                        <button data-fmt="arsenal" class="on">Arsenal ["c"]</button>
+                        <button data-fmt="lines">One per line</button>
+                    </div>
+                </div>
+                <textarea id="exportOut" readonly placeholder="Your curated whitelist appears here…"></textarea>
+                <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+                    <button class="btn primary" id="copyBtn">📋 Copy</button>
+                    <button class="btn" id="downloadBtn">💾 Download</button>
+                </div>
+
+                <div class="preset-row">
+                    <input type="text" id="presetName" placeholder="Preset name…" style="flex:1 1 140px;">
+                    <button class="btn sm" id="savePresetBtn">Save preset</button>
+                    <select id="presetSelect" style="flex:1 1 140px;font-family:inherit;background:rgba(0,0,0,0.45);color:var(--sand);border:1px solid rgba(107,142,35,0.5);border-radius:8px;padding:8px;"></select>
+                    <button class="btn sm" id="loadPresetBtn">Load</button>
+                    <button class="btn sm ghost" id="delPresetBtn">Del</button>
+                </div>
+                <div class="note">
+                    Each item has a quantity — type a number or <code>any</code> (unlimited) per row, or set a
+                    default and hit <b>Set all</b>. Quantities are kept in the <b>Virtual Arsenal</b> export
+                    (<code>["class",5]</code>); the <b>Arsenal</b> and line formats are classnames only. Presets
+                    (with quantities) are saved in this browser. Paste the result wherever you got the original export.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- State ---------- */
+const CAP = 800;                 // max rows rendered at once (perf)
+let ITEMS = [];                  // [{name, lname, cat, src, srcQty}]
+let byName = new Map();          // name -> item
+const selected = new Map();      // name -> quantity ('any' | positive integer)
+let defaultQty = 'any';          // quantity applied to newly-added items
+let filtered = [];               // current filtered list (full, not capped)
+const activeCats = new Set();    // empty = all
+const activeSrcs = new Set();    // empty = all
+let exportFmt = 'arsenal';
+
+// Normalise a quantity input → 'any' or a positive integer.
+function normalizeQty(v){
+    const s = String(v == null ? '' : v).trim().toLowerCase();
+    if (/^\d+$/.test(s)){ const n = parseInt(s, 10); if (n > 0) return n; }
+    return 'any';
+}
+
+const $ = id => document.getElementById(id);
+
+/* ---------- Categorisation (heuristic) ---------- */
+const VANILLA = new Set(['u','h','v','g','b','i','arifle','srifle','lmg','mmg','hgun','launch','smg',
+    'optic','acc','muzzle','bipod','binocular','rangefinder','laserdesignator','nvgoggles','item','toolkit',
+    'medikit','firstaidkit','fieldpack','minedetector','uavterminal','smokeshell','handgrenade','b_soldier']);
+
+function categorize(cn){
+    const c = cn.toLowerCase();
+    const first = c.split('_')[0];
+
+    // Magazines / ammo first (many contain weapon-ish words)
+    if (/(^|_)\d+rnd(_|$)/.test(c) || /(^|_)\d+rnd/.test(first) || /mag(_|$)/.test(c) ||
+        /(_rnd_|rnd_|_ammo|_belt|_clip)/.test(c)) return 'Magazines';
+
+    // Attachments / optics
+    if (['optic','acc','muzzle','bipod'].includes(first)) return 'Attachments';
+    if (/(_optic|scope|suppress|silencer|_supp_|flashlight|_laser|bipod|_muzzle|aimpoint|eotech|holosight|_rail|reddot|acog|sight)/.test(c)) return 'Attachments';
+
+    // Weapons
+    if (['arifle','srifle','lmg','mmg','hgun','launch','smg'].includes(first)) return 'Weapons';
+    if (/(_weap_|rifle|carbine|_lmg_|_mg_|pistol|revolver|launcher|shotgun|sniper|crossbow|_smg_|_ar_)/.test(c)) return 'Weapons';
+
+    // Backpacks
+    if (first === 'b') return 'Backpacks';
+    if (/(backpack|_bag(_|$)|rucksack|kitbag|carryall|_pack(_|$)|zipon_pack|fieldpack|assaultpack|bergen)/.test(c)) return 'Backpacks';
+
+    // Vests / carriers
+    if (first === 'v') return 'Vests';
+    if (/(_vest|plate.?carrier|_jpc|_pcu|_cpc|chest.?rig|carrier|_rig_|_plate|tacvest|harness|webbing|_lbt|_lbv|_smersh|_6sh|_chestrig)/.test(c)) return 'Vests';
+
+    // Headgear / helmets
+    if (first === 'h') return 'Headgear';
+    if (/(helmet|_cap(_|$)|beanie|beret|boonie|hat(_|$)|hood|opscore|fast_|_fastmt|_mich|_ach|airframe|baseball|_raid|patrolcap|ushanka)/.test(c)) return 'Headgear';
+
+    // Facewear / glasses / masks
+    if (first === 'g') return 'Facewear';
+    if (/(glasses|goggle|_mframe|oakley|facewear|_mask|shemagh|scarf|balaclava|bandan|_ess|_nvg|beard)/.test(c)) return 'Facewear';
+
+    // Uniforms / clothing
+    if (first === 'u') return 'Uniforms';
+    if (/(uniform|_tcu|_g3c|fatigue|combat_|_bdu|tshirt|t_shirt|shirt|softshell|coverall|overwhite|straightjacket|smock|jacket|_top(_|$)|pants|trouser|rugby|_cu(_|$)|_acu|fullbody)/.test(c)) return 'Uniforms';
+
+    // Items / medical / explosives / misc
+    if (/(firstaid|medikit|toolkit|_map(_|$)|_gps|compass|_watch|_radio|battery|_item|_kit(_|$)|_charge|_mine(_|$)|detcord|explosive|_grenade|grenade|smoke|chemlight|binocular|rangefinder|earplug|_cable|ziptie|tourniquet|bandage|dressing|morphine|epi|splint|_ifak|_nvg|nvgoggles|terminal|spare|fortify)/.test(c)) return 'Items';
+    if (first === 'ace') return 'Items';   // remaining ACE entries are mostly medical/equipment
+
+    return 'Other';
+}
+
+function source(cn){
+    const first = cn.toLowerCase().split('_')[0];
+    if (first.startsWith('rhs')) return 'RHS';
+    if (first.startsWith('cup')) return 'CUP';
+    if (VANILLA.has(first) || /^\d+rnd$/.test(first)) return 'Vanilla';
+    return cn.split('_')[0].toUpperCase();
+}
+
+/* ---------- Parsing ---------- */
+function parse(text){
+    if (!text || !text.trim()) return [];
+    const seen = new Set(); const out = [];
+    function add(name, qty){
+        let n = name.trim();
+        // valid classname: letters/digits/underscore, and must contain at least one letter
+        if (!n || !/^[A-Za-z0-9_]+$/.test(n) || !/[A-Za-z]/.test(n)) return;
+        if (n.toLowerCase() === 'any') return;
+        if (seen.has(n)) return;
+        seen.add(n);
+        out.push({ name:n, lname:n.toLowerCase(), cat:categorize(n), src:source(n), srcQty:normalizeQty(qty) });
+    }
+
+    // Preferred: [ "class", qty ] pairs — qty is `any` or a number (so a flat
+    // ["a","b"] array isn't mistaken for a name/quantity pair).
+    const pairRe = /\[\s*"([^"]+)"\s*,\s*(any|\d+)\s*\]/gi;
+    let m, foundPairs = false;
+    while ((m = pairRe.exec(text)) !== null){ foundPairs = true; add(m[1], m[2]); }
+
+    if (!foundPairs){
+        // Fall back to a flat ["a","b"] array or a plain one-per-line list (qty = any).
+        let names = text.indexOf('"') !== -1
+            ? (text.match(/"([^"]+)"/g) || []).map(s => s.slice(1, -1))
+            : text.split(/[^A-Za-z0-9_]+/);
+        names.forEach(n => add(n, 'any'));
+    }
+    return out;
+}
+
+/* ---------- Rendering ---------- */
+function buildChips(container, counts, activeSet){
+    const entries = Object.entries(counts).sort((a,b)=> b[1]-a[1] || a[0].localeCompare(b[0]));
+    container.innerHTML = entries.map(([k,c]) =>
+        `<span class="chip${activeSet.has(k)?' on':''}" data-key="${esc(k)}">${esc(k)}<span class="c">${c}</span></span>`
+    ).join('');
+}
+
+function applyFilters(){
+    const q = $('search').value.trim().toLowerCase();
+    filtered = ITEMS.filter(it =>
+        (activeCats.size === 0 || activeCats.has(it.cat)) &&
+        (activeSrcs.size === 0 || activeSrcs.has(it.src)) &&
+        (q === '' || it.lname.indexOf(q) !== -1)
+    );
+    renderAvail();
+}
+
+function renderAvail(){
+    $('availCount').textContent = filtered.length.toLocaleString();
+    const list = $('availList');
+    if (filtered.length === 0){ list.innerHTML = '<div class="empty">No items match these filters.</div>'; return; }
+    const shown = filtered.slice(0, CAP);
+    let html = shown.map(it => rowHtml(it)).join('');
+    if (filtered.length > CAP){
+        html += `<div class="cap-note">Showing first ${CAP.toLocaleString()} of ${filtered.length.toLocaleString()} — refine your search, or use “Add all matching”.</div>`;
+    }
+    list.innerHTML = html;
+}
+
+function rowHtml(it){
+    const sel = selected.has(it.name);
+    return `<div class="row${sel?' sel':''}" data-name="${esc(it.name)}">
+        <span class="add">${sel?'✓':'+'}</span>
+        <span class="nm">${esc(it.name)}</span>
+        <span class="tag cat">${esc(it.cat)}</span>
+        <span class="tag src">${esc(it.src)}</span>
+    </div>`;
+}
+
+function renderSel(){
+    $('selCount').textContent = selected.size.toLocaleString();
+    const list = $('selList');
+    if (selected.size === 0){ list.innerHTML = '<div class="empty">Nothing yet — click items on the left to add them.</div>'; }
+    else {
+        list.innerHTML = [...selected].map(([n, q]) =>
+            `<div class="row sel" data-name="${esc(n)}">
+                <span class="nm">${esc(n)}</span>
+                <input class="qty-inp" data-qn="${esc(n)}" value="${q === 'any' ? 'any' : q}" title="Quantity — a number, or 'any' for unlimited">
+                <span class="rm" data-rm="${esc(n)}">✕</span>
+            </div>`).join('');
+    }
+    renderExport();
+}
+
+function renderExport(){
+    const arr = [...selected];
+    let out = '';
+    if (exportFmt === 'virtual') out = '[' + arr.map(([c, q]) => `["${c}",${q === 'any' ? 'any' : q}]`).join(',') + ']';
+    else if (exportFmt === 'arsenal') out = '[' + arr.map(([c]) => `"${c}"`).join(',') + ']';
+    else out = arr.map(([c]) => c).join('\n');
+    $('exportOut').value = out;
+}
+
+/* ---------- Selection ---------- */
+function qtyForNew(name){
+    const it = byName.get(name);
+    return (it && typeof it.srcQty === 'number') ? it.srcQty : defaultQty;   // preserve imported qty, else default
+}
+function toggle(name){
+    if (selected.has(name)) selected.delete(name); else selected.set(name, qtyForNew(name));
+    // update the matching available row in place (cheap)
+    const r = $('availList').querySelector(`.row[data-name="${cssEsc(name)}"]`);
+    if (r){ const on = selected.has(name); r.classList.toggle('sel', on); r.querySelector('.add').textContent = on?'✓':'+'; }
+    renderSel();
+}
+
+/* ---------- Helpers ---------- */
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function cssEsc(s){ return (window.CSS && CSS.escape) ? CSS.escape(s) : s.replace(/["\\]/g,'\\$&'); }
+let toastT;
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),1600); }
+
+/* ---------- Load / parse flow ---------- */
+function doParse(text){
+    ITEMS = parse(text);
+    if (ITEMS.length === 0){ toast('No classnames found — check the format.'); return; }
+    byName = new Map(ITEMS.map(it => [it.name, it]));
+    selected.clear(); activeCats.clear(); activeSrcs.clear(); $('search').value='';
+    defaultQty = 'any'; $('defaultQty').value = 'any';
+
+    const catCounts = {}, srcCounts = {};
+    for (const it of ITEMS){ catCounts[it.cat]=(catCounts[it.cat]||0)+1; srcCounts[it.src]=(srcCounts[it.src]||0)+1; }
+    buildChips($('catChips'), catCounts, activeCats);
+    buildChips($('srcChips'), srcCounts, activeSrcs);
+
+    const nMods = Object.keys(srcCounts).length;
+    $('stats').innerHTML =
+        `<span class="stat-chip"><b>${ITEMS.length.toLocaleString()}</b> items</span>` +
+        `<span class="stat-chip"><b>${nMods}</b> mods / sources</span>` +
+        `<span class="stat-chip"><b>${Object.keys(catCounts).length}</b> categories</span>`;
+
+    $('workspace').style.display = 'block';
+    applyFilters(); renderSel();
+    $('workspace').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+/* ---------- Presets (localStorage) ---------- */
+const PKEY = 'arsenalBuilderPresets';
+function getPresets(){ try { return JSON.parse(localStorage.getItem(PKEY)||'{}'); } catch(e){ return {}; } }
+function refreshPresetSelect(){
+    const p = getPresets(); const sel = $('presetSelect');
+    const names = Object.keys(p).sort();
+    sel.innerHTML = '<option value="">— presets —</option>' + names.map(n=>`<option value="${esc(n)}">${esc(n)} (${p[n].length})</option>`).join('');
+}
+
+/* ---------- Wire up ---------- */
+$('parseBtn').addEventListener('click', ()=> doParse($('pasteInput').value));
+$('clearBtn').addEventListener('click', ()=>{ $('pasteInput').value=''; $('fileInput').value=''; });
+$('fileInput').addEventListener('change', e=>{
+    const f = e.target.files[0]; if (!f) return;
+    const rd = new FileReader();
+    rd.onload = ev => { doParse(ev.target.result); };
+    rd.readAsText(f);
+});
+
+let searchT;
+$('search').addEventListener('input', ()=>{ clearTimeout(searchT); searchT=setTimeout(applyFilters,140); });
+
+function chipHandler(container, set){
+    container.addEventListener('click', e=>{
+        const chip = e.target.closest('.chip'); if (!chip) return;
+        const key = chip.dataset.key;
+        if (set.has(key)) set.delete(key); else set.add(key);
+        chip.classList.toggle('on');
+        applyFilters();
+    });
+}
+chipHandler($('catChips'), activeCats);
+chipHandler($('srcChips'), activeSrcs);
+
+$('availList').addEventListener('click', e=>{
+    const row = e.target.closest('.row'); if (!row) return;
+    toggle(row.dataset.name);
+});
+$('selList').addEventListener('click', e=>{
+    const rm = e.target.closest('[data-rm]'); if (!rm) return;
+    toggle(rm.dataset.rm);
+});
+
+$('addAllBtn').addEventListener('click', ()=>{
+    if (filtered.length > 5000 && !confirm(`Add all ${filtered.length.toLocaleString()} matching items?`)) return;
+    filtered.forEach(it => { if (!selected.has(it.name)) selected.set(it.name, qtyForNew(it.name)); });
+    renderAvail(); renderSel(); toast(`Added — ${selected.size} in whitelist`);
+});
+$('removeAllBtn').addEventListener('click', ()=>{
+    filtered.forEach(it => selected.delete(it.name));
+    renderAvail(); renderSel(); toast('Removed matching items');
+});
+$('clearSelBtn').addEventListener('click', ()=>{
+    if (selected.size && !confirm('Clear the whole whitelist?')) return;
+    selected.clear(); renderAvail(); renderSel();
+});
+$('sortSelBtn').addEventListener('click', ()=>{
+    const arr=[...selected].sort((a,b)=>a[0].localeCompare(b[0]));
+    selected.clear(); arr.forEach(([k,v])=>selected.set(k,v)); renderSel();
+});
+
+/* Quantity controls */
+$('defaultQty').addEventListener('change', e=>{
+    defaultQty = normalizeQty(e.target.value); e.target.value = defaultQty;
+});
+$('applyQtyBtn').addEventListener('click', ()=>{
+    if (selected.size === 0){ toast('Whitelist is empty'); return; }
+    for (const k of selected.keys()) selected.set(k, defaultQty);
+    renderSel(); toast(`Set all to ${defaultQty}`);
+});
+$('selList').addEventListener('change', e=>{
+    const inp = e.target.closest('.qty-inp'); if (!inp) return;
+    const q = normalizeQty(inp.value); inp.value = (q === 'any' ? 'any' : q);
+    if (selected.has(inp.dataset.qn)) selected.set(inp.dataset.qn, q);
+    renderExport();
+});
+
+$('fmtSeg').addEventListener('click', e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    exportFmt=b.dataset.fmt;
+    [...$('fmtSeg').children].forEach(x=>x.classList.toggle('on', x===b));
+    renderExport();
+});
+$('copyBtn').addEventListener('click', ()=>{
+    const v=$('exportOut').value; if(!v){ toast('Nothing to copy'); return; }
+    navigator.clipboard.writeText(v).then(()=>toast('Copied to clipboard')).catch(()=>{
+        $('exportOut').select(); document.execCommand('copy'); toast('Copied');
+    });
+});
+$('downloadBtn').addEventListener('click', ()=>{
+    const v=$('exportOut').value; if(!v){ toast('Nothing to export'); return; }
+    const ext = exportFmt==='lines' ? 'txt' : 'sqf';
+    const blob=new Blob([v],{type:'text/plain'}); const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download='arsenal_whitelist.'+ext; a.click(); URL.revokeObjectURL(a.href);
+});
+
+$('savePresetBtn').addEventListener('click', ()=>{
+    const name=$('presetName').value.trim(); if(!name){ toast('Name your preset first'); return; }
+    if (selected.size===0){ toast('Whitelist is empty'); return; }
+    const p=getPresets(); p[name]=[...selected]; localStorage.setItem(PKEY, JSON.stringify(p));
+    refreshPresetSelect(); toast(`Saved “${name}”`);
+});
+$('loadPresetBtn').addEventListener('click', ()=>{
+    const name=$('presetSelect').value; if(!name) return;
+    const p=getPresets(); if(!p[name]) return;
+    p[name].forEach(entry=>{
+        if (Array.isArray(entry)) selected.set(entry[0], normalizeQty(entry[1]));   // [name, qty]
+        else selected.set(entry, 'any');                                            // legacy: bare name
+    });
+    renderAvail(); renderSel(); toast(`Loaded “${name}”`);
+});
+$('delPresetBtn').addEventListener('click', ()=>{
+    const name=$('presetSelect').value; if(!name) return;
+    const p=getPresets(); delete p[name]; localStorage.setItem(PKEY, JSON.stringify(p));
+    refreshPresetSelect(); toast(`Deleted “${name}”`);
+});
+
+refreshPresetSelect();
+})();
+</script>
+</body>
+</html>
