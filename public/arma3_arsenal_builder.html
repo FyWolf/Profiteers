@@ -100,8 +100,10 @@ textarea{resize:vertical;min-height:90px;}
 }
 .chip:hover{border-color:var(--olive-light);color:var(--sand);}
 .chip.on{background:var(--accent);color:#1a2a1a;border-color:var(--accent);font-weight:700;}
+.chip.exc{background:rgba(224,85,85,0.85);color:#fff;border-color:var(--red);font-weight:700;text-decoration:line-through;}
+.chip.exc::before{content:"−\00a0";text-decoration:none;display:inline-block;}
 .chip .c{opacity:.7;font-weight:400;margin-left:4px;}
-.chip.on .c{opacity:.85;}
+.chip.on .c,.chip.exc .c{opacity:.85;}
 .filter-label{font-size:0.72em;color:var(--khaki);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;}
 
 /* Lists */
@@ -206,6 +208,10 @@ textarea{resize:vertical;min-height:90px;}
 
                 <div class="filterbar">
                     <input type="text" id="search" placeholder="🔎 Search classname… (e.g. m4, opscore, aor2)">
+                    <div class="muted" style="font-size:0.74em;margin-top:-4px;">
+                        Click a chip to <b style="color:var(--accent)">keep</b> only it · click again to
+                        <b style="color:var(--red)">exclude</b> it (e.g. everything but USP) · click again to clear.
+                    </div>
                     <div>
                         <div class="filter-label">Category (best-guess)</div>
                         <div class="chips" id="catChips"></div>
@@ -289,8 +295,8 @@ let byName = new Map();          // name -> item
 const selected = new Map();      // name -> quantity ('any' | positive integer)
 let defaultQty = 'any';          // quantity applied to newly-added items
 let filtered = [];               // current filtered list (full, not capped)
-const activeCats = new Set();    // empty = all
-const activeSrcs = new Set();    // empty = all
+const catState = new Map();      // category key -> 'inc' | 'exc'  (absent = neutral)
+const srcState = new Map();      // mod/source key -> 'inc' | 'exc'
 let exportFmt = 'arsenal';
 
 // Normalise a quantity input → 'any' or a positive integer.
@@ -389,18 +395,28 @@ function parse(text){
 }
 
 /* ---------- Rendering ---------- */
-function buildChips(container, counts, activeSet){
+function buildChips(container, counts, stateMap){
     const entries = Object.entries(counts).sort((a,b)=> b[1]-a[1] || a[0].localeCompare(b[0]));
-    container.innerHTML = entries.map(([k,c]) =>
-        `<span class="chip${activeSet.has(k)?' on':''}" data-key="${esc(k)}">${esc(k)}<span class="c">${c}</span></span>`
-    ).join('');
+    container.innerHTML = entries.map(([k,c]) => {
+        const st = stateMap.get(k);
+        const cls = st === 'inc' ? ' on' : st === 'exc' ? ' exc' : '';
+        return `<span class="chip${cls}" data-key="${esc(k)}">${esc(k)}<span class="c">${c}</span></span>`;
+    }).join('');
+}
+
+// Split a chip-state map into include/exclude sets.
+function splitState(stateMap){
+    const inc = new Set(), exc = new Set();
+    for (const [k, v] of stateMap){ (v === 'exc' ? exc : inc).add(k); }
+    return { inc, exc };
 }
 
 function applyFilters(){
     const q = $('search').value.trim().toLowerCase();
+    const c = splitState(catState), s = splitState(srcState);
     filtered = ITEMS.filter(it =>
-        (activeCats.size === 0 || activeCats.has(it.cat)) &&
-        (activeSrcs.size === 0 || activeSrcs.has(it.src)) &&
+        (c.inc.size === 0 || c.inc.has(it.cat)) && !c.exc.has(it.cat) &&
+        (s.inc.size === 0 || s.inc.has(it.src)) && !s.exc.has(it.src) &&
         (q === '' || it.lname.indexOf(q) !== -1)
     );
     renderAvail();
@@ -476,13 +492,13 @@ function doParse(text){
     ITEMS = parse(text);
     if (ITEMS.length === 0){ toast('No classnames found — check the format.'); return; }
     byName = new Map(ITEMS.map(it => [it.name, it]));
-    selected.clear(); activeCats.clear(); activeSrcs.clear(); $('search').value='';
+    selected.clear(); catState.clear(); srcState.clear(); $('search').value='';
     defaultQty = 'any'; $('defaultQty').value = 'any';
 
     const catCounts = {}, srcCounts = {};
     for (const it of ITEMS){ catCounts[it.cat]=(catCounts[it.cat]||0)+1; srcCounts[it.src]=(srcCounts[it.src]||0)+1; }
-    buildChips($('catChips'), catCounts, activeCats);
-    buildChips($('srcChips'), srcCounts, activeSrcs);
+    buildChips($('catChips'), catCounts, catState);
+    buildChips($('srcChips'), srcCounts, srcState);
 
     const nMods = Object.keys(srcCounts).length;
     $('stats').innerHTML =
@@ -517,17 +533,20 @@ $('fileInput').addEventListener('change', e=>{
 let searchT;
 $('search').addEventListener('input', ()=>{ clearTimeout(searchT); searchT=setTimeout(applyFilters,140); });
 
-function chipHandler(container, set){
+function chipHandler(container, stateMap){
     container.addEventListener('click', e=>{
         const chip = e.target.closest('.chip'); if (!chip) return;
         const key = chip.dataset.key;
-        if (set.has(key)) set.delete(key); else set.add(key);
-        chip.classList.toggle('on');
+        const cur = stateMap.get(key);
+        // cycle: neutral → include → exclude → neutral
+        if (!cur){ stateMap.set(key,'inc'); chip.classList.add('on'); chip.classList.remove('exc'); }
+        else if (cur === 'inc'){ stateMap.set(key,'exc'); chip.classList.remove('on'); chip.classList.add('exc'); }
+        else { stateMap.delete(key); chip.classList.remove('on','exc'); }
         applyFilters();
     });
 }
-chipHandler($('catChips'), activeCats);
-chipHandler($('srcChips'), activeSrcs);
+chipHandler($('catChips'), catState);
+chipHandler($('srcChips'), srcState);
 
 $('availList').addEventListener('click', e=>{
     const row = e.target.closest('.row'); if (!row) return;
