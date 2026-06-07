@@ -786,7 +786,7 @@ footer {
 .bar-fill.red    { background: linear-gradient(180deg, #e05555 0%, #7a2020 100%); }
 .bar-fill.purple { background: linear-gradient(180deg, #b57bf7 0%, #5a3a8e 100%); }
 .bar-chart.sessions .bar-fill { background: linear-gradient(180deg, #6bb8f7 0%, #2d6a8e 100%); }
-.bar-lbl { font-size: 0.62em; white-space: nowrap; color: var(--khaki); opacity: 0.75; padding-top: 2px; }
+.bar-lbl { font-size: 0.62em; white-space: nowrap; color: var(--khaki); opacity: 0.75; padding-top: 2px; display: block; height: 1em; line-height: 1em; }
 
 /* ── Pages / referrers table ─────────────────────────────────────── */
 .pages-table { width: 100%; border-collapse: collapse; }
@@ -1373,7 +1373,7 @@ footer {
 }
 .growth-chart { display: flex; align-items: flex-end; gap: 2px; height: 100px; }
 .growth-col   { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; gap: 1px; }
-.growth-lbl   { font-size: 0.55em; color: var(--khaki); opacity: 0.65; white-space: nowrap; }
+.growth-lbl   { font-size: 0.55em; color: var(--khaki); opacity: 0.65; white-space: nowrap; display: block; height: 1em; line-height: 1em; padding-top: 2px; }
 .act-table { width: 100%; border-collapse: collapse; }
 .act-table th { text-align: left; padding: 6px 8px; font-size: 0.7em; color: var(--khaki); border-bottom: 1px solid rgba(107,142,35,0.4); font-family: var(--heading-font); letter-spacing: 1px; opacity: 0.8; }
 .act-table th.r { text-align: right; }
