@@ -22,7 +22,10 @@
                     <p style="margin-top:14px;"><a href="/feedback" class="btn">← Back</a></p>
                 </div>
             <% } else { %>
-            <form method="POST" action="/feedback/pair/<%= pair.id %>">
+            <form method="POST" action="<%= formAction %>">
+                <% Object.entries(locals.hiddenFields || {}).forEach(([k, v]) => { %>
+                    <input type="hidden" name="<%= k %>" value="<%= v %>">
+                <% }) %>
                 <% questions.forEach(q => { %>
                     <div class="field fb-question">
                         <label><%= q.prompt %><% if (q.type === 'rating') { %> <span class="fb-req">*</span><% } %></label>
@@ -47,7 +50,11 @@
                     <button type="submit" class="btn btn-primary" style="flex:1;">Submit feedback</button>
                     <a href="/feedback" class="btn">Cancel</a>
                 </div>
-                <p class="fb-warn">⚠️ Once submitted, this form is final and cannot be changed.</p>
+                <% if (locals.adhoc) { %>
+                    <p class="fb-warn">⚠️ Each submission is saved as its own final record — you can record another afterwards.</p>
+                <% } else { %>
+                    <p class="fb-warn">⚠️ Once submitted, this form is final and cannot be changed.</p>
+                <% } %>
             </form>
             <% } %>
         </div>

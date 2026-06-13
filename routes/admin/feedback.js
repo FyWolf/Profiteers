@@ -10,8 +10,8 @@ router.get('/', async (req, res) => {
     try {
         const [cycles] = await db.query(`
             SELECT c.*, t.name AS template_name, u.username AS created_by_username,
-                   (SELECT COUNT(*) FROM feedback_pairs p WHERE p.cycle_id = c.id) AS total_pairs,
-                   (SELECT COUNT(*) FROM feedback_pairs p WHERE p.cycle_id = c.id AND p.status = 'submitted') AS submitted_pairs
+                   (SELECT COUNT(*) FROM feedback_pairs p WHERE p.cycle_id = c.id AND p.is_adhoc = 0) AS total_pairs,
+                   (SELECT COUNT(*) FROM feedback_pairs p WHERE p.cycle_id = c.id AND p.is_adhoc = 0 AND p.status = 'submitted') AS submitted_pairs
             FROM feedback_cycles c
             LEFT JOIN orbat_templates t ON c.orbat_template_id = t.id
             LEFT JOIN users u ON c.created_by = u.id
@@ -129,7 +129,7 @@ router.get('/round/:id', async (req, res) => {
                    SUM(p.status = 'submitted') AS done
             FROM feedback_pairs p
             JOIN users u ON p.reviewer_user_id = u.id
-            WHERE p.cycle_id = ?
+            WHERE p.cycle_id = ? AND p.is_adhoc = 0
             GROUP BY u.id
             ORDER BY (SUM(p.status = 'submitted') = COUNT(*)) ASC, u.discord_global_name ASC
         `, [req.params.id]);
@@ -137,7 +137,7 @@ router.get('/round/:id', async (req, res) => {
         const [subjects] = await db.query(`
             SELECT u.id, u.username, u.discord_global_name,
                    SUM(p.status = 'submitted') AS responses,
-                   COUNT(*) AS expected
+                   SUM(p.is_adhoc = 0)         AS expected
             FROM feedback_pairs p
             JOIN users u ON p.subject_user_id = u.id
             WHERE p.cycle_id = ?

@@ -24,6 +24,32 @@ function getOpenCycle() {
     ).then(([rows]) => rows[0] || null);
 }
 
+function hasReviewAny(req) {
+    return Array.isArray(req.user.permissions)
+        && req.user.permissions.includes('feedback.review_any');
+}
+
+// Inserts one answer row per question for a (already created) pair.
+async function saveAnswers(conn, pairId, questions, body) {
+    for (const q of questions) {
+        const raw = body['q_' + q.id];
+        let rating = null;
+        let text = null;
+        if (q.type === 'rating') {
+            const n = parseInt(raw, 10);
+            if (!isNaN(n) && n >= 1 && n <= 5) rating = n;
+        } else {
+            text = (raw && raw.trim()) ? raw.trim() : null;
+        }
+        // question_id stays NULL: q.id is a per-cycle snapshot id and results
+        // group by the frozen question_prompt, not the live bank.
+        await conn.query(
+            'INSERT INTO feedback_answers (pair_id, question_id, question_prompt, rating, answer_text) VALUES (?, ?, ?, ?, ?)',
+            [pairId, null, q.prompt, rating, text]
+        );
+    }
+}
+
 // ── Landing: the forms this user needs to fill in the open round ────────────
 router.get('/', isAuthenticated, async (req, res) => {
     try {
@@ -36,7 +62,7 @@ router.get('/', isAuthenticated, async (req, res) => {
                        u.username, u.discord_global_name, u.discord_avatar, u.discord_id
                 FROM feedback_pairs fp
                 JOIN users u ON fp.subject_user_id = u.id
-                WHERE fp.cycle_id = ? AND fp.reviewer_user_id = ?
+                WHERE fp.cycle_id = ? AND fp.reviewer_user_id = ? AND fp.is_adhoc = 0
                 ORDER BY u.discord_global_name ASC, u.username ASC
             `, [cycle.id, req.session.userId]);
             pairs.forEach(p => { if (groups[p.direction]) groups[p.direction].push(p); });
@@ -48,9 +74,8 @@ router.get('/', isAuthenticated, async (req, res) => {
         );
 
         // Holders of feedback.review_any can give feedback to anyone in the open
-        // round, regardless of their ORBAT assignment.
-        const canReviewAny = Array.isArray(req.user.permissions)
-            && req.user.permissions.includes('feedback.review_any');
+        // round, regardless of their ORBAT assignment, as many times as needed.
+        const canReviewAny = hasReviewAny(req);
         let reviewableUsers = [];
         if (cycle && canReviewAny) {
             [reviewableUsers] = await db.query(`
@@ -83,41 +108,99 @@ router.get('/', isAuthenticated, async (req, res) => {
     }
 });
 
-// ── Privileged: start a feedback form about anyone (feedback.review_any) ─────
-router.post('/review', isAuthenticated, async (req, res) => {
+// ── Privileged: give feedback about anyone, as many times as needed ─────────
+// (feedback.review_any). Each submission is its own immutable record, so the
+// holder can record unlimited feedback — e.g. transcribing offline forms.
+router.get('/review', isAuthenticated, async (req, res) => {
     try {
-        if (!Array.isArray(req.user.permissions) || !req.user.permissions.includes('feedback.review_any')) {
+        if (!hasReviewAny(req)) {
             return res.redirect('/feedback?error=You do not have permission to do that');
         }
         const cycle = await getOpenCycle();
         if (!cycle) {
             return res.redirect('/feedback?error=No feedback round is open');
         }
-        const subjectId = parseInt(req.body.subject_id, 10);
-        const direction = req.body.direction;
+        const subjectId = parseInt(req.query.subject_id, 10);
+        const direction = req.query.direction;
         if (!subjectId || subjectId === req.session.userId
             || !['superior', 'peer', 'subordinate'].includes(direction)) {
             return res.redirect('/feedback?error=Pick a valid person and relationship');
         }
-        const [[subject]] = await db.query('SELECT id FROM users WHERE id = ?', [subjectId]);
+        const [[subject]] = await db.query(
+            'SELECT id, username, discord_global_name FROM users WHERE id = ?', [subjectId]
+        );
         if (!subject) {
             return res.redirect('/feedback?error=That person was not found');
         }
 
-        // Create the pair if one doesn't already exist (the unique constraint keeps
-        // it to one form per subject, so an existing ORBAT-derived pair is reused).
-        await db.query(
-            'INSERT IGNORE INTO feedback_pairs (cycle_id, reviewer_user_id, subject_user_id, direction) VALUES (?, ?, ?, ?)',
+        const [questions] = await db.query(`
+            SELECT * FROM feedback_cycle_questions
+            WHERE cycle_id = ? AND direction = ?
+            ORDER BY FIELD(type,'rating','text'), display_order ASC, id ASC
+        `, [cycle.id, direction]);
+
+        res.render('feedback/form', {
+            title: 'Give Feedback - Profiteers PMC',
+            questions,
+            subjectName: subject.discord_global_name || subject.username,
+            directionVerb: DIRECTION_VERB[direction],
+            formAction: '/feedback/review',
+            hiddenFields: { subject_id: subjectId, direction },
+            adhoc: true
+        });
+    } catch (error) {
+        console.error('Error loading ad-hoc feedback form:', error);
+        res.redirect('/feedback?error=Could not load the feedback form');
+    }
+});
+
+router.post('/review', isAuthenticated, async (req, res) => {
+    const conn = await db.getConnection();
+    try {
+        if (!hasReviewAny(req)) {
+            conn.release();
+            return res.redirect('/feedback?error=You do not have permission to do that');
+        }
+        const cycle = await getOpenCycle();
+        if (!cycle) {
+            conn.release();
+            return res.redirect('/feedback?error=No feedback round is open');
+        }
+        const subjectId = parseInt(req.body.subject_id, 10);
+        const direction = req.body.direction;
+        if (!subjectId || subjectId === req.session.userId
+            || !['superior', 'peer', 'subordinate'].includes(direction)) {
+            conn.release();
+            return res.redirect('/feedback?error=Pick a valid person and relationship');
+        }
+        const [[subject]] = await conn.query('SELECT id FROM users WHERE id = ?', [subjectId]);
+        if (!subject) {
+            conn.release();
+            return res.redirect('/feedback?error=That person was not found');
+        }
+
+        const [questions] = await conn.query(
+            'SELECT * FROM feedback_cycle_questions WHERE cycle_id = ? AND direction = ?',
+            [cycle.id, direction]
+        );
+
+        await conn.beginTransaction();
+        // is_adhoc=1 + dedup_key=NULL => not subject to the one-per-subject limit.
+        const [ins] = await conn.query(
+            `INSERT INTO feedback_pairs
+                (cycle_id, reviewer_user_id, subject_user_id, direction, status, submitted_at, is_adhoc, dedup_key)
+             VALUES (?, ?, ?, ?, 'submitted', NOW(), 1, NULL)`,
             [cycle.id, req.session.userId, subjectId, direction]
         );
-        const [[pair]] = await db.query(
-            'SELECT id FROM feedback_pairs WHERE cycle_id = ? AND reviewer_user_id = ? AND subject_user_id = ?',
-            [cycle.id, req.session.userId, subjectId]
-        );
-        return res.redirect('/feedback/pair/' + pair.id);
+        await saveAnswers(conn, ins.insertId, questions, req.body);
+        await conn.commit();
+        conn.release();
+        res.redirect('/feedback?success=Feedback recorded. You can add another.');
     } catch (error) {
-        console.error('Error starting ad-hoc feedback:', error);
-        return res.redirect('/feedback?error=Could not start that feedback form');
+        try { await conn.rollback(); } catch (_) {}
+        conn.release();
+        console.error('Error recording ad-hoc feedback:', error);
+        res.redirect('/feedback?error=Failed to record feedback');
     }
 });
 
@@ -154,7 +237,10 @@ router.get('/pair/:pairId', isAuthenticated, async (req, res) => {
             pair,
             questions,
             subjectName: pair.discord_global_name || pair.username,
-            directionVerb: DIRECTION_VERB[pair.direction]
+            directionVerb: DIRECTION_VERB[pair.direction],
+            formAction: '/feedback/pair/' + pair.id,
+            hiddenFields: {},
+            adhoc: false
         });
     } catch (error) {
         console.error('Error loading feedback form:', error);
@@ -186,23 +272,7 @@ router.post('/pair/:pairId', isAuthenticated, async (req, res) => {
         );
 
         await conn.beginTransaction();
-        for (const q of questions) {
-            const raw = req.body['q_' + q.id];
-            let rating = null;
-            let text = null;
-            if (q.type === 'rating') {
-                const n = parseInt(raw, 10);
-                if (!isNaN(n) && n >= 1 && n <= 5) rating = n;
-            } else {
-                text = (raw && raw.trim()) ? raw.trim() : null;
-            }
-            // question_id is left NULL: q.id here is a per-cycle snapshot id, and
-            // results group by the frozen question_prompt, not the live bank.
-            await conn.query(
-                'INSERT INTO feedback_answers (pair_id, question_id, question_prompt, rating, answer_text) VALUES (?, ?, ?, ?, ?)',
-                [pair.id, null, q.prompt, rating, text]
-            );
-        }
+        await saveAnswers(conn, pair.id, questions, req.body);
         await conn.query("UPDATE feedback_pairs SET status = 'submitted', submitted_at = NOW() WHERE id = ?", [pair.id]);
         await conn.commit();
         conn.release();
