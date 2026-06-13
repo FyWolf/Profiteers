@@ -1759,3 +1759,8 @@ th[onclick]:hover { color: var(--accent) !important; }
 .fb-rounds .ret-bar-wrap { max-width:140px; margin-left:auto; }
 .fb-check { display:flex !important; align-items:center; gap:10px; text-transform:none !important; font-size:0.9em !important; color:var(--sand) !important; cursor:pointer; }
 .fb-check input { width:auto !important; }
+
+/* "Review anyone" panel (feedback.review_any) */
+.fb-review-any { background:rgba(0,0,0,0.3); border:1px solid rgba(252,176,13,0.35); border-radius:12px; padding:18px 20px; margin-bottom:26px; }
+.fb-review-form { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; }
+.fb-review-form .btn { min-height:42px; }

@@ -37,6 +37,33 @@
                 Your answers are anonymous; people only ever see combined, summarised results.
             </p>
 
+            <% if (canReviewAny) { %>
+                <div class="fb-review-any">
+                    <h2 class="fb-group-title" style="margin-top:0;">REVIEW ANYONE</h2>
+                    <p class="fb-note" style="margin-top:-4px;">You can give feedback on any member, regardless of the ORBAT. Choose the relationship that best fits.</p>
+                    <form method="POST" action="/feedback/review" class="fb-review-form">
+                        <div class="field" style="margin-bottom:0; flex:2; min-width:200px;">
+                            <label for="subject_id">Member</label>
+                            <select id="subject_id" name="subject_id" required>
+                                <option value="" disabled selected>Select a member…</option>
+                                <% reviewableUsers.forEach(u => { %>
+                                    <option value="<%= u.id %>"><%= u.discord_global_name || u.username %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <div class="field" style="margin-bottom:0; flex:1; min-width:150px;">
+                            <label for="direction">As their…</label>
+                            <select id="direction" name="direction" required>
+                                <option value="superior">Superior</option>
+                                <option value="peer">Peer</option>
+                                <option value="subordinate">Subordinate</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Start form</button>
+                    </form>
+                </div>
+            <% } %>
+
             <% if (total === 0) { %>
                 <div class="empty-state">
                     <div class="empty-icon">✅</div>

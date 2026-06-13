@@ -47,12 +47,28 @@ router.get('/', isAuthenticated, async (req, res) => {
             [req.session.userId]
         );
 
+        // Holders of feedback.review_any can give feedback to anyone in the open
+        // round, regardless of their ORBAT assignment.
+        const canReviewAny = Array.isArray(req.user.permissions)
+            && req.user.permissions.includes('feedback.review_any');
+        let reviewableUsers = [];
+        if (cycle && canReviewAny) {
+            [reviewableUsers] = await db.query(`
+                SELECT id, username, discord_global_name
+                FROM users
+                WHERE id != ?
+                ORDER BY discord_global_name ASC, username ASC
+            `, [req.session.userId]);
+        }
+
         res.render('feedback/index', {
             title: 'Leadership Feedback - Profiteers PMC',
             cycle,
             groups,
             DIRECTION_LABELS,
             hasResults: cnt > 0,
+            canReviewAny,
+            reviewableUsers,
             success: req.query.success,
             error: req.query.error
         });
@@ -64,6 +80,44 @@ router.get('/', isAuthenticated, async (req, res) => {
             description: 'Could not load the feedback page.',
             user: res.locals.user
         });
+    }
+});
+
+// ── Privileged: start a feedback form about anyone (feedback.review_any) ─────
+router.post('/review', isAuthenticated, async (req, res) => {
+    try {
+        if (!Array.isArray(req.user.permissions) || !req.user.permissions.includes('feedback.review_any')) {
+            return res.redirect('/feedback?error=You do not have permission to do that');
+        }
+        const cycle = await getOpenCycle();
+        if (!cycle) {
+            return res.redirect('/feedback?error=No feedback round is open');
+        }
+        const subjectId = parseInt(req.body.subject_id, 10);
+        const direction = req.body.direction;
+        if (!subjectId || subjectId === req.session.userId
+            || !['superior', 'peer', 'subordinate'].includes(direction)) {
+            return res.redirect('/feedback?error=Pick a valid person and relationship');
+        }
+        const [[subject]] = await db.query('SELECT id FROM users WHERE id = ?', [subjectId]);
+        if (!subject) {
+            return res.redirect('/feedback?error=That person was not found');
+        }
+
+        // Create the pair if one doesn't already exist (the unique constraint keeps
+        // it to one form per subject, so an existing ORBAT-derived pair is reused).
+        await db.query(
+            'INSERT IGNORE INTO feedback_pairs (cycle_id, reviewer_user_id, subject_user_id, direction) VALUES (?, ?, ?, ?)',
+            [cycle.id, req.session.userId, subjectId, direction]
+        );
+        const [[pair]] = await db.query(
+            'SELECT id FROM feedback_pairs WHERE cycle_id = ? AND reviewer_user_id = ? AND subject_user_id = ?',
+            [cycle.id, req.session.userId, subjectId]
+        );
+        return res.redirect('/feedback/pair/' + pair.id);
+    } catch (error) {
+        console.error('Error starting ad-hoc feedback:', error);
+        return res.redirect('/feedback?error=Could not start that feedback form');
     }
 });
 
