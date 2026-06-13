@@ -144,10 +144,10 @@ router.get('/pair/:pairId', isAuthenticated, async (req, res) => {
         }
 
         const [questions] = await db.query(`
-            SELECT * FROM feedback_questions
-            WHERE direction = ? AND is_active = 1
+            SELECT * FROM feedback_cycle_questions
+            WHERE cycle_id = ? AND direction = ?
             ORDER BY FIELD(type,'rating','text'), display_order ASC, id ASC
-        `, [pair.direction]);
+        `, [pair.cycle_id, pair.direction]);
 
         res.render('feedback/form', {
             title: 'Give Feedback - Profiteers PMC',
@@ -181,8 +181,8 @@ router.post('/pair/:pairId', isAuthenticated, async (req, res) => {
         }
 
         const [questions] = await conn.query(
-            'SELECT * FROM feedback_questions WHERE direction = ? AND is_active = 1',
-            [pair.direction]
+            'SELECT * FROM feedback_cycle_questions WHERE cycle_id = ? AND direction = ?',
+            [pair.cycle_id, pair.direction]
         );
 
         await conn.beginTransaction();
@@ -196,9 +196,11 @@ router.post('/pair/:pairId', isAuthenticated, async (req, res) => {
             } else {
                 text = (raw && raw.trim()) ? raw.trim() : null;
             }
+            // question_id is left NULL: q.id here is a per-cycle snapshot id, and
+            // results group by the frozen question_prompt, not the live bank.
             await conn.query(
                 'INSERT INTO feedback_answers (pair_id, question_id, question_prompt, rating, answer_text) VALUES (?, ?, ?, ?, ?)',
-                [pair.id, q.id, q.prompt, rating, text]
+                [pair.id, null, q.prompt, rating, text]
             );
         }
         await conn.query("UPDATE feedback_pairs SET status = 'submitted', submitted_at = NOW() WHERE id = ?", [pair.id]);

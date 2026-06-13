@@ -68,6 +68,14 @@ router.post('/open', async (req, res) => {
         );
         const cycleId = result.insertId;
 
+        // Freeze the active question set into this round so later edits to the
+        // question bank can't change a round that's already open.
+        await db.query(`
+            INSERT INTO feedback_cycle_questions (cycle_id, prompt, type, direction, display_order)
+            SELECT ?, prompt, type, direction, display_order
+            FROM feedback_questions WHERE is_active = 1
+        `, [cycleId]);
+
         const values = pairs.map(p => [cycleId, p.reviewer_user_id, p.subject_user_id, p.direction]);
         await db.query(
             'INSERT IGNORE INTO feedback_pairs (cycle_id, reviewer_user_id, subject_user_id, direction) VALUES ?',
