@@ -37,7 +37,7 @@
                 Your answers are anonymous; people only ever see combined, summarised results.
             </p>
 
-            <% if (canReviewAny) { %>
+            <% if (locals.canReviewAny) { %>
                 <div class="fb-review-any">
                     <h2 class="fb-group-title" style="margin-top:0;">REVIEW ANYONE</h2>
                     <p class="fb-note" style="margin-top:-4px;">You can give feedback on any member, regardless of the ORBAT. Choose the relationship that best fits.</p>
@@ -46,7 +46,7 @@
                             <label for="subject_id">Member</label>
                             <select id="subject_id" name="subject_id" required>
                                 <option value="" disabled selected>Select a member…</option>
-                                <% reviewableUsers.forEach(u => { %>
+                                <% (locals.reviewableUsers || []).forEach(u => { %>
                                     <option value="<%= u.id %>"><%= u.discord_global_name || u.username %></option>
                                 <% }) %>
                             </select>
