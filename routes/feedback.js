@@ -412,22 +412,37 @@ async function aggregateResults(subjectUserId, cycleId, fullDetail = false) {
         }, {})
     }));
 
-    // Text answers. Always shown (never hidden); thin groups are pooled into an
-    // unlabelled "other" bucket for the subject's view so a lone comment can't be
-    // pinned to a relationship. Admins keep everything grouped by direction.
+    // Text answers, grouped by direction then by the question they answer.
+    // Always shown (never hidden); thin groups are pooled into an unlabelled
+    // "other" bucket for the subject's view so a lone comment can't be pinned to
+    // a relationship. Admins keep everything grouped by direction.
     const [textRows] = await db.query(`
-        SELECT fp.direction, fa.answer_text
+        SELECT fp.direction, fa.question_prompt, fa.answer_text
         FROM feedback_answers fa
         JOIN feedback_pairs fp ON fa.pair_id = fp.id
+        LEFT JOIN feedback_cycle_questions cq
+            ON cq.cycle_id = fp.cycle_id AND cq.direction = fp.direction AND cq.prompt = fa.question_prompt
         WHERE fp.subject_user_id = ? AND fp.cycle_id = ?
           AND fp.status = 'submitted' AND fa.answer_text IS NOT NULL AND fa.answer_text <> ''
+        ORDER BY ISNULL(cq.display_order), cq.display_order ASC, fa.question_prompt ASC
     `, [subjectUserId, cycleId]);
 
-    const texts = { superior: [], peer: [], subordinate: [], other: [] };
+    // direction -> Map(question_prompt -> [answers]), preserving question order.
+    const textMaps = { superior: new Map(), peer: new Map(), subordinate: new Map(), other: new Map() };
     textRows.forEach(r => {
-        if (suppressed[r.direction]) texts.other.push(r.answer_text);
-        else if (texts[r.direction]) texts[r.direction].push(r.answer_text);
+        const bucket = suppressed[r.direction] ? 'other' : r.direction;
+        const m = textMaps[bucket];
+        if (!m) return;
+        if (!m.has(r.question_prompt)) m.set(r.question_prompt, []);
+        m.get(r.question_prompt).push(r.answer_text);
     });
+    const toGroups = m => [...m.entries()].map(([prompt, comments]) => ({ prompt, comments }));
+    const texts = {
+        superior: toGroups(textMaps.superior),
+        peer: toGroups(textMaps.peer),
+        subordinate: toGroups(textMaps.subordinate),
+        other: toGroups(textMaps.other)
+    };
 
     return { totalResponses, directionCounts, suppressed, ratings, texts };
 }

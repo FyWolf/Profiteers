@@ -1749,6 +1749,7 @@ th[onclick]:hover { color: var(--accent) !important; }
 .fb-dir-chip { font-size:0.72em; color:var(--khaki); background:rgba(0,0,0,0.35); border:1px solid rgba(107,142,35,0.35); border-radius:6px; padding:3px 8px; }
 .fb-dir-chip strong { color:var(--accent); }
 .fb-text-dir { font-family:var(--heading-font); font-size:0.82em; letter-spacing:1px; color:var(--olive-light); margin:16px 0 8px; }
+.fb-q-label { font-size:0.84em; color:var(--sand); font-weight:700; margin:14px 0 6px; }
 .fb-comment { margin:0 0 10px; padding:12px 16px; background:rgba(0,0,0,0.35); border-left:3px solid var(--olive); border-radius:0 8px 8px 0; color:var(--sand); font-size:0.88em; line-height:1.6; white-space:pre-wrap; }
 
 /* Admin badges / checkbox */
