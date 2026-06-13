@@ -61,7 +61,7 @@ const base = isOwn ? '/feedback/results' : '/feedback/results/' + subject.id;
 
                 <% const anySuppressed = results.suppressed.superior || results.suppressed.peer || results.suppressed.subordinate; %>
                 <% if (anySuppressed) { %>
-                    <p class="fb-note">🔒 Some groups had fewer than <%= MIN_GROUP %> responses and are hidden to protect anonymity.</p>
+                    <p class="fb-note">🔒 Some relationship groups had fewer than <%= MIN_GROUP %> responses. All comments are still shown, but those groups' per-relationship averages are hidden and their comments pooled under “Additional comments” to protect anonymity.</p>
                 <% } %>
 
                 <!-- ── Rating questions ─────────────────────────────────────── -->
@@ -104,11 +104,12 @@ const base = isOwn ? '/feedback/results' : '/feedback/results/' + subject.id;
                 <% } %>
 
                 <!-- ── Written feedback ─────────────────────────────────────── -->
-                <% const hasText = results.texts.superior.length || results.texts.peer.length || results.texts.subordinate.length; %>
+                <% const t = results.texts;
+                   const hasText = t.superior.length || t.peer.length || t.subordinate.length || t.other.length; %>
                 <% if (hasText) { %>
                     <h2 class="fb-group-title">WRITTEN FEEDBACK</h2>
                     <% ['superior','peer','subordinate'].forEach(dir => {
-                        const comments = results.texts[dir];
+                        const comments = t[dir];
                         if (!comments || comments.length === 0) return;
                     %>
                         <h3 class="fb-text-dir"><%= DIRECTION_LABELS[dir] %></h3>
@@ -116,6 +117,15 @@ const base = isOwn ? '/feedback/results' : '/feedback/results/' + subject.id;
                             <blockquote class="fb-comment"><%= c %></blockquote>
                         <% }) %>
                     <% }) %>
+                    <% if (t.other.length) { %>
+                        <h3 class="fb-text-dir">Additional comments</h3>
+                        <% t.other.forEach(c => { %>
+                            <blockquote class="fb-comment"><%= c %></blockquote>
+                        <% }) %>
+                    <% } %>
+                <% } %>
+                <% if (results.totalResponses > 0 && !hasText) { %>
+                    <p class="fb-note">No written comments were left in this round.</p>
                 <% } %>
             <% } %>
         <% } %>

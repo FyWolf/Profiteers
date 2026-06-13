@@ -324,8 +324,11 @@ async function renderResults(req, res, subjectUserId) {
             ? parseInt(req.query.cycle, 10)
             : (cycles[0] ? cycles[0].id : null);
 
+        const isOwn = req.session.userId === subjectUserId;
+        // Admins viewing someone else see full detail; the subject's own view
+        // pools thin groups to protect anonymity.
         const results = selectedCycleId
-            ? await aggregateResults(subjectUserId, selectedCycleId)
+            ? await aggregateResults(subjectUserId, selectedCycleId, !isOwn)
             : null;
 
         res.render('feedback/results', {
@@ -334,7 +337,7 @@ async function renderResults(req, res, subjectUserId) {
             cycles,
             selectedCycleId,
             results,
-            isOwn: req.session.userId === subjectUserId,
+            isOwn,
             MIN_GROUP,
             DIRECTION_LABELS
         });
@@ -344,7 +347,7 @@ async function renderResults(req, res, subjectUserId) {
     }
 }
 
-async function aggregateResults(subjectUserId, cycleId) {
+async function aggregateResults(subjectUserId, cycleId, fullDetail = false) {
     // Per-direction response counts (submitted pairs).
     const [pairRows] = await db.query(`
         SELECT direction, COUNT(*) AS n
@@ -356,10 +359,13 @@ async function aggregateResults(subjectUserId, cycleId) {
     pairRows.forEach(r => { directionCounts[r.direction] = r.n; });
     const totalResponses = directionCounts.superior + directionCounts.peer + directionCounts.subordinate;
 
+    // A direction is "thin" if it has 1..MIN_GROUP-1 responses. For the subject's
+    // own view we don't reveal a thin group's per-relationship average, and we
+    // pool its comments into an unlabelled bucket. Admins (fullDetail) see all.
     const suppressed = {
-        superior: directionCounts.superior > 0 && directionCounts.superior < MIN_GROUP,
-        peer: directionCounts.peer > 0 && directionCounts.peer < MIN_GROUP,
-        subordinate: directionCounts.subordinate > 0 && directionCounts.subordinate < MIN_GROUP
+        superior: !fullDetail && directionCounts.superior > 0 && directionCounts.superior < MIN_GROUP,
+        peer: !fullDetail && directionCounts.peer > 0 && directionCounts.peer < MIN_GROUP,
+        subordinate: !fullDetail && directionCounts.subordinate > 0 && directionCounts.subordinate < MIN_GROUP
     };
 
     // Rating answers.
@@ -400,12 +406,15 @@ async function aggregateResults(subjectUserId, cycleId) {
         avg: a.n ? (a.sum / a.n) : 0,
         byDirection: ['superior', 'peer', 'subordinate'].reduce((o, d) => {
             const dd = a.byDir[d];
-            o[d] = (dd.n >= MIN_GROUP) ? { n: dd.n, avg: dd.sum / dd.n } : null;
+            const show = dd.n > 0 && (fullDetail || dd.n >= MIN_GROUP);
+            o[d] = show ? { n: dd.n, avg: dd.sum / dd.n } : null;
             return o;
         }, {})
     }));
 
-    // Text answers, grouped by direction (only directions at/above the threshold).
+    // Text answers. Always shown (never hidden); thin groups are pooled into an
+    // unlabelled "other" bucket for the subject's view so a lone comment can't be
+    // pinned to a relationship. Admins keep everything grouped by direction.
     const [textRows] = await db.query(`
         SELECT fp.direction, fa.answer_text
         FROM feedback_answers fa
@@ -414,10 +423,11 @@ async function aggregateResults(subjectUserId, cycleId) {
           AND fp.status = 'submitted' AND fa.answer_text IS NOT NULL AND fa.answer_text <> ''
     `, [subjectUserId, cycleId]);
 
-    const texts = { superior: [], peer: [], subordinate: [] };
-    textRows.forEach(r => { if (texts[r.direction]) texts[r.direction].push(r.answer_text); });
-    // Drop text for suppressed directions.
-    ['superior', 'peer', 'subordinate'].forEach(d => { if (suppressed[d]) texts[d] = []; });
+    const texts = { superior: [], peer: [], subordinate: [], other: [] };
+    textRows.forEach(r => {
+        if (suppressed[r.direction]) texts.other.push(r.answer_text);
+        else if (texts[r.direction]) texts[r.direction].push(r.answer_text);
+    });
 
     return { totalResponses, directionCounts, suppressed, ratings, texts };
 }
