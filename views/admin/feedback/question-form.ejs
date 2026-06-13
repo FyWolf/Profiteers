@@ -1,0 +1,66 @@
+<%- include('../../partials/header') %>
+
+<%
+const isEdit = action === 'edit';
+const q = question || {};
+const dir = q.direction || 'superior';
+const type = q.type || 'rating';
+const active = isEdit ? (q.is_active ? true : false) : true;
+%>
+
+<div class="container">
+    <header>
+        <h1><%= isEdit ? 'EDIT QUESTION' : 'ADD QUESTION' %></h1>
+        <div class="subtitle">Leadership Feedback</div>
+    </header>
+
+    <section class="section">
+        <div class="form-wrap" style="max-width:680px;">
+            <form method="POST" action="/admin/feedback/questions/<%= isEdit ? 'edit/' + q.id : 'add' %>">
+
+                <div class="field">
+                    <label for="prompt">Question / prompt *</label>
+                    <textarea id="prompt" name="prompt" required maxlength="500" rows="2"
+                              placeholder="e.g., Communicates clearly and keeps the team informed."><%= q.prompt || '' %></textarea>
+                </div>
+
+                <div class="field">
+                    <label for="direction">Direction *</label>
+                    <select id="direction" name="direction" required>
+                        <option value="superior"    <%= dir === 'superior' ? 'selected' : '' %>>To Superior — everyone reviews their leaders</option>
+                        <option value="peer"        <%= dir === 'peer' ? 'selected' : '' %>>To Peer — leaders review fellow leaders</option>
+                        <option value="subordinate" <%= dir === 'subordinate' ? 'selected' : '' %>>To Subordinate — leaders review their team</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="type">Answer type *</label>
+                    <select id="type" name="type" required>
+                        <option value="rating" <%= type === 'rating' ? 'selected' : '' %>>1–5 rating (charted)</option>
+                        <option value="text"   <%= type === 'text' ? 'selected' : '' %>>Free text (pooled comments)</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="display_order">Display order</label>
+                    <input type="number" id="display_order" name="display_order" value="<%= q.display_order || 0 %>" min="0">
+                    <small>Lower numbers appear first.</small>
+                </div>
+
+                <div class="field">
+                    <label class="fb-check">
+                        <input type="checkbox" name="is_active" value="1" <%= active ? 'checked' : '' %>>
+                        Active (included in new rounds)
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" style="flex:1;"><%= isEdit ? '💾 Save Changes' : '➕ Add Question' %></button>
+                    <a href="/admin/feedback/questions" class="btn">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </section>
+</div>
+
+<%- include('../../partials/footer') %>

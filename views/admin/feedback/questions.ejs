@@ -1,0 +1,63 @@
+<%- include('../../partials/header') %>
+
+<%
+const DIR_LABELS = { superior: 'To Superior', peer: 'To Peer', subordinate: 'To Subordinate' };
+const DIR_HINT = {
+    superior: 'Filled in by everyone about the leaders above them.',
+    peer: 'Filled in by leaders about other leaders at their level.',
+    subordinate: 'Filled in by leaders about their team members.'
+};
+%>
+
+<div class="container">
+    <header>
+        <h1>FEEDBACK QUESTIONS</h1>
+        <div class="subtitle">One question set per feedback direction</div>
+    </header>
+
+    <section class="section">
+        <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+        <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+        <div class="top-row">
+            <h2 style="margin:0;">ALL QUESTIONS</h2>
+            <a href="/admin/feedback/questions/add" class="btn btn-primary">➕ Add Question</a>
+        </div>
+
+        <% ['superior','peer','subordinate'].forEach(dir => {
+            const list = grouped[dir]; %>
+            <h2 class="fb-group-title" style="margin-top:22px;"><%= DIR_LABELS[dir] %></h2>
+            <p class="fb-note" style="margin-top:-4px;"><%= DIR_HINT[dir] %></p>
+            <% if (!list || list.length === 0) { %>
+                <p style="color:var(--khaki);opacity:0.6;">No questions yet.</p>
+            <% } else { %>
+                <table class="act-table">
+                    <thead>
+                        <tr><th>#</th><th>QUESTION</th><th>TYPE</th><th>ACTIVE</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        <% list.forEach(q => { %>
+                            <tr style="<%= q.is_active ? '' : 'opacity:0.5;' %>">
+                                <td class="khaki"><%= q.display_order %></td>
+                                <td><%= q.prompt %></td>
+                                <td><span class="fb-badge <%= q.type === 'rating' ? 'fb-badge-open' : 'fb-badge-closed' %>"><%= q.type === 'rating' ? '1–5' : 'TEXT' %></span></td>
+                                <td><%= q.is_active ? '✓' : '—' %></td>
+                                <td class="r" style="white-space:nowrap;">
+                                    <a href="/admin/feedback/questions/edit/<%= q.id %>" class="act act-edit">Edit</a>
+                                    <form method="POST" action="/admin/feedback/questions/delete/<%= q.id %>" style="display:inline;"
+                                          onsubmit="return confirm('Delete this question? Past answers keep a snapshot of the wording.')">
+                                        <button type="submit" class="act act-del">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            <% } %>
+        <% }) %>
+    </section>
+
+    <div class="mt-2"><a href="/admin/feedback" class="btn">← Back to rounds</a></div>
+</div>
+
+<%- include('../../partials/footer') %>

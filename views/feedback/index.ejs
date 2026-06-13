@@ -1,0 +1,82 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>LEADERSHIP FEEDBACK</h1>
+        <div class="subtitle">Help your leaders grow — honestly and anonymously</div>
+    </header>
+
+    <section class="section">
+        <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+        <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+        <% if (hasResults) { %>
+            <div class="top-row">
+                <h2 style="margin:0;">YOUR FORMS</h2>
+                <a href="/feedback/results" class="btn">📊 View my results</a>
+            </div>
+        <% } %>
+
+        <% if (!cycle) { %>
+            <div class="empty-state">
+                <div class="empty-icon">📋</div>
+                <strong>No feedback round is open right now</strong>
+                <p>When the next round opens you'll be pinged in Discord. Check back then!</p>
+                <% if (hasResults) { %>
+                    <p style="margin-top:14px;"><a href="/feedback/results" class="btn btn-primary">View my past results</a></p>
+                <% } %>
+            </div>
+        <% } else {
+            const all = [...groups.superior, ...groups.peer, ...groups.subordinate];
+            const total = all.length;
+            const done = all.filter(p => p.status === 'submitted').length;
+        %>
+            <p class="fb-intro">
+                Round: <strong><%= cycle.title %></strong> — you've completed
+                <strong><%= done %></strong> of <strong><%= total %></strong> form<%= total !== 1 ? 's' : '' %>.
+                Your answers are anonymous; people only ever see combined, summarised results.
+            </p>
+
+            <% if (total === 0) { %>
+                <div class="empty-state">
+                    <div class="empty-icon">✅</div>
+                    <strong>Nothing to fill in</strong>
+                    <p>You have no one to review in this round.</p>
+                </div>
+            <% } %>
+
+            <% ['superior','peer','subordinate'].forEach(dir => {
+                const list = groups[dir];
+                if (!list || list.length === 0) return;
+            %>
+                <h2 class="fb-group-title"><%= DIRECTION_LABELS[dir] %> <span class="fb-count">(<%= list.length %>)</span></h2>
+                <div class="cards-grid">
+                    <% list.forEach(p => {
+                        const name = p.discord_global_name || p.username;
+                        const submitted = p.status === 'submitted';
+                    %>
+                        <div class="item-card<%= submitted ? ' fb-done' : '' %>">
+                            <div class="card-body fb-person">
+                                <% if (p.discord_avatar && p.discord_id) { %>
+                                    <img class="fb-avatar" src="https://cdn.discordapp.com/avatars/<%= p.discord_id %>/<%= p.discord_avatar %>.png?size=128" alt="">
+                                <% } else { %>
+                                    <span class="fb-avatar fb-avatar-fallback"><%= name.charAt(0).toUpperCase() %></span>
+                                <% } %>
+                                <span class="fb-name"><%= name %></span>
+                            </div>
+                            <div class="card-footer">
+                                <% if (submitted) { %>
+                                    <span class="act fb-submitted" style="flex:1; text-align:center;">✓ Submitted</span>
+                                <% } else { %>
+                                    <a href="/feedback/pair/<%= p.id %>" class="act act-edit" style="flex:1; text-align:center;">✍️ Give feedback</a>
+                                <% } %>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+            <% }) %>
+        <% } %>
+    </section>
+</div>
+
+<%- include('../partials/footer') %>

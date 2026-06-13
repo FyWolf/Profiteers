@@ -43,6 +43,7 @@ const mapPlansRoutes = require('./routes/map-plans');
 const { discordClient, initializeDiscord } = require('./discord');
 const modpacksRoutes = require('./routes/modpacks');
 const infoRoutes = require('./routes/info');
+const feedbackRoutes = require('./routes/feedback');
 const cron = require('node-cron');
 const { runRosterSync } = require('./routes/roster');
 
@@ -131,6 +132,7 @@ app.use('/orbat', orbatRoutes);
 app.use('/loa', loaRoutes);
 app.use('/roster', rosterRoutes);
 app.use('/modpacks', modpacksRoutes);
+app.use('/feedback', feedbackRoutes);
 const loreRoutes = require('./routes/lore');
 app.use('/lore', loreRoutes);
 app.use('/info', infoRoutes);

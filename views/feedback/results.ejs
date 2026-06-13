@@ -1,0 +1,125 @@
+<%- include('../partials/header') %>
+
+<%
+const subjName = subject.discord_global_name || subject.username;
+const base = isOwn ? '/feedback/results' : '/feedback/results/' + subject.id;
+%>
+
+<div class="container">
+    <header>
+        <h1><%= isOwn ? 'MY FEEDBACK RESULTS' : 'FEEDBACK RESULTS' %></h1>
+        <div class="subtitle"><%= isOwn ? 'Combined, anonymised feedback about you' : subjName %></div>
+    </header>
+
+    <section class="section">
+        <% if (!isOwn) { %>
+            <div class="top-row">
+                <h2 style="margin:0;"><%= subjName %></h2>
+                <a href="/admin/feedback" class="btn">← Back to admin</a>
+            </div>
+        <% } %>
+
+        <% if (cycles.length === 0) { %>
+            <div class="empty-state">
+                <div class="empty-icon">📊</div>
+                <strong>No feedback yet</strong>
+                <p><%= isOwn ? 'No one has submitted feedback about you yet.' : 'No feedback has been submitted about this person yet.' %></p>
+            </div>
+        <% } else { %>
+            <% if (cycles.length > 1) { %>
+                <div class="field" style="max-width:360px;">
+                    <label for="cycleSel">Feedback round</label>
+                    <select id="cycleSel" onchange="location.href='<%= base %>?cycle=' + this.value">
+                        <% cycles.forEach(c => { %>
+                            <option value="<%= c.id %>" <%= c.id === selectedCycleId ? 'selected' : '' %>><%= c.title %></option>
+                        <% }) %>
+                    </select>
+                </div>
+            <% } else { %>
+                <p class="fb-intro">Round: <strong><%= cycles[0].title %></strong></p>
+            <% } %>
+
+            <% if (!results || results.totalResponses === 0) { %>
+                <div class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <strong>No responses in this round</strong>
+                </div>
+            <% } else { %>
+                <div class="stat-bar">
+                    <div class="stat-chip">
+                        <span class="stat-val"><%= results.totalResponses %></span>
+                        <span class="stat-lbl">Total responses</span>
+                    </div>
+                    <% ['superior','peer','subordinate'].forEach(dir => {
+                        if (results.directionCounts[dir] > 0) { %>
+                        <div class="stat-chip">
+                            <span class="stat-val"><%= results.directionCounts[dir] %></span>
+                            <span class="stat-lbl">From <%= DIRECTION_LABELS[dir].toLowerCase() %></span>
+                        </div>
+                    <% } }) %>
+                </div>
+
+                <% const anySuppressed = results.suppressed.superior || results.suppressed.peer || results.suppressed.subordinate; %>
+                <% if (anySuppressed) { %>
+                    <p class="fb-note">🔒 Some groups had fewer than <%= MIN_GROUP %> responses and are hidden to protect anonymity.</p>
+                <% } %>
+
+                <!-- ── Rating questions ─────────────────────────────────────── -->
+                <% if (results.ratings.length > 0) { %>
+                    <h2 class="fb-group-title">RATINGS</h2>
+                    <div class="cards-grid fb-ratings">
+                        <% results.ratings.forEach(r => {
+                            const maxCount = Math.max(...r.dist, 1);
+                        %>
+                            <div class="item-card">
+                                <div class="card-body">
+                                    <div class="fb-q-head">
+                                        <span class="fb-q-prompt"><%= r.prompt %></span>
+                                        <span class="fb-q-avg"><%= r.avg.toFixed(1) %><small>/5</small></span>
+                                    </div>
+                                    <div class="bar-chart" style="height:90px;">
+                                        <% r.dist.forEach((count, i) => {
+                                            const h = Math.round((count / maxCount) * 100);
+                                        %>
+                                            <div class="bar-col" title="<%= count %> rated <%= i + 1 %>">
+                                                <span class="bar-val"><%= count %></span>
+                                                <div class="bar-inner">
+                                                    <div class="bar-fill" style="height:<%= h %>%;width:100%;"></div>
+                                                </div>
+                                                <span class="bar-lbl"><%= i + 1 %></span>
+                                            </div>
+                                        <% }) %>
+                                    </div>
+                                    <div class="fb-dir-chips">
+                                        <% ['superior','peer','subordinate'].forEach(dir => {
+                                            const d = r.byDirection[dir];
+                                            if (d) { %>
+                                            <span class="fb-dir-chip"><%= DIRECTION_LABELS[dir] %>: <strong><%= d.avg.toFixed(1) %></strong> <small>(<%= d.n %>)</small></span>
+                                        <% } }) %>
+                                    </div>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                <% } %>
+
+                <!-- ── Written feedback ─────────────────────────────────────── -->
+                <% const hasText = results.texts.superior.length || results.texts.peer.length || results.texts.subordinate.length; %>
+                <% if (hasText) { %>
+                    <h2 class="fb-group-title">WRITTEN FEEDBACK</h2>
+                    <% ['superior','peer','subordinate'].forEach(dir => {
+                        const comments = results.texts[dir];
+                        if (!comments || comments.length === 0) return;
+                    %>
+                        <h3 class="fb-text-dir"><%= DIRECTION_LABELS[dir] %></h3>
+                        <% comments.forEach(c => { %>
+                            <blockquote class="fb-comment"><%= c %></blockquote>
+                        <% }) %>
+                    <% }) %>
+                <% } %>
+            <% } %>
+        <% } %>
+    </section>
+</div>
+
+<%- include('../partials/footer') %>
