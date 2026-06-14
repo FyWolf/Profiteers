@@ -33,6 +33,14 @@ async function announceFeedbackRound(client, cycle) {
             .setFooter({ text: 'Profiteers PMC' })
             .setTimestamp();
 
+        if (cycle.deadline) {
+            embed.addFields({
+                name: '⏰ Deadline',
+                value: `<t:${cycle.deadline}:F> (<t:${cycle.deadline}:R>)`,
+                inline: false
+            });
+        }
+
         const roleId = process.env.DISCORD_FEEDBACK_PING_ROLE_ID;
         const content = roleId ? `<@&${roleId}>` : null;
 

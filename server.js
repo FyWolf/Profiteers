@@ -200,4 +200,15 @@ cron.schedule('0 * * * *', async () => {
     }
 });
 
+// Auto-close feedback rounds whose deadline has passed — every minute
+const { closeExpiredRounds } = require('./helpers/feedbackRounds');
+cron.schedule('* * * * *', async () => {
+    try {
+        const closed = await closeExpiredRounds();
+        if (closed > 0) console.log(`[CRON] Closed ${closed} expired feedback round(s)`);
+    } catch (error) {
+        console.error('[CRON] Feedback deadline close failed:', error.message);
+    }
+});
+
 module.exports = app;

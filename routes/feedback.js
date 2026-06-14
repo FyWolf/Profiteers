@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
+const { closeIfAllSubmitted } = require('../helpers/feedbackRounds');
 
 // Minimum responses in a source group before its breakdown is shown to the
 // subject, so a thin group can't be de-anonymised.
@@ -337,6 +338,8 @@ router.post('/pair/:pairId', isAuthenticated, async (req, res) => {
         await conn.query("UPDATE feedback_pairs SET status = 'submitted', submitted_at = NOW() WHERE id = ?", [pair.id]);
         await conn.commit();
         conn.release();
+        // Auto-close the round once every assigned review is in.
+        try { await closeIfAllSubmitted(pair.cycle_id); } catch (e) { console.error('Auto-close check failed:', e.message); }
         res.redirect('/feedback?success=Feedback submitted. Thank you!');
     } catch (error) {
         try { await conn.rollback(); } catch (_) {}

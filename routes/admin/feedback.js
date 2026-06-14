@@ -46,10 +46,23 @@ router.get('/', async (req, res) => {
 
 router.post('/open', async (req, res) => {
     try {
-        const { title, template_id } = req.body;
+        const { title, template_id, deadline } = req.body;
         const templateId = parseInt(template_id, 10);
         if (!title || !title.trim() || !templateId) {
             return res.redirect('/admin/feedback?error=A title and an ORBAT template are required');
+        }
+
+        // Optional deadline (datetime-local) → unix seconds; must be in the future.
+        let deadlineTs = null;
+        if (deadline && deadline.trim()) {
+            const d = new Date(deadline);
+            if (isNaN(d.getTime())) {
+                return res.redirect('/admin/feedback?error=Invalid deadline');
+            }
+            deadlineTs = Math.floor(d.getTime() / 1000);
+            if (deadlineTs <= Math.floor(Date.now() / 1000)) {
+                return res.redirect('/admin/feedback?error=The deadline must be in the future');
+            }
         }
 
         const [openCycles] = await db.query("SELECT id FROM feedback_cycles WHERE status = 'open'");
@@ -63,8 +76,8 @@ router.post('/open', async (req, res) => {
         }
 
         const [result] = await db.query(
-            "INSERT INTO feedback_cycles (title, orbat_template_id, status, created_by) VALUES (?, ?, 'open', ?)",
-            [title.trim(), templateId, req.session.userId]
+            "INSERT INTO feedback_cycles (title, orbat_template_id, status, deadline, created_by) VALUES (?, ?, 'open', ?, ?)",
+            [title.trim(), templateId, deadlineTs, req.session.userId]
         );
         const cycleId = result.insertId;
 
@@ -96,7 +109,7 @@ router.post('/open', async (req, res) => {
             try {
                 const { announceFeedbackRound } = require('../../discord/feedback');
                 const { discordClient } = require('../../discord');
-                await announceFeedbackRound(discordClient, { id: cycleId, title: title.trim() });
+                await announceFeedbackRound(discordClient, { id: cycleId, title: title.trim(), deadline: deadlineTs });
             } catch (discordError) {
                 console.error('Feedback announcement error:', discordError);
             }

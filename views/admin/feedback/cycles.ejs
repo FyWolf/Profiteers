@@ -42,6 +42,11 @@
                         </select>
                         <small>Superior / peer / subordinate relationships are derived from this template's slot assignments and frozen for the round.</small>
                     </div>
+                    <div class="field">
+                        <label for="deadline">Deadline (optional)</label>
+                        <input type="datetime-local" id="deadline" name="deadline">
+                        <small>The round auto-closes at this time (announced in Discord). Leave blank for no deadline — it then closes manually or once every assigned review is in.</small>
+                    </div>
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary" <%= questionCount === 0 ? 'disabled' : '' %>>📢 Open round &amp; announce</button>
                     </div>
@@ -63,6 +68,7 @@
                         <th>ROUND</th>
                         <th>STRUCTURE</th>
                         <th class="r">PROGRESS</th>
+                        <th>DEADLINE</th>
                         <th>STATUS</th>
                         <th></th>
                     </tr>
@@ -77,6 +83,11 @@
                             <td class="r">
                                 <%= c.submitted_pairs %>/<%= c.total_pairs %>
                                 <div class="ret-bar-wrap"><div class="ret-bar-fill" style="width:<%= pct %>%;background:var(--accent);opacity:0.7;"></div></div>
+                            </td>
+                            <td class="khaki">
+                                <% if (c.deadline) { %>
+                                    <%= new Date(c.deadline * 1000).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) %> UTC
+                                <% } else { %>—<% } %>
                             </td>
                             <td>
                                 <% if (c.status === 'open') { %><span class="fb-badge fb-badge-open">OPEN</span>

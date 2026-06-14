@@ -34,6 +34,9 @@
             <p class="fb-intro">
                 Round: <strong><%= cycle.title %></strong> — you've completed
                 <strong><%= done %></strong> of <strong><%= total %></strong> form<%= total !== 1 ? 's' : '' %>.
+                <% if (cycle.deadline) { %>
+                    Closes <strong><%= new Date(cycle.deadline * 1000).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) %> UTC</strong>.
+                <% } %>
                 Your answers are anonymous; people only ever see combined, summarised results.
             </p>
 
