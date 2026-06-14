@@ -24,10 +24,10 @@ async function announceFeedbackRound(client, cycle) {
             .setColor(0xfcb00d)
             .setDescription(
                 'A new leadership feedback round is open!\n\n' +
-                'Please take a few minutes to give honest feedback on your leaders — and, ' +
-                'if you lead others, on your peers and your team.\n\n' +
+                'The recipients of this feedback will use this to improve their leadership. ' +
+                'Honest feedback is crucial for leadership development.\n\n' +
                 `🔗 **Fill it out here:** ${url}\n\n` +
-                'Your responses are anonymous. Leaders only ever see the combined, ' +
+                'Your responses are anonymous and will be used for self improvement. Leaders only ever see the combined, ' +
                 'summarised results — never who said what.'
             )
             .setFooter({ text: 'Profiteers PMC' })

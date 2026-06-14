@@ -30,7 +30,7 @@ const SCOPE_LABELS = { superior: 'To Superior', peer: 'To Peer', subordinate: 'T
         <% } else { %>
             <table class="act-table">
                 <thead>
-                    <tr><th>#</th><th>QUESTION</th><th>SCOPES</th><th>TYPE</th><th>ACTIVE</th><th></th></tr>
+                    <tr><th>#</th><th>QUESTION</th><th>SCOPES</th><th>TYPE</th><th>REQUIRED</th><th>ACTIVE</th><th></th></tr>
                 </thead>
                 <tbody>
                     <% questions.forEach(q => { %>
@@ -43,6 +43,7 @@ const SCOPE_LABELS = { superior: 'To Superior', peer: 'To Peer', subordinate: 'T
                                 <% }) %>
                             </td>
                             <td><span class="fb-badge <%= q.type === 'rating' ? 'fb-badge-open' : 'fb-badge-closed' %>"><%= q.type === 'rating' ? '1–5' : 'TEXT' %></span></td>
+                            <td><%= q.is_required ? 'Required' : 'Optional' %></td>
                             <td><%= q.is_active ? '✓' : '—' %></td>
                             <td class="r" style="white-space:nowrap;">
                                 <a href="/admin/feedback/questions/edit/<%= q.id %>" class="act act-edit">Edit</a>

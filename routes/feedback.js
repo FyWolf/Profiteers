@@ -55,6 +55,23 @@ function hasReviewAny(req) {
         && req.user.permissions.includes('feedback.review_any');
 }
 
+// Returns the prompts of any required questions left unanswered. The form sets
+// the HTML `required` attribute too, but this is the authoritative check.
+function missingRequired(questions, body) {
+    const missing = [];
+    for (const q of questions) {
+        if (!q.is_required) continue;
+        const raw = body['q_' + q.id];
+        if (q.type === 'rating') {
+            const n = parseInt(raw, 10);
+            if (isNaN(n) || n < 1 || n > 5) missing.push(q.prompt);
+        } else if (!raw || !raw.trim()) {
+            missing.push(q.prompt);
+        }
+    }
+    return missing;
+}
+
 // Inserts one answer row per question for a (already created) pair.
 async function saveAnswers(conn, pairId, questions, body) {
     for (const q of questions) {
@@ -178,7 +195,8 @@ router.get('/review', isAuthenticated, async (req, res) => {
             directionVerb: DIRECTION_VERB[direction],
             formAction: '/feedback/review',
             hiddenFields: { subject_id: subjectId, direction },
-            adhoc: true
+            adhoc: true,
+            error: req.query.error
         });
     } catch (error) {
         console.error('Error loading ad-hoc feedback form:', error);
@@ -215,6 +233,11 @@ router.post('/review', isAuthenticated, async (req, res) => {
             'SELECT * FROM feedback_cycle_questions WHERE cycle_id = ? AND direction = ?',
             [cycle.id, direction]
         );
+
+        if (missingRequired(questions, req.body).length > 0) {
+            conn.release();
+            return res.redirect(`/feedback/review?subject_id=${subjectId}&direction=${direction}&error=${encodeURIComponent('Please answer all required questions')}`);
+        }
 
         await conn.beginTransaction();
         // is_adhoc=1 + dedup_key=NULL => not subject to the one-per-subject limit.
@@ -272,7 +295,8 @@ router.get('/pair/:pairId', isAuthenticated, async (req, res) => {
             directionVerb: (pair.is_indirect ? 'indirect ' : '') + DIRECTION_VERB[pair.direction],
             formAction: '/feedback/pair/' + pair.id,
             hiddenFields: {},
-            adhoc: false
+            adhoc: false,
+            error: req.query.error
         });
     } catch (error) {
         console.error('Error loading feedback form:', error);
@@ -302,6 +326,11 @@ router.post('/pair/:pairId', isAuthenticated, async (req, res) => {
             'SELECT * FROM feedback_cycle_questions WHERE cycle_id = ? AND direction = ?',
             [pair.cycle_id, pair.direction]
         );
+
+        if (missingRequired(questions, req.body).length > 0) {
+            conn.release();
+            return res.redirect(`/feedback/pair/${pair.id}?error=${encodeURIComponent('Please answer all required questions')}`);
+        }
 
         await conn.beginTransaction();
         await saveAnswers(conn, pair.id, questions, req.body);

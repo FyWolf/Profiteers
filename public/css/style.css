@@ -1719,6 +1719,7 @@ th[onclick]:hover { color: var(--accent) !important; }
 .fb-group-title { font-family:var(--heading-font); font-size:1em; letter-spacing:1px; color:var(--sand); margin:20px 0 12px; }
 .fb-count { color:var(--khaki); opacity:0.7; font-size:0.85em; }
 .fb-req { color:var(--accent); }
+.fb-optional { color:var(--khaki); font-size:0.82em; opacity:0.7; font-weight:400; }
 
 /* Person cards on the landing page */
 .fb-person { display:flex; align-items:center; gap:12px; }

@@ -72,16 +72,16 @@ router.post('/open', async (req, res) => {
         // scope a question applies to) so later bank edits can't change an open
         // round. A multi-scope question therefore appears on each scope's form.
         const [activeQuestions] = await db.query(
-            'SELECT prompt, type, scopes, direction, display_order FROM feedback_questions WHERE is_active = 1'
+            'SELECT prompt, type, scopes, direction, display_order, is_required FROM feedback_questions WHERE is_active = 1'
         );
         const cqRows = [];
         for (const q of activeQuestions) {
             const scopes = String(q.scopes || q.direction || '').split(',').map(s => s.trim()).filter(Boolean);
-            for (const sc of scopes) cqRows.push([cycleId, q.prompt, q.type, sc, q.display_order]);
+            for (const sc of scopes) cqRows.push([cycleId, q.prompt, q.type, sc, q.display_order, q.is_required]);
         }
         if (cqRows.length > 0) {
             await db.query(
-                'INSERT INTO feedback_cycle_questions (cycle_id, prompt, type, direction, display_order) VALUES ?',
+                'INSERT INTO feedback_cycle_questions (cycle_id, prompt, type, direction, display_order, is_required) VALUES ?',
                 [cqRows]
             );
         }
@@ -209,9 +209,10 @@ router.post('/questions/add', async (req, res) => {
             return res.redirect('/admin/feedback/questions?error=A prompt and at least one scope are required');
         }
         const isActive = req.body.is_active ? 1 : 0;
+        const isRequired = req.body.is_required ? 1 : 0;
         await db.query(
-            'INSERT INTO feedback_questions (prompt, type, direction, scopes, display_order, is_active, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [prompt.trim(), type === 'text' ? 'text' : 'rating', scopes[0], scopes.join(','), parseInt(display_order, 10) || 0, isActive, req.session.userId]
+            'INSERT INTO feedback_questions (prompt, type, direction, scopes, display_order, is_required, is_active, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [prompt.trim(), type === 'text' ? 'text' : 'rating', scopes[0], scopes.join(','), parseInt(display_order, 10) || 0, isRequired, isActive, req.session.userId]
         );
         res.redirect('/admin/feedback/questions?success=Question created');
     } catch (error) {
@@ -244,9 +245,10 @@ router.post('/questions/edit/:id', async (req, res) => {
             return res.redirect('/admin/feedback/questions?error=A prompt and at least one scope are required');
         }
         const isActive = req.body.is_active ? 1 : 0;
+        const isRequired = req.body.is_required ? 1 : 0;
         await db.query(
-            'UPDATE feedback_questions SET prompt = ?, type = ?, direction = ?, scopes = ?, display_order = ?, is_active = ? WHERE id = ?',
-            [prompt.trim(), type === 'text' ? 'text' : 'rating', scopes[0], scopes.join(','), parseInt(display_order, 10) || 0, isActive, req.params.id]
+            'UPDATE feedback_questions SET prompt = ?, type = ?, direction = ?, scopes = ?, display_order = ?, is_required = ?, is_active = ? WHERE id = ?',
+            [prompt.trim(), type === 'text' ? 'text' : 'rating', scopes[0], scopes.join(','), parseInt(display_order, 10) || 0, isRequired, isActive, req.params.id]
         );
         res.redirect('/admin/feedback/questions?success=Question updated');
     } catch (error) {
