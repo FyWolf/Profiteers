@@ -1,0 +1,71 @@
+<%- include('../../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1><%= cycle.title %></h1>
+        <div class="subtitle">
+            <%= cycle.template_name || '—' %> ·
+            <% if (cycle.status === 'open') { %><span class="fb-badge fb-badge-open">OPEN</span>
+            <% } else { %><span class="fb-badge fb-badge-closed">CLOSED</span><% } %>
+        </div>
+    </header>
+
+    <section class="section">
+        <div class="act-grid-2">
+            <!-- ── Participation ────────────────────────────────────────────── -->
+            <div class="act-card">
+                <div class="act-card-title">✅ PARTICIPATION (REVIEWERS)</div>
+                <% if (reviewers.length === 0) { %>
+                    <p style="color:var(--khaki);opacity:0.6;">No reviewers.</p>
+                <% } else { %>
+                    <table class="act-table">
+                        <thead><tr><th>MEMBER</th><th class="r">DONE</th></tr></thead>
+                        <tbody>
+                            <% reviewers.forEach(rv => {
+                                const complete = Number(rv.done) === Number(rv.total);
+                            %>
+                                <tr>
+                                    <td><%= rv.discord_global_name || rv.username %></td>
+                                    <td class="r" style="color:<%= complete ? '#52c85a' : 'var(--accent)' %>;font-weight:700;">
+                                        <%= rv.done %>/<%= rv.total %>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                <% } %>
+            </div>
+
+            <!-- ── Subjects (results) ───────────────────────────────────────── -->
+            <div class="act-card">
+                <div class="act-card-title">📊 PEOPLE REVIEWED</div>
+                <% if (subjects.length === 0) { %>
+                    <p style="color:var(--khaki);opacity:0.6;">No subjects.</p>
+                <% } else { %>
+                    <table class="act-table">
+                        <thead><tr><th>MEMBER</th><th class="r">RESPONSES</th><th></th></tr></thead>
+                        <tbody>
+                            <% subjects.forEach(s => { %>
+                                <tr>
+                                    <td><%= s.discord_global_name || s.username %></td>
+                                    <td class="r"><%= s.responses %>/<%= s.expected %></td>
+                                    <td class="r">
+                                        <% if (Number(s.responses) > 0) { %>
+                                            <a class="act act-edit" href="/feedback/results/<%= s.id %>?cycle=<%= cycle.id %>">View</a>
+                                        <% } else { %>
+                                            <span class="khaki" style="opacity:0.5;">—</span>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                <% } %>
+            </div>
+        </div>
+    </section>
+
+    <div class="mt-2"><a href="/admin/feedback" class="btn">← Back to rounds</a></div>
+</div>
+
+<%- include('../../partials/footer') %>

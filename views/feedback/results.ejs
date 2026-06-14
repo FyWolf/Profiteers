@@ -1,0 +1,112 @@
+<%- include('../partials/header') %>
+
+<%
+const subjName = subject.discord_global_name || subject.username;
+const base = isOwn ? '/feedback/results' : '/feedback/results/' + subject.id;
+%>
+
+<div class="container">
+    <header>
+        <h1><%= isOwn ? 'MY FEEDBACK RESULTS' : 'FEEDBACK RESULTS' %></h1>
+        <div class="subtitle"><%= isOwn ? 'Combined, anonymised feedback about you' : subjName %></div>
+    </header>
+
+    <section class="section">
+        <% if (!isOwn) { %>
+            <div class="top-row">
+                <h2 style="margin:0;"><%= subjName %></h2>
+                <a href="/admin/feedback" class="btn">← Back to admin</a>
+            </div>
+        <% } %>
+
+        <% if (cycles.length === 0) { %>
+            <div class="empty-state">
+                <div class="empty-icon">📊</div>
+                <strong>No feedback yet</strong>
+                <p><%= isOwn ? 'No one has submitted feedback about you yet.' : 'No feedback has been submitted about this person yet.' %></p>
+            </div>
+        <% } else { %>
+            <% if (cycles.length > 1) { %>
+                <div class="field" style="max-width:360px;">
+                    <label for="cycleSel">Feedback round</label>
+                    <select id="cycleSel" onchange="location.href='<%= base %>?cycle=' + this.value">
+                        <% cycles.forEach(c => { %>
+                            <option value="<%= c.id %>" <%= c.id === selectedCycleId ? 'selected' : '' %>><%= c.title %></option>
+                        <% }) %>
+                    </select>
+                </div>
+            <% } else { %>
+                <p class="fb-intro">Round: <strong><%= cycles[0].title %></strong></p>
+            <% } %>
+
+            <% if (!results || results.totalResponses === 0) { %>
+                <div class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <strong>No responses in this round</strong>
+                </div>
+            <% } else { %>
+                <div class="stat-bar">
+                    <div class="stat-chip">
+                        <span class="stat-val"><%= results.totalResponses %></span>
+                        <span class="stat-lbl">Total responses</span>
+                    </div>
+                    <% results.groups.forEach(g => { %>
+                        <div class="stat-chip">
+                            <span class="stat-val"><%= g.count %></span>
+                            <span class="stat-lbl">From <%= g.label.toLowerCase() %></span>
+                        </div>
+                    <% }) %>
+                    <% if (results.other) { %>
+                        <div class="stat-chip">
+                            <span class="stat-val"><%= results.other.count %></span>
+                            <span class="stat-lbl">Other (pooled)</span>
+                        </div>
+                    <% } %>
+                </div>
+
+                <% if (results.other) { %>
+                    <p class="fb-note">🔒 Some source groups had fewer than <%= MIN_GROUP %> responses and are combined under “Other” to protect anonymity.</p>
+                <% } %>
+
+                <!-- ── Overall ratings (everyone combined) ──────────────────── -->
+                <% if (results.overall.ratings.length > 0) { %>
+                    <h2 class="fb-group-title">OVERALL RATINGS</h2>
+                    <div class="cards-grid fb-ratings">
+                        <% results.overall.ratings.forEach(r => { %><%- include('_rating-card', { r }) %><% }) %>
+                    </div>
+                <% } %>
+
+                <!-- ── Per source group: ratings + written feedback ─────────── -->
+                <% results.groups.forEach(group => { %>
+                    <h2 class="fb-group-title"><%= group.label %> <span class="fb-count">(<%= group.count %>)</span></h2>
+                    <% if (group.ratings.length > 0) { %>
+                        <div class="cards-grid fb-ratings">
+                            <% group.ratings.forEach(r => { %><%- include('_rating-card', { r }) %><% }) %>
+                        </div>
+                    <% } %>
+                    <% if (group.texts.length > 0) { %>
+                        <%- include('_text-groups', { groups: group.texts }) %>
+                    <% } %>
+                    <% if (group.ratings.length === 0 && group.texts.length === 0) { %>
+                        <p class="fb-note" style="opacity:0.6;">No answers from this group.</p>
+                    <% } %>
+                <% }) %>
+
+                <!-- ── Pooled thin groups ───────────────────────────────────── -->
+                <% if (results.other) { %>
+                    <h2 class="fb-group-title">Other <span class="fb-count">(<%= results.other.count %>)</span></h2>
+                    <% if (results.other.ratings.length > 0) { %>
+                        <div class="cards-grid fb-ratings">
+                            <% results.other.ratings.forEach(r => { %><%- include('_rating-card', { r }) %><% }) %>
+                        </div>
+                    <% } %>
+                    <% if (results.other.texts.length > 0) { %>
+                        <%- include('_text-groups', { groups: results.other.texts }) %>
+                    <% } %>
+                <% } %>
+            <% } %>
+        <% } %>
+    </section>
+</div>
+
+<%- include('../partials/footer') %>

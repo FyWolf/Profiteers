@@ -1711,3 +1711,59 @@ th[onclick]:hover { color: var(--accent) !important; }
     #patreon-plug { bottom:12px; right:12px; max-width:230px; padding:9px 11px; }
     .patreon-text span { font-size:0.7em; }
 }
+
+/* ── 360° Leadership Feedback ─────────────────────────────────────── */
+.fb-intro { color:var(--khaki); font-size:0.9em; line-height:1.6; margin-bottom:18px; }
+.fb-note  { color:var(--khaki); font-size:0.82em; opacity:0.8; margin:8px 0 14px; }
+.fb-warn  { color:#ff9b6b; font-size:0.8em; margin-top:14px; text-align:center; }
+.fb-group-title { font-family:var(--heading-font); font-size:1em; letter-spacing:1px; color:var(--sand); margin:20px 0 12px; }
+.fb-count { color:var(--khaki); opacity:0.7; font-size:0.85em; }
+.fb-req { color:var(--accent); }
+.fb-optional { color:var(--khaki); font-size:0.82em; opacity:0.7; font-weight:400; }
+
+/* Person cards on the landing page */
+.fb-person { display:flex; align-items:center; gap:12px; }
+.fb-avatar { width:40px; height:40px; border-radius:50%; border:1px solid rgba(107,142,35,0.5); object-fit:cover; flex-shrink:0; }
+.fb-avatar-fallback { display:flex; align-items:center; justify-content:center; background:var(--camo-mid); color:var(--accent); font-family:var(--heading-font); font-size:1.1em; }
+.fb-name { font-size:0.95em; color:var(--sand); }
+.fb-done { opacity:0.7; }
+.fb-submitted { color:#52c85a; background:rgba(82,200,90,0.1); border:1px solid rgba(82,200,90,0.35); border-radius:6px; padding:5px 10px; font-size:0.76em; font-weight:700; }
+
+/* Rating scale on the form */
+.fb-question { margin-bottom:24px; }
+.rating-scale { display:flex; gap:10px; flex-wrap:wrap; }
+.rating-opt { position:relative; cursor:pointer; margin:0 !important; }
+.rating-opt input { position:absolute; opacity:0; width:0; height:0; }
+.rating-num { display:flex; align-items:center; justify-content:center; width:46px; height:46px; border:1px solid rgba(107,142,35,0.5); border-radius:8px; background:rgba(0,0,0,0.4); color:var(--sand); font-family:var(--heading-font); font-size:1.05em; transition:all 0.15s; }
+.rating-opt:hover .rating-num { border-color:var(--accent); }
+.rating-opt input:checked + .rating-num { background:linear-gradient(180deg,var(--accent) 0%,var(--olive) 100%); color:var(--camo-dark); border-color:var(--accent); font-weight:700; }
+.rating-opt input:focus-visible + .rating-num { box-shadow:0 0 8px rgba(252,176,13,0.4); }
+.rating-legend { display:flex; justify-content:space-between; max-width:280px; margin-top:6px; font-size:0.72em; color:var(--khaki); opacity:0.7; }
+
+/* Results page */
+.fb-ratings .item-card { padding:16px 18px; }
+.fb-q-head { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:12px; }
+.fb-q-prompt { font-size:0.88em; color:var(--sand); line-height:1.4; }
+.fb-q-avg { font-family:var(--heading-font); font-size:1.5em; color:var(--accent); white-space:nowrap; }
+.fb-q-avg small { font-size:0.5em; color:var(--khaki); }
+.fb-q-foot { margin-top:8px; font-size:0.72em; color:var(--khaki); opacity:0.7; }
+.fb-dir-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+.fb-dir-chip { font-size:0.72em; color:var(--khaki); background:rgba(0,0,0,0.35); border:1px solid rgba(107,142,35,0.35); border-radius:6px; padding:3px 8px; }
+.fb-dir-chip strong { color:var(--accent); }
+.fb-text-dir { font-family:var(--heading-font); font-size:0.82em; letter-spacing:1px; color:var(--olive-light); margin:16px 0 8px; }
+.fb-q-label { font-size:0.84em; color:var(--sand); font-weight:700; margin:14px 0 6px; }
+.fb-comment { margin:0 0 10px; padding:12px 16px; background:rgba(0,0,0,0.35); border-left:3px solid var(--olive); border-radius:0 8px 8px 0; color:var(--sand); font-size:0.88em; line-height:1.6; white-space:pre-wrap; }
+
+/* Admin badges / checkbox */
+.fb-badge { display:inline-block; font-family:var(--heading-font); font-size:0.62em; letter-spacing:1px; padding:2px 8px; border-radius:5px; }
+.fb-badge-open   { background:rgba(82,200,90,0.15); color:#52c85a; border:1px solid rgba(82,200,90,0.4); }
+.fb-badge-closed { background:rgba(107,142,35,0.12); color:var(--khaki); border:1px solid rgba(107,142,35,0.35); }
+.fb-rounds td { vertical-align:middle; }
+.fb-rounds .ret-bar-wrap { max-width:140px; margin-left:auto; }
+.fb-check { display:flex !important; align-items:center; gap:10px; text-transform:none !important; font-size:0.9em !important; color:var(--sand) !important; cursor:pointer; }
+.fb-check input { width:auto !important; }
+
+/* "Review anyone" panel (feedback.review_any) */
+.fb-review-any { background:rgba(0,0,0,0.3); border:1px solid rgba(252,176,13,0.35); border-radius:12px; padding:18px 20px; margin-bottom:26px; }
+.fb-review-form { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; }
+.fb-review-form .btn { min-height:42px; }

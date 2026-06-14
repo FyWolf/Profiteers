@@ -43,6 +43,7 @@ const mapPlansRoutes = require('./routes/map-plans');
 const { discordClient, initializeDiscord } = require('./discord');
 const modpacksRoutes = require('./routes/modpacks');
 const infoRoutes = require('./routes/info');
+const feedbackRoutes = require('./routes/feedback');
 const cron = require('node-cron');
 const { runRosterSync } = require('./routes/roster');
 
@@ -131,6 +132,7 @@ app.use('/orbat', orbatRoutes);
 app.use('/loa', loaRoutes);
 app.use('/roster', rosterRoutes);
 app.use('/modpacks', modpacksRoutes);
+app.use('/feedback', feedbackRoutes);
 const loreRoutes = require('./routes/lore');
 app.use('/lore', loreRoutes);
 app.use('/info', infoRoutes);
@@ -195,6 +197,17 @@ cron.schedule('0 * * * *', async () => {
         await runRosterSync();
     } catch (error) {
         console.error('[CRON] Roster sync failed:', error.message);
+    }
+});
+
+// Auto-close feedback rounds whose deadline has passed — every minute
+const { closeExpiredRounds } = require('./helpers/feedbackRounds');
+cron.schedule('* * * * *', async () => {
+    try {
+        const closed = await closeExpiredRounds();
+        if (closed > 0) console.log(`[CRON] Closed ${closed} expired feedback round(s)`);
+    } catch (error) {
+        console.error('[CRON] Feedback deadline close failed:', error.message);
     }
 });
 
