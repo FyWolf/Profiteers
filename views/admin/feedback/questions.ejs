@@ -1,18 +1,13 @@
 <%- include('../../partials/header') %>
 
 <%
-const DIR_LABELS = { superior: 'To Superior', peer: 'To Peer', subordinate: 'To Subordinate' };
-const DIR_HINT = {
-    superior: 'Filled in by everyone about the leaders above them.',
-    peer: 'Filled in by leaders about other leaders at their level.',
-    subordinate: 'Filled in by leaders about their team members.'
-};
+const SCOPE_LABELS = { superior: 'To Superior', peer: 'To Peer', subordinate: 'To Subordinate' };
 %>
 
 <div class="container">
     <header>
         <h1>FEEDBACK QUESTIONS</h1>
-        <div class="subtitle">One question set per feedback direction</div>
+        <div class="subtitle">Each question can apply to one or more scopes</div>
     </header>
 
     <section class="section">
@@ -24,39 +19,43 @@ const DIR_HINT = {
             <a href="/admin/feedback/questions/add" class="btn btn-primary">➕ Add Question</a>
         </div>
 
-        <p class="fb-note">Changes here only affect <strong>future</strong> rounds. Each round freezes its own copy of the questions when it opens, so editing or deleting a question never alters a round that's already running.</p>
+        <p class="fb-note">Changes here only affect <strong>future</strong> rounds — each round freezes its own copy of the questions when it opens. A question used in several scopes is asked on each of those forms and folds back into one question in the results.</p>
 
-        <% ['superior','peer','subordinate'].forEach(dir => {
-            const list = grouped[dir]; %>
-            <h2 class="fb-group-title" style="margin-top:22px;"><%= DIR_LABELS[dir] %></h2>
-            <p class="fb-note" style="margin-top:-4px;"><%= DIR_HINT[dir] %></p>
-            <% if (!list || list.length === 0) { %>
-                <p style="color:var(--khaki);opacity:0.6;">No questions yet.</p>
-            <% } else { %>
-                <table class="act-table">
-                    <thead>
-                        <tr><th>#</th><th>QUESTION</th><th>TYPE</th><th>ACTIVE</th><th></th></tr>
-                    </thead>
-                    <tbody>
-                        <% list.forEach(q => { %>
-                            <tr style="<%= q.is_active ? '' : 'opacity:0.5;' %>">
-                                <td class="khaki"><%= q.display_order %></td>
-                                <td><%= q.prompt %></td>
-                                <td><span class="fb-badge <%= q.type === 'rating' ? 'fb-badge-open' : 'fb-badge-closed' %>"><%= q.type === 'rating' ? '1–5' : 'TEXT' %></span></td>
-                                <td><%= q.is_active ? '✓' : '—' %></td>
-                                <td class="r" style="white-space:nowrap;">
-                                    <a href="/admin/feedback/questions/edit/<%= q.id %>" class="act act-edit">Edit</a>
-                                    <form method="POST" action="/admin/feedback/questions/delete/<%= q.id %>" style="display:inline;"
-                                          onsubmit="return confirm('Delete this question? Past answers keep a snapshot of the wording.')">
-                                        <button type="submit" class="act act-del">Delete</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        <% }) %>
-                    </tbody>
-                </table>
-            <% } %>
-        <% }) %>
+        <% if (!questions || questions.length === 0) { %>
+            <div class="empty-state">
+                <div class="empty-icon">📝</div>
+                <strong>No questions yet</strong>
+                <p>Add your first question to start building the feedback forms.</p>
+            </div>
+        <% } else { %>
+            <table class="act-table">
+                <thead>
+                    <tr><th>#</th><th>QUESTION</th><th>SCOPES</th><th>TYPE</th><th>ACTIVE</th><th></th></tr>
+                </thead>
+                <tbody>
+                    <% questions.forEach(q => { %>
+                        <tr style="<%= q.is_active ? '' : 'opacity:0.5;' %>">
+                            <td class="khaki"><%= q.display_order %></td>
+                            <td><%= q.prompt %></td>
+                            <td>
+                                <% q.scopeList.forEach(s => { %>
+                                    <span class="fb-badge fb-badge-closed" style="margin:1px;"><%= SCOPE_LABELS[s] || s %></span>
+                                <% }) %>
+                            </td>
+                            <td><span class="fb-badge <%= q.type === 'rating' ? 'fb-badge-open' : 'fb-badge-closed' %>"><%= q.type === 'rating' ? '1–5' : 'TEXT' %></span></td>
+                            <td><%= q.is_active ? '✓' : '—' %></td>
+                            <td class="r" style="white-space:nowrap;">
+                                <a href="/admin/feedback/questions/edit/<%= q.id %>" class="act act-edit">Edit</a>
+                                <form method="POST" action="/admin/feedback/questions/delete/<%= q.id %>" style="display:inline;"
+                                      onsubmit="return confirm('Delete this question? Past answers keep a snapshot of the wording.')">
+                                    <button type="submit" class="act act-del">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        <% } %>
     </section>
 
     <div class="mt-2"><a href="/admin/feedback" class="btn">← Back to rounds</a></div>

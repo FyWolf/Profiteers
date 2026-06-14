@@ -68,17 +68,27 @@ router.post('/open', async (req, res) => {
         );
         const cycleId = result.insertId;
 
-        // Freeze the active question set into this round so later edits to the
-        // question bank can't change a round that's already open.
-        await db.query(`
-            INSERT INTO feedback_cycle_questions (cycle_id, prompt, type, direction, display_order)
-            SELECT ?, prompt, type, direction, display_order
-            FROM feedback_questions WHERE is_active = 1
-        `, [cycleId]);
+        // Freeze the active question set into this round (one snapshot row per
+        // scope a question applies to) so later bank edits can't change an open
+        // round. A multi-scope question therefore appears on each scope's form.
+        const [activeQuestions] = await db.query(
+            'SELECT prompt, type, scopes, direction, display_order FROM feedback_questions WHERE is_active = 1'
+        );
+        const cqRows = [];
+        for (const q of activeQuestions) {
+            const scopes = String(q.scopes || q.direction || '').split(',').map(s => s.trim()).filter(Boolean);
+            for (const sc of scopes) cqRows.push([cycleId, q.prompt, q.type, sc, q.display_order]);
+        }
+        if (cqRows.length > 0) {
+            await db.query(
+                'INSERT INTO feedback_cycle_questions (cycle_id, prompt, type, direction, display_order) VALUES ?',
+                [cqRows]
+            );
+        }
 
-        const values = pairs.map(p => [cycleId, p.reviewer_user_id, p.subject_user_id, p.direction]);
+        const values = pairs.map(p => [cycleId, p.reviewer_user_id, p.subject_user_id, p.direction, p.is_indirect]);
         await db.query(
-            'INSERT IGNORE INTO feedback_pairs (cycle_id, reviewer_user_id, subject_user_id, direction) VALUES ?',
+            'INSERT IGNORE INTO feedback_pairs (cycle_id, reviewer_user_id, subject_user_id, direction, is_indirect) VALUES ?',
             [values]
         );
 
@@ -158,17 +168,22 @@ router.get('/round/:id', async (req, res) => {
 });
 
 // ── Question bank ───────────────────────────────────────────────────────────
+function parseScopes(body) {
+    return [].concat(body.scopes || []).filter(s => DIRECTIONS.includes(s));
+}
+
 router.get('/questions', async (req, res) => {
     try {
         const [questions] = await db.query(
-            'SELECT * FROM feedback_questions ORDER BY direction ASC, display_order ASC, id ASC'
+            'SELECT * FROM feedback_questions ORDER BY display_order ASC, id ASC'
         );
-        const grouped = { superior: [], peer: [], subordinate: [] };
-        questions.forEach(q => { if (grouped[q.direction]) grouped[q.direction].push(q); });
+        questions.forEach(q => {
+            q.scopeList = String(q.scopes || q.direction || '').split(',').map(s => s.trim()).filter(Boolean);
+        });
 
         res.render('admin/feedback/questions', {
             title: 'Feedback Questions - Admin',
-            grouped,
+            questions,
             success: req.query.success,
             error: req.query.error
         });
@@ -188,14 +203,15 @@ router.get('/questions/add', (req, res) => {
 
 router.post('/questions/add', async (req, res) => {
     try {
-        const { prompt, type, direction, display_order } = req.body;
-        if (!prompt || !prompt.trim() || !DIRECTIONS.includes(direction)) {
-            return res.redirect('/admin/feedback/questions?error=Prompt and a valid direction are required');
+        const { prompt, type, display_order } = req.body;
+        const scopes = parseScopes(req.body);
+        if (!prompt || !prompt.trim() || scopes.length === 0) {
+            return res.redirect('/admin/feedback/questions?error=A prompt and at least one scope are required');
         }
         const isActive = req.body.is_active ? 1 : 0;
         await db.query(
-            'INSERT INTO feedback_questions (prompt, type, direction, display_order, is_active, created_by) VALUES (?, ?, ?, ?, ?, ?)',
-            [prompt.trim(), type === 'text' ? 'text' : 'rating', direction, parseInt(display_order, 10) || 0, isActive, req.session.userId]
+            'INSERT INTO feedback_questions (prompt, type, direction, scopes, display_order, is_active, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [prompt.trim(), type === 'text' ? 'text' : 'rating', scopes[0], scopes.join(','), parseInt(display_order, 10) || 0, isActive, req.session.userId]
         );
         res.redirect('/admin/feedback/questions?success=Question created');
     } catch (error) {
@@ -208,6 +224,7 @@ router.get('/questions/edit/:id', async (req, res) => {
     try {
         const [[question]] = await db.query('SELECT * FROM feedback_questions WHERE id = ?', [req.params.id]);
         if (!question) return res.redirect('/admin/feedback/questions?error=Question not found');
+        question.scopeList = String(question.scopes || question.direction || '').split(',').map(s => s.trim()).filter(Boolean);
         res.render('admin/feedback/question-form', {
             title: 'Edit Question - Admin',
             question,
@@ -221,14 +238,15 @@ router.get('/questions/edit/:id', async (req, res) => {
 
 router.post('/questions/edit/:id', async (req, res) => {
     try {
-        const { prompt, type, direction, display_order } = req.body;
-        if (!prompt || !prompt.trim() || !DIRECTIONS.includes(direction)) {
-            return res.redirect('/admin/feedback/questions?error=Prompt and a valid direction are required');
+        const { prompt, type, display_order } = req.body;
+        const scopes = parseScopes(req.body);
+        if (!prompt || !prompt.trim() || scopes.length === 0) {
+            return res.redirect('/admin/feedback/questions?error=A prompt and at least one scope are required');
         }
         const isActive = req.body.is_active ? 1 : 0;
         await db.query(
-            'UPDATE feedback_questions SET prompt = ?, type = ?, direction = ?, display_order = ?, is_active = ? WHERE id = ?',
-            [prompt.trim(), type === 'text' ? 'text' : 'rating', direction, parseInt(display_order, 10) || 0, isActive, req.params.id]
+            'UPDATE feedback_questions SET prompt = ?, type = ?, direction = ?, scopes = ?, display_order = ?, is_active = ? WHERE id = ?',
+            [prompt.trim(), type === 'text' ? 'text' : 'rating', scopes[0], scopes.join(','), parseInt(display_order, 10) || 0, isActive, req.params.id]
         );
         res.redirect('/admin/feedback/questions?success=Question updated');
     } catch (error) {

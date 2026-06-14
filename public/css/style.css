@@ -1745,6 +1745,7 @@ th[onclick]:hover { color: var(--accent) !important; }
 .fb-q-prompt { font-size:0.88em; color:var(--sand); line-height:1.4; }
 .fb-q-avg { font-family:var(--heading-font); font-size:1.5em; color:var(--accent); white-space:nowrap; }
 .fb-q-avg small { font-size:0.5em; color:var(--khaki); }
+.fb-q-foot { margin-top:8px; font-size:0.72em; color:var(--khaki); opacity:0.7; }
 .fb-dir-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
 .fb-dir-chip { font-size:0.72em; color:var(--khaki); background:rgba(0,0,0,0.35); border:1px solid rgba(107,142,35,0.35); border-radius:6px; padding:3px 8px; }
 .fb-dir-chip strong { color:var(--accent); }

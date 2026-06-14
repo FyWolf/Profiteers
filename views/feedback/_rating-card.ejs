@@ -1,0 +1,19 @@
+<% const maxCount = Math.max(...r.dist, 1); %>
+<div class="item-card">
+    <div class="card-body">
+        <div class="fb-q-head">
+            <span class="fb-q-prompt"><%= r.prompt %></span>
+            <span class="fb-q-avg"><%= r.avg.toFixed(1) %><small>/5</small></span>
+        </div>
+        <div class="bar-chart" style="height:80px;">
+            <% r.dist.forEach((count, i) => { const h = Math.round((count / maxCount) * 100); %>
+                <div class="bar-col" title="<%= count %> rated <%= i + 1 %>">
+                    <span class="bar-val"><%= count %></span>
+                    <div class="bar-inner"><div class="bar-fill" style="height:<%= h %>%;width:100%;"></div></div>
+                    <span class="bar-lbl"><%= i + 1 %></span>
+                </div>
+            <% }) %>
+        </div>
+        <div class="fb-q-foot"><%= r.n %> response<%= r.n !== 1 ? 's' : '' %></div>
+    </div>
+</div>

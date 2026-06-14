@@ -1,23 +1,21 @@
 // Derives the 360° feedback relationship graph (who reviews whom, in which
-// direction) from a fixed ORBAT template's slot assignments.
+// scope, and how far up/down the chain) from a fixed ORBAT template's slot
+// assignments.
 //
-// Leadership is defined exactly as the rest of the app defines it: the user
-// assigned to an `is_editor` role leads that squad (see isEditorOfSquadOrAncestor
-// in routes/orbat.js). Squads nest via parent_squad_id.
+// Leadership is the user assigned to an `is_editor` role (same definition the
+// rest of the app uses); squads nest via parent_squad_id.
 //
-// Relationship rules (one level of command each way, kept symmetric):
-//   • A squad member's SUPERIORS  = that squad's leaders (or, if the squad has
-//     none, the nearest ancestor squad that does).
-//   • A squad leader's SUPERIORS  = the leaders of the nearest ancestor squad.
-//   • A squad leader's SUBORDINATES = the squad's members + the leaders of its
-//     direct child squads (their direct reports).
-//   • A squad leader's PEERS      = co-leaders of the same squad + the leaders
-//     of sibling squads (same parent).
-// Only leaders review peers and subordinates; everyone reviews their superior(s).
+// Each pair carries a questionnaire `direction` (superior/peer/subordinate, from
+// the reviewer's perspective) and `is_indirect`:
+//   • A squad member reviews their nearest leader(s) as a DIRECT superior.
+//   • A leader reviews the WHOLE chain of command above them — the nearest
+//     leader(s) directly, everyone higher up as indirect superiors.
+//   • The mirror of every superior pair is a subordinate pair, so a leader also
+//     sees every leader below them (direct reports directly, deeper leaders as
+//     indirect subordinates). The indirect chain is leadership-only.
+//   • Leaders also review co-leaders and sibling-squad leaders as peers.
 const db = require('../config/database');
 
-// Loads the template's squads, their leaders/members (resolved to user ids),
-// and parent/child links.
 async function loadOrbatStructure(templateId) {
     const [squads] = await db.query(
         'SELECT id, parent_squad_id FROM orbat_squads WHERE orbat_id = ?',
@@ -48,16 +46,9 @@ async function loadOrbatStructure(templateId) {
             id: s.id,
             parent_squad_id: s.parent_squad_id || null,
             leaders: new Set(),
-            members: new Set(),
-            childIds: []
+            members: new Set()
         };
     });
-    squads.forEach(s => {
-        if (s.parent_squad_id && squadInfo[s.parent_squad_id]) {
-            squadInfo[s.parent_squad_id].childIds.push(s.id);
-        }
-    });
-
     assignments.forEach(a => {
         const role = roleById[a.role_id];
         if (!role) return;
@@ -70,73 +61,78 @@ async function loadOrbatStructure(templateId) {
     return squadInfo;
 }
 
-// Leaders of the nearest ancestor squad (walking up parent_squad_id) that has any.
-function ancestorLeaders(squadInfo, startParentId) {
-    let cur = startParentId;
+// Ordered list of leader-groups walking up from a starting parent squad — one
+// group per ancestor squad that has leaders, nearest first. groups[0] are the
+// direct superiors; groups[1..] are progressively more senior (indirect).
+function ancestorLeaderGroups(squadInfo, startParentId) {
+    const groups = [];
     const visited = new Set();
+    let cur = startParentId;
     while (cur && !visited.has(cur)) {
         visited.add(cur);
         const si = squadInfo[cur];
         if (!si) break;
-        if (si.leaders.size > 0) return [...si.leaders];
+        if (si.leaders.size > 0) groups.push([...si.leaders]);
         cur = si.parent_squad_id;
     }
-    return [];
+    return groups;
 }
 
 /**
- * Computes the feedback pairs for a fixed ORBAT template.
  * @param {number} templateId
- * @returns {Promise<Array<{reviewer_user_id:number, subject_user_id:number, direction:string}>>}
+ * @returns {Promise<Array<{reviewer_user_id:number, subject_user_id:number, direction:string, is_indirect:number}>>}
  */
 async function computeFeedbackPairs(templateId) {
     const squadInfo = await loadOrbatStructure(templateId);
 
     const seen = new Set();
     const pairs = [];
-    const add = (reviewer, subject, direction) => {
+    const add = (reviewer, subject, direction, isIndirect) => {
         if (!reviewer || !subject || reviewer === subject) return;
         const key = `${reviewer}-${subject}`;
-        if (seen.has(key)) return; // a pair has a single direction; first wins
+        if (seen.has(key)) return; // one relationship per ordered pair; first wins
         seen.add(key);
-        pairs.push({ reviewer_user_id: reviewer, subject_user_id: subject, direction });
+        pairs.push({
+            reviewer_user_id: reviewer,
+            subject_user_id: subject,
+            direction,
+            is_indirect: isIndirect ? 1 : 0
+        });
     };
 
-    // Group squads by parent so we can find siblings.
+    // Group squads by parent so we can find siblings for peer relationships.
     const siblingsByParent = {};
     Object.values(squadInfo).forEach(s => {
-        const key = s.parent_squad_id === null ? 'root' : s.parent_squad_id;
-        (siblingsByParent[key] = siblingsByParent[key] || []).push(s.id);
+        const k = s.parent_squad_id === null ? 'root' : s.parent_squad_id;
+        (siblingsByParent[k] = siblingsByParent[k] || []).push(s.id);
     });
 
     for (const squad of Object.values(squadInfo)) {
         const leaders = [...squad.leaders];
         const members = [...squad.members];
+        const ancestorGroups = ancestorLeaderGroups(squadInfo, squad.parent_squad_id);
 
-        // SUPERIORS — members review this squad's leaders (or ancestor's).
-        const memberSuperiors = leaders.length > 0
-            ? leaders
-            : ancestorLeaders(squadInfo, squad.parent_squad_id);
-        members.forEach(m => memberSuperiors.forEach(sup => add(m, sup, 'superior')));
+        // Members → their direct superior(s): this squad's leaders, or the
+        // nearest ancestor leaders if the squad has none. (Members never review
+        // the indirect chain.) Mirror = leader reviews member as direct report.
+        const directSuperiors = leaders.length > 0 ? leaders : (ancestorGroups[0] || []);
+        members.forEach(m => directSuperiors.forEach(sup => {
+            add(m, sup, 'superior', 0);
+            add(sup, m, 'subordinate', 0);
+        }));
 
-        // SUPERIORS — leaders review the nearest ancestor's leaders.
-        if (leaders.length > 0) {
-            const leaderSuperiors = ancestorLeaders(squadInfo, squad.parent_squad_id);
-            leaders.forEach(l => leaderSuperiors.forEach(sup => add(l, sup, 'superior')));
-        }
-
-        if (leaders.length === 0) continue; // nothing below relies on a leader
-
-        // SUBORDINATES — members + direct child-squad leaders are direct reports.
-        const childLeaders = [];
-        squad.childIds.forEach(cid => {
-            const child = squadInfo[cid];
-            if (child) child.leaders.forEach(id => childLeaders.push(id));
+        // Leaders → the whole chain above (direct + indirect), mirrored down.
+        leaders.forEach(l => {
+            ancestorGroups.forEach((group, idx) => {
+                const indirect = idx > 0 ? 1 : 0;
+                group.forEach(sup => {
+                    add(l, sup, 'superior', indirect);
+                    add(sup, l, 'subordinate', indirect);
+                });
+            });
         });
-        const subordinates = members.concat(childLeaders);
-        leaders.forEach(l => subordinates.forEach(sub => add(l, sub, 'subordinate')));
 
-        // PEERS — co-leaders of this squad + leaders of sibling squads.
+        // Peers — co-leaders of this squad + leaders of sibling squads.
         const parentKey = squad.parent_squad_id === null ? 'root' : squad.parent_squad_id;
         const siblingLeaders = [];
         (siblingsByParent[parentKey] || []).forEach(sid => {
@@ -145,8 +141,8 @@ async function computeFeedbackPairs(templateId) {
             if (sib) sib.leaders.forEach(id => siblingLeaders.push(id));
         });
         leaders.forEach(l => {
-            leaders.filter(x => x !== l).forEach(co => add(l, co, 'peer'));
-            siblingLeaders.forEach(p => add(l, p, 'peer'));
+            leaders.filter(x => x !== l).forEach(co => add(l, co, 'peer', 0));
+            siblingLeaders.forEach(p => add(l, p, 'peer', 0));
         });
     }
 

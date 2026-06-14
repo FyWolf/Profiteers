@@ -3,15 +3,41 @@ const router = express.Router();
 const db = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
 
-// Minimum responses in a direction before that direction's breakdown is shown,
-// so a leader with a single subordinate can't de-anonymise the feedback.
+// Minimum responses in a source group before its breakdown is shown to the
+// subject, so a thin group can't be de-anonymised.
 const MIN_GROUP = 3;
 
-const DIRECTION_LABELS = {
-    superior: 'Your Leaders',
-    peer: 'Your Peers',
-    subordinate: 'Your Team'
-};
+// Reviewer-perspective groups (landing page: the people YOU review), keyed by
+// questionnaire direction + how far up/down the chain.
+const REVIEW_GROUPS = [
+    { key: 'superior_direct',      direction: 'superior',    indirect: 0, label: 'Your Leaders' },
+    { key: 'superior_indirect',    direction: 'superior',    indirect: 1, label: 'Senior Leaders (further up your chain)' },
+    { key: 'peer',                 direction: 'peer',        indirect: 0, label: 'Your Peers' },
+    { key: 'subordinate_direct',   direction: 'subordinate', indirect: 0, label: 'Your Team' },
+    { key: 'subordinate_indirect', direction: 'subordinate', indirect: 1, label: 'Indirect Reports (further down your chain)' }
+];
+
+// Subject-perspective groups (results page: who the feedback CAME from). A
+// pair's direction is the reviewer's relationship to the subject, so the
+// subject's source is the inverse.
+const SOURCE_GROUPS = [
+    { key: 'direct_leader',   direction: 'subordinate', indirect: 0, label: 'Direct Leaders' },
+    { key: 'senior_leader',   direction: 'subordinate', indirect: 1, label: 'Senior Leaders' },
+    { key: 'peer',            direction: 'peer',        indirect: 0, label: 'Peers' },
+    { key: 'direct_report',   direction: 'superior',    indirect: 0, label: 'Direct Reports' },
+    { key: 'indirect_report', direction: 'superior',    indirect: 1, label: 'Indirect Reports' }
+];
+
+function reviewKey(direction, isIndirect) {
+    if (direction === 'peer') return 'peer';
+    return `${direction}_${isIndirect ? 'indirect' : 'direct'}`;
+}
+function sourceKey(direction, isIndirect) {
+    if (direction === 'peer') return 'peer';
+    if (direction === 'superior') return isIndirect ? 'indirect_report' : 'direct_report';
+    return isIndirect ? 'senior_leader' : 'direct_leader'; // subordinate
+}
+
 const DIRECTION_VERB = {
     superior: 'superior',
     peer: 'peer',
@@ -54,19 +80,26 @@ async function saveAnswers(conn, pairId, questions, body) {
 router.get('/', isAuthenticated, async (req, res) => {
     try {
         const cycle = await getOpenCycle();
-        const groups = { superior: [], peer: [], subordinate: [] };
+        const byKey = {};
 
         if (cycle) {
             const [pairs] = await db.query(`
-                SELECT fp.id, fp.direction, fp.status,
+                SELECT fp.id, fp.direction, fp.is_indirect, fp.status,
                        u.username, u.discord_global_name, u.discord_avatar, u.discord_id
                 FROM feedback_pairs fp
                 JOIN users u ON fp.subject_user_id = u.id
                 WHERE fp.cycle_id = ? AND fp.reviewer_user_id = ? AND fp.is_adhoc = 0
                 ORDER BY u.discord_global_name ASC, u.username ASC
             `, [cycle.id, req.session.userId]);
-            pairs.forEach(p => { if (groups[p.direction]) groups[p.direction].push(p); });
+            pairs.forEach(p => {
+                const k = reviewKey(p.direction, p.is_indirect);
+                (byKey[k] = byKey[k] || []).push(p);
+            });
         }
+        // Ordered, non-empty groups for the view.
+        const groups = REVIEW_GROUPS
+            .filter(g => byKey[g.key] && byKey[g.key].length)
+            .map(g => ({ label: g.label, items: byKey[g.key] }));
 
         const [[{ cnt }]] = await db.query(
             "SELECT COUNT(*) AS cnt FROM feedback_pairs WHERE subject_user_id = ? AND status = 'submitted'",
@@ -90,7 +123,6 @@ router.get('/', isAuthenticated, async (req, res) => {
             title: 'Leadership Feedback - Profiteers PMC',
             cycle,
             groups,
-            DIRECTION_LABELS,
             hasResults: cnt > 0,
             canReviewAny,
             reviewableUsers,
@@ -237,7 +269,7 @@ router.get('/pair/:pairId', isAuthenticated, async (req, res) => {
             pair,
             questions,
             subjectName: pair.discord_global_name || pair.username,
-            directionVerb: DIRECTION_VERB[pair.direction],
+            directionVerb: (pair.is_indirect ? 'indirect ' : '') + DIRECTION_VERB[pair.direction],
             formAction: '/feedback/pair/' + pair.id,
             hiddenFields: {},
             adhoc: false
@@ -338,8 +370,7 @@ async function renderResults(req, res, subjectUserId) {
             selectedCycleId,
             results,
             isOwn,
-            MIN_GROUP,
-            DIRECTION_LABELS
+            MIN_GROUP
         });
     } catch (error) {
         console.error('Error loading feedback results:', error);
@@ -348,76 +379,69 @@ async function renderResults(req, res, subjectUserId) {
 }
 
 async function aggregateResults(subjectUserId, cycleId, fullDetail = false) {
-    // Per-direction response counts (submitted pairs).
+    // Response counts per source group (who the feedback came from).
     const [pairRows] = await db.query(`
-        SELECT direction, COUNT(*) AS n
+        SELECT direction, is_indirect, COUNT(*) AS n
         FROM feedback_pairs
         WHERE subject_user_id = ? AND cycle_id = ? AND status = 'submitted'
-        GROUP BY direction
-    `, [subjectUserId, cycleId]);
-    const directionCounts = { superior: 0, peer: 0, subordinate: 0 };
-    pairRows.forEach(r => { directionCounts[r.direction] = r.n; });
-    const totalResponses = directionCounts.superior + directionCounts.peer + directionCounts.subordinate;
-
-    // A direction is "thin" if it has 1..MIN_GROUP-1 responses. For the subject's
-    // own view we don't reveal a thin group's per-relationship average, and we
-    // pool its comments into an unlabelled bucket. Admins (fullDetail) see all.
-    const suppressed = {
-        superior: !fullDetail && directionCounts.superior > 0 && directionCounts.superior < MIN_GROUP,
-        peer: !fullDetail && directionCounts.peer > 0 && directionCounts.peer < MIN_GROUP,
-        subordinate: !fullDetail && directionCounts.subordinate > 0 && directionCounts.subordinate < MIN_GROUP
-    };
-
-    // Rating answers.
-    const [ratingRows] = await db.query(`
-        SELECT fa.question_prompt, fp.direction, fa.rating
-        FROM feedback_answers fa
-        JOIN feedback_pairs fp ON fa.pair_id = fp.id
-        WHERE fp.subject_user_id = ? AND fp.cycle_id = ?
-          AND fp.status = 'submitted' AND fa.rating IS NOT NULL
-        ORDER BY fa.question_prompt
+        GROUP BY direction, is_indirect
     `, [subjectUserId, cycleId]);
 
-    const ratingsMap = new Map();
-    ratingRows.forEach(r => {
-        if (!ratingsMap.has(r.question_prompt)) {
-            ratingsMap.set(r.question_prompt, {
-                prompt: r.question_prompt,
-                dist: [0, 0, 0, 0, 0],
-                sum: 0,
-                n: 0,
-                byDir: { superior: { sum: 0, n: 0 }, peer: { sum: 0, n: 0 }, subordinate: { sum: 0, n: 0 } }
-            });
-        }
-        const agg = ratingsMap.get(r.question_prompt);
-        agg.dist[r.rating - 1]++;
-        agg.sum += r.rating;
-        agg.n++;
-        if (agg.byDir[r.direction]) {
-            agg.byDir[r.direction].sum += r.rating;
-            agg.byDir[r.direction].n++;
-        }
+    const groupCounts = {};
+    let totalResponses = 0;
+    pairRows.forEach(r => {
+        const k = sourceKey(r.direction, r.is_indirect);
+        groupCounts[k] = (groupCounts[k] || 0) + r.n;
+        totalResponses += r.n;
     });
 
-    const ratings = [...ratingsMap.values()].map(a => ({
-        prompt: a.prompt,
-        dist: a.dist,
-        n: a.n,
-        avg: a.n ? (a.sum / a.n) : 0,
-        byDirection: ['superior', 'peer', 'subordinate'].reduce((o, d) => {
-            const dd = a.byDir[d];
-            const show = dd.n > 0 && (fullDetail || dd.n >= MIN_GROUP);
-            o[d] = show ? { n: dd.n, avg: dd.sum / dd.n } : null;
-            return o;
-        }, {})
-    }));
+    // The subject's own view hides thin groups (1..MIN_GROUP-1 responses) by
+    // pooling them into an unlabelled "other" bucket. Admins see every group.
+    const visible = {};
+    let pooledCount = 0;
+    SOURCE_GROUPS.forEach(g => {
+        const c = groupCounts[g.key] || 0;
+        if (c === 0) { visible[g.key] = false; return; }
+        if (fullDetail || c >= MIN_GROUP) { visible[g.key] = true; }
+        else { visible[g.key] = false; pooledCount += c; }
+    });
+    const effKey = (direction, isIndirect) => {
+        const k = sourceKey(direction, isIndirect);
+        return visible[k] ? k : 'other';
+    };
 
-    // Text answers, grouped by direction then by the question they answer.
-    // Always shown (never hidden); thin groups are pooled into an unlabelled
-    // "other" bucket for the subject's view so a lone comment can't be pinned to
-    // a relationship. Admins keep everything grouped by direction.
+    // ── Ratings: distribution + average per question, per source group ──────
+    const [ratingRows] = await db.query(`
+        SELECT fp.direction, fp.is_indirect, fa.question_prompt, fa.rating, cq.display_order
+        FROM feedback_answers fa
+        JOIN feedback_pairs fp ON fa.pair_id = fp.id
+        LEFT JOIN feedback_cycle_questions cq
+            ON cq.cycle_id = fp.cycle_id AND cq.direction = fp.direction AND cq.prompt = fa.question_prompt
+        WHERE fp.subject_user_id = ? AND fp.cycle_id = ?
+          AND fp.status = 'submitted' AND fa.rating IS NOT NULL
+    `, [subjectUserId, cycleId]);
+
+    const ratingByGroup = {};            // groupKey -> Map(prompt -> {dist,sum,n,order})
+    const overallRating = new Map();
+    const bumpRating = (map, prompt, rating, order) => {
+        if (!map.has(prompt)) map.set(prompt, { prompt, dist: [0, 0, 0, 0, 0], sum: 0, n: 0, order: order == null ? 9999 : order });
+        const a = map.get(prompt);
+        a.dist[rating - 1]++; a.sum += rating; a.n++;
+        if (order != null && order < a.order) a.order = order;
+    };
+    ratingRows.forEach(r => {
+        const gk = effKey(r.direction, r.is_indirect);
+        ratingByGroup[gk] = ratingByGroup[gk] || new Map();
+        bumpRating(ratingByGroup[gk], r.question_prompt, r.rating, r.display_order);
+        bumpRating(overallRating, r.question_prompt, r.rating, r.display_order);
+    });
+    const ratingsList = map => [...map.values()]
+        .sort((a, b) => a.order - b.order || a.prompt.localeCompare(b.prompt))
+        .map(a => ({ prompt: a.prompt, dist: a.dist, n: a.n, avg: a.sum / a.n }));
+
+    // ── Text: comments per question, per source group ───────────────────────
     const [textRows] = await db.query(`
-        SELECT fp.direction, fa.question_prompt, fa.answer_text
+        SELECT fp.direction, fp.is_indirect, fa.question_prompt, fa.answer_text, cq.display_order
         FROM feedback_answers fa
         JOIN feedback_pairs fp ON fa.pair_id = fp.id
         LEFT JOIN feedback_cycle_questions cq
@@ -427,24 +451,37 @@ async function aggregateResults(subjectUserId, cycleId, fullDetail = false) {
         ORDER BY ISNULL(cq.display_order), cq.display_order ASC, fa.question_prompt ASC
     `, [subjectUserId, cycleId]);
 
-    // direction -> Map(question_prompt -> [answers]), preserving question order.
-    const textMaps = { superior: new Map(), peer: new Map(), subordinate: new Map(), other: new Map() };
+    const textByGroup = {};              // groupKey -> Map(prompt -> [comments])
     textRows.forEach(r => {
-        const bucket = suppressed[r.direction] ? 'other' : r.direction;
-        const m = textMaps[bucket];
-        if (!m) return;
+        const gk = effKey(r.direction, r.is_indirect);
+        const m = (textByGroup[gk] = textByGroup[gk] || new Map());
         if (!m.has(r.question_prompt)) m.set(r.question_prompt, []);
         m.get(r.question_prompt).push(r.answer_text);
     });
-    const toGroups = m => [...m.entries()].map(([prompt, comments]) => ({ prompt, comments }));
-    const texts = {
-        superior: toGroups(textMaps.superior),
-        peer: toGroups(textMaps.peer),
-        subordinate: toGroups(textMaps.subordinate),
-        other: toGroups(textMaps.other)
-    };
+    const textList = map => map ? [...map.entries()].map(([prompt, comments]) => ({ prompt, comments })) : [];
 
-    return { totalResponses, directionCounts, suppressed, ratings, texts };
+    // ── Assemble: ordered visible source groups + pooled "other" ────────────
+    const groups = SOURCE_GROUPS.filter(g => visible[g.key]).map(g => ({
+        key: g.key,
+        label: g.label,
+        count: groupCounts[g.key] || 0,
+        ratings: ratingsList(ratingByGroup[g.key] || new Map()),
+        texts: textList(textByGroup[g.key])
+    }));
+
+    const other = pooledCount > 0 ? {
+        count: pooledCount,
+        ratings: ratingsList(ratingByGroup.other || new Map()),
+        texts: textList(textByGroup.other)
+    } : null;
+
+    return {
+        totalResponses,
+        groupCounts,
+        overall: { ratings: ratingsList(overallRating) },
+        groups,
+        other
+    };
 }
 
 module.exports = router;

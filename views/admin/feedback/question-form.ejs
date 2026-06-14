@@ -3,9 +3,14 @@
 <%
 const isEdit = action === 'edit';
 const q = question || {};
-const dir = q.direction || 'superior';
 const type = q.type || 'rating';
 const active = isEdit ? (q.is_active ? true : false) : true;
+const selScopes = (q.scopeList && q.scopeList.length) ? q.scopeList : ['superior'];
+const SCOPES = [
+    { v: 'superior',    label: 'To Superior',    hint: 'asked of a leader above you' },
+    { v: 'peer',        label: 'To Peer',        hint: 'asked of a fellow leader' },
+    { v: 'subordinate', label: 'To Subordinate', hint: 'asked of someone below you' }
+];
 %>
 
 <div class="container">
@@ -25,12 +30,13 @@ const active = isEdit ? (q.is_active ? true : false) : true;
                 </div>
 
                 <div class="field">
-                    <label for="direction">Direction *</label>
-                    <select id="direction" name="direction" required>
-                        <option value="superior"    <%= dir === 'superior' ? 'selected' : '' %>>To Superior — everyone reviews their leaders</option>
-                        <option value="peer"        <%= dir === 'peer' ? 'selected' : '' %>>To Peer — leaders review fellow leaders</option>
-                        <option value="subordinate" <%= dir === 'subordinate' ? 'selected' : '' %>>To Subordinate — leaders review their team</option>
-                    </select>
+                    <label>Scopes * <small style="text-transform:none;">— which forms this question appears on (results fold it back into one)</small></label>
+                    <% SCOPES.forEach(s => { %>
+                        <label class="fb-check">
+                            <input type="checkbox" name="scopes" value="<%= s.v %>" <%= selScopes.includes(s.v) ? 'checked' : '' %>>
+                            <%= s.label %> <small style="text-transform:none; opacity:0.7;">— <%= s.hint %></small>
+                        </label>
+                    <% }) %>
                 </div>
 
                 <div class="field">

@@ -27,7 +27,7 @@
                 <% } %>
             </div>
         <% } else {
-            const all = [...groups.superior, ...groups.peer, ...groups.subordinate];
+            const all = groups.reduce((acc, g) => acc.concat(g.items), []);
             const total = all.length;
             const done = all.filter(p => p.status === 'submitted').length;
         %>
@@ -72,11 +72,10 @@
                 </div>
             <% } %>
 
-            <% ['superior','peer','subordinate'].forEach(dir => {
-                const list = groups[dir];
-                if (!list || list.length === 0) return;
+            <% groups.forEach(group => {
+                const list = group.items;
             %>
-                <h2 class="fb-group-title"><%= DIRECTION_LABELS[dir] %> <span class="fb-count">(<%= list.length %>)</span></h2>
+                <h2 class="fb-group-title"><%= group.label %> <span class="fb-count">(<%= list.length %>)</span></h2>
                 <div class="cards-grid">
                     <% list.forEach(p => {
                         const name = p.discord_global_name || p.username;
