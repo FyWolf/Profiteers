@@ -12,7 +12,8 @@ router.get('/', async (req, res) => {
                 (SELECT COUNT(*) FROM users)           as users,
                 (SELECT COUNT(*) FROM medals)          as medals,
                 (SELECT COUNT(*) FROM trainings)       as trainings,
-                (SELECT COUNT(*) FROM slot_types)      as slot_types
+                (SELECT COUNT(*) FROM slot_types)       as slot_types,
+                (SELECT COUNT(*) FROM orbat_attendance) as attendance_records
         `);
 
         let analytics = {

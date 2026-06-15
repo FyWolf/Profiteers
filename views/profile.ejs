@@ -131,6 +131,70 @@
                 <% } %>
             </section>
 
+            <%/* ATTENDANCE HISTORY */%>
+            <% if (attendancePresentCount > 0 || (canViewAttendanceDetail && attendanceHistory && attendanceHistory.length > 0)) { %>
+            <section>
+                <h2 style="margin-bottom: 14px;">
+                    📋 Attendance History
+                </h2>
+
+                <% if (canViewAttendanceDetail && attendanceHistory && attendanceHistory.length > 0) { %>
+                <%
+                const attCounts = { present: 0, excused: 0, awol: 0 };
+                attendanceHistory.forEach(a => { if (attCounts[a.status] !== undefined) attCounts[a.status]++; });
+                const attTotal = attendanceHistory.length;
+                const attPct = attTotal > 0 ? Math.round(attCounts.present / attTotal * 100) : 0;
+                %>
+                <div style="display:flex;gap:14px;margin-bottom:14px;flex-wrap:wrap;">
+                    <span style="font-size:0.82em;color:#4caf6e;"><strong><%= attCounts.present %></strong> present</span>
+                    <span style="font-size:0.82em;color:#5dade2;"><strong><%= attCounts.excused %></strong> excused</span>
+                    <span style="font-size:0.82em;color:#e86070;"><strong><%= attCounts.awol %></strong> AWOL</span>
+                    <span style="font-size:0.82em;color:var(--khaki);opacity:0.7;"><strong><%= attPct %>%</strong> attendance rate</span>
+                </div>
+                <div class="card" style="padding:0;overflow:hidden;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead>
+                            <tr style="border-bottom:1px solid rgba(107,142,35,0.3);">
+                                <th style="padding:9px 14px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">OPERATION</th>
+                                <th style="padding:9px 14px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">DATE</th>
+                                <th style="padding:9px 14px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">SQUAD</th>
+                                <th style="padding:9px 14px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">SLOT</th>
+                                <th style="padding:9px 14px;text-align:center;font-size:0.75em;color:var(--khaki);font-weight:600;">STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <% const statusColors = { present: '#4caf6e', excused: '#5dade2', awol: '#e86070' }; %>
+                        <% attendanceHistory.forEach(a => { %>
+                            <tr style="border-bottom:1px solid rgba(107,142,35,0.1);">
+                                <td style="padding:8px 14px;font-size:0.85em;">
+                                    <a href="/operations/<%= a.operation_id %>" style="color:var(--sand);text-decoration:none;"><%= a.operation_title %></a>
+                                </td>
+                                <td style="padding:8px 14px;font-size:0.8em;color:var(--khaki);">
+                                    <% if (a.operation_date) { %><%= new Date(a.operation_date * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %><% } else { %>—<% } %>
+                                </td>
+                                <td style="padding:8px 14px;font-size:0.8em;color:var(--khaki);"><%= a.squad_name %></td>
+                                <td style="padding:8px 14px;font-size:0.8em;color:var(--khaki);">
+                                    <% if (a.slot_type_abbr) { %><span style="padding:2px 6px;background:rgba(107,142,35,0.2);border-radius:3px;font-size:0.9em;"><%= a.slot_type_abbr %></span> <% } %><%= a.slot_type_name %>
+                                </td>
+                                <td style="padding:8px 14px;text-align:center;">
+                                    <span style="padding:3px 10px;border-radius:4px;font-size:0.78em;font-weight:700;color:<%= statusColors[a.status] || 'var(--khaki)' %>;background:rgba(40,40,40,0.6);border:1px solid <%= statusColors[a.status] || 'rgba(107,142,35,0.3)' %>;">
+                                        <%= a.status === 'awol' ? 'AWOL' : a.status.charAt(0).toUpperCase() + a.status.slice(1) %>
+                                    </span>
+                                </td>
+                            </tr>
+                        <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+                <% } else { %>
+                <div class="card" style="padding:16px 20px;">
+                    <span style="font-size:0.88em;color:#4caf6e;font-weight:700;"><%= attendancePresentCount %></span>
+                    <span style="font-size:0.88em;color:var(--khaki);"> operation<%= attendancePresentCount !== 1 ? 's' : '' %> attended</span>
+                </div>
+                <% } %>
+            </section>
+            <% } %>
+
         </div>
     </div>
 </div>
