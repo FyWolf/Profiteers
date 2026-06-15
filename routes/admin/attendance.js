@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
         `;
         const params = [];
 
-        if (operation_id) {
+        if (operation_id && !isNaN(parseInt(operation_id))) {
             query += ' AND oa.operation_id = ?';
             params.push(parseInt(operation_id));
         }

@@ -127,16 +127,21 @@ router.get('/', isAuthenticated, async (req, res) => {
                 SELECT user_id, start_date, end_date
                 FROM leave_of_absence
                 WHERE status = 'approved'
-                  AND start_date <= ?
-                  AND end_date   >= ?
+                  AND start_date <= FROM_UNIXTIME(?)
+                  AND end_date   >= FROM_UNIXTIME(?)
                   AND user_id IN (${userIds.map(() => '?').join(',')})
             `, [op.start_time, op.start_time, ...userIds]);
             for (const l of loaRows) loaMap[l.user_id] = l;
         }
 
-        // Group roles by squad
+        // Group roles by squad. Attendance is one record per user (unique_user_op),
+        // so a user holding multiple slots in scope is rendered once — otherwise the
+        // duplicate form fields parse into an array and the notes value compounds commas.
         const squadMap = new Map();
+        const seenUsers = new Set();
         for (const role of roles) {
+            if (seenUsers.has(role.user_id)) continue;
+            seenUsers.add(role.user_id);
             if (!squadMap.has(role.squad_id)) {
                 squadMap.set(role.squad_id, { squad_name: role.squad_name, roles: [] });
             }
@@ -192,7 +197,12 @@ router.post('/', isAuthenticated, async (req, res) => {
         for (const [key, entry] of Object.entries(entries)) {
             const userId = parseInt(key.replace(/^u/, ''));
             if (isNaN(userId)) continue;
-            const { status, notes } = entry;
+            if (!entry || typeof entry !== 'object') continue;
+            // Duplicate form fields can arrive as arrays; collapse to a single value.
+            const status = Array.isArray(entry.status) ? entry.status[0] : entry.status;
+            let notes = Array.isArray(entry.notes)
+                ? (entry.notes.find(n => n != null && String(n).trim() !== '') ?? '')
+                : entry.notes;
             if (!VALID_STATUSES.has(status)) continue;
             const role = roleByUserId.get(userId);
             if (!role) continue;
@@ -251,6 +261,7 @@ router.get('/overview', isAuthenticated, async (req, res) => {
         const { isLeader, squadIds } = await getLeaderScope(req.session.userId, opId, db);
 
         if (!isLeader && !isAdmin) return res.status(403).render('error', { title: 'Forbidden', message: 'Access Denied', description: '', user: res.locals.user });
+        if (!isAdmin && squadIds.size === 0) return res.status(403).render('error', { title: 'Forbidden', message: 'Access Denied', description: 'No squads in scope.', user: res.locals.user });
 
         let query = `
             SELECT

@@ -22,7 +22,6 @@ router.use('/slot-types', hasPermission('orbat.manage'), require('./admin/slot-t
 router.use('/map-plans', hasPermission('map.plans.admin'), require('./admin/map-plans'));
 router.use('/logs',       hasPermission('logs.view'),      require('./admin/logs'));
 router.use('/feedback',   hasPermission('feedback.manage'), require('./admin/feedback'));
-router.use('/slot-types',  hasPermission('orbat.manage'),       require('./admin/slot-types'));
 router.use('/attendance', hasPermission('attendance.manage'), require('./admin/attendance'));
 
 module.exports = router;
