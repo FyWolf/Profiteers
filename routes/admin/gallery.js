@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
             SELECT gi.*, gf.name as folder_name, u.username
             FROM gallery_images gi
             JOIN gallery_folders gf ON gi.folder_id = gf.id
-            JOIN users u ON gi.uploaded_by = u.id
+            LEFT JOIN users u ON gi.uploaded_by = u.id
             ORDER BY gi.uploaded_at DESC
             LIMIT 20
         `);

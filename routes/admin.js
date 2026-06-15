@@ -18,6 +18,10 @@ router.use('/trainings',  hasPermission('trainings.manage'), require('./admin/tr
 router.use('/roles',      hasPermission('roles.manage'),     require('./admin/roles'));
 router.use('/info',       hasPermission('info.manage'),       require('./admin/info'));
 router.use('/presence',    require('./admin/presence'));
+router.use('/slot-types', hasPermission('orbat.manage'), require('./admin/slot-types'));
+router.use('/map-plans', hasPermission('map.plans.admin'), require('./admin/map-plans'));
+router.use('/logs',       hasPermission('logs.view'),      require('./admin/logs'));
+router.use('/feedback',   hasPermission('feedback.manage'), require('./admin/feedback'));
 router.use('/slot-types',  hasPermission('orbat.manage'),       require('./admin/slot-types'));
 router.use('/attendance', hasPermission('attendance.manage'), require('./admin/attendance'));
 

@@ -53,10 +53,15 @@ function renderPubRoleCard(role, squad, canEdit) {
            </div>`
         : '';
 
+    const _slotOpts = (typeof slotTypes !== 'undefined' ? slotTypes : []).map(st =>
+        `<option value="${st.id}"${st.id == role.slot_type_id ? ' selected' : ''}>${esc(st.name)}${st.abbreviation ? ' (' + esc(st.abbreviation) + ')' : ''}</option>`
+    ).join('');
     const editZone = canEdit
         ? `<div id="roleEdit_${role.id}" style="display:none;padding:6px 8px;background:rgba(0,0,0,0.2);border-top:1px solid rgba(255,255,255,0.06);">
-            <input type="text" id="roleEditName_${role.id}" value="${esc(role.role_name)}"
-                   style="width:100%;box-sizing:border-box;padding:4px 8px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;font-size:0.85em;margin:0 0 5px 0;">
+            <select id="roleEditSlotType_${role.id}"
+                    style="width:100%;box-sizing:border-box;padding:4px 8px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;font-size:0.85em;margin:0 0 5px 0;">
+                ${_slotOpts}
+            </select>
             <div style="display:flex;gap:4px;justify-content:flex-end;">
                 <button onclick="saveRoleEdit(${role.id})" class="btn btn-primary" style="flex-shrink:0;padding:3px 8px;font-size:0.8em;">💾</button>
                 <button onclick="hideRoleEdit(${role.id})" class="btn" style="flex-shrink:0;padding:3px 8px;font-size:0.8em;">✕</button>
@@ -79,11 +84,27 @@ function renderPubSquadCard(squad) {
     const yourSquadBadge = canEdit
         ? `<span style="font-size:0.55em;font-weight:700;background:rgba(52,152,219,0.2);color:#3498DB;border:1px solid #3498DB;padding:2px 8px;border-radius:3px;vertical-align:middle;letter-spacing:0.05em;">YOUR SQUAD</span>`
         : '';
+    const _addSlotOpts = (typeof slotTypes !== 'undefined' ? slotTypes : []).map(st =>
+        `<option value="${st.id}">${esc(st.name)}${st.abbreviation ? ' (' + esc(st.abbreviation) + ')' : ''}</option>`
+    ).join('');
+    const addRoleOverrideHtml = canEdit
+        ? `<div style="margin-top:8px;padding:8px;border:2px dashed ${squad.color};border-radius:4px;background:rgba(0,0,0,0.2);overflow:hidden;">
+            <div style="display:flex;gap:6px;align-items:center;min-width:0;">
+                <select id="newRoleSlotType_${squad.id}"
+                        style="flex:1;min-width:0;padding:6px 8px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;font-size:0.88em;margin:0;">
+                    <option value="">Select slot type...</option>
+                    ${_addSlotOpts}
+                </select>
+                <button onclick="addRoleFromTemplate(${squad.id})" class="btn" style="flex-shrink:0;padding:6px 10px;background:${squad.color};color:white;font-size:0.85em;">➕</button>
+            </div>
+           </div>`
+        : '';
     return buildSquadCard(squad, {
         canEdit,
         canDynamic: canEdit,
         canDeleteSquad: canEdit && !!squad.parent_squad_id,
         badgeHtml: yourSquadBadge,
+        addRoleOverrideHtml,
         renderRole: r => renderPubRoleCard(r, squad, canEdit)
     });
 }
@@ -152,7 +173,7 @@ async function submitAddChildSquad(parentSquadId) {
 function showRoleEdit(roleId) {
     document.getElementById('roleView_' + roleId).style.display = 'none';
     document.getElementById('roleEdit_' + roleId).style.display = 'block';
-    document.getElementById('roleEditName_' + roleId).focus();
+    document.getElementById('roleEditSlotType_' + roleId).focus();
 }
 
 function hideRoleEdit(roleId) {
@@ -161,17 +182,32 @@ function hideRoleEdit(roleId) {
 }
 
 async function saveRoleEdit(roleId) {
-    const name = document.getElementById('roleEditName_' + roleId).value.trim();
-    if (!name) { alert('Role name cannot be empty'); return; }
+    const slotTypeId = document.getElementById('roleEditSlotType_' + roleId).value;
+    if (!slotTypeId) { alert('Please select a slot type'); return; }
     try {
         const r = await fetch(`/orbat/api/roles/${roleId}/edit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roleName: name })
+            body: JSON.stringify({ slotTypeId: parseInt(slotTypeId) })
         });
         const d = await r.json();
         if (d.success) location.reload(); else alert(d.error || 'Failed to update slot');
     } catch { alert('Failed to update slot'); }
+}
+
+async function addRoleFromTemplate(squadId) {
+    const sel = document.getElementById('newRoleSlotType_' + squadId);
+    const slotTypeId = sel.value;
+    if (!slotTypeId) { sel.focus(); return; }
+    try {
+        const r = await fetch(`/orbat/api/squads/${squadId}/add-role`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slotTypeId: parseInt(slotTypeId) })
+        });
+        const d = await r.json();
+        if (d.success) location.reload(); else alert(d.error || 'Failed to add slot');
+    } catch { alert('Failed to add slot'); }
 }
 
 async function deleteRole(roleId) {

@@ -93,7 +93,7 @@
                     <div class="img-card-body">
                         <div class="img-meta">
                             <div>📁 <%= image.folder_name %></div>
-                            <div>👤 <%= image.username %></div>
+                            <div>👤 <%= image.username || 'Unknown' %></div>
                         </div>
                         <button onclick="deleteImage(<%= image.id %>)" class="img-del">Delete</button>
                     </div>

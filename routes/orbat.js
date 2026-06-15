@@ -237,6 +237,10 @@ router.get('/view/:templateId', async (req, res) => {
             editorSet.forEach(id => editorSquadIds.push(id));
         }
 
+        const [slotTypes] = await db.query(
+            'SELECT id, name, abbreviation FROM slot_types ORDER BY display_order ASC, name ASC'
+        );
+
         res.render('orbat/public-template', {
             title: `${template.name} - Profiteers PMC`,
             template: template,
@@ -246,6 +250,7 @@ router.get('/view/:templateId', async (req, res) => {
             assignments: assignments,
             teamsBySquad: teamsBySquad,
             editorSquadIds: editorSquadIds,
+            slotTypes: slotTypes,
             buildSquadCard: createCardBuilder(rolesBySquad, teamsBySquad)
         });
     } catch (error) {
@@ -633,6 +638,7 @@ router.get('/operation/:operationId', async (req, res) => {
                 canManage: false,
                 canClaim: false,
                 orbatPublished: false,
+                editorSquadIds: [],
                 buildSquadCard: createCardBuilder({}, {})
             });
         }

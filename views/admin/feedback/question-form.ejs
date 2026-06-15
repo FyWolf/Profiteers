@@ -1,0 +1,80 @@
+<%- include('../../partials/header') %>
+
+<%
+const isEdit = action === 'edit';
+const q = question || {};
+const type = q.type || 'rating';
+const active = isEdit ? (q.is_active ? true : false) : true;
+const required = isEdit ? (q.is_required ? true : false) : true;
+const selScopes = (q.scopeList && q.scopeList.length) ? q.scopeList : ['superior'];
+const SCOPES = [
+    { v: 'superior',    label: 'To Superior',    hint: 'asked of a leader above you' },
+    { v: 'peer',        label: 'To Peer',        hint: 'asked of a fellow leader' },
+    { v: 'subordinate', label: 'To Subordinate', hint: 'asked of someone below you' }
+];
+%>
+
+<div class="container">
+    <header>
+        <h1><%= isEdit ? 'EDIT QUESTION' : 'ADD QUESTION' %></h1>
+        <div class="subtitle">Leadership Feedback</div>
+    </header>
+
+    <section class="section">
+        <div class="form-wrap" style="max-width:680px;">
+            <form method="POST" action="/admin/feedback/questions/<%= isEdit ? 'edit/' + q.id : 'add' %>">
+
+                <div class="field">
+                    <label for="prompt">Question / prompt *</label>
+                    <textarea id="prompt" name="prompt" required maxlength="500" rows="2"
+                              placeholder="e.g., Communicates clearly and keeps the team informed."><%= q.prompt || '' %></textarea>
+                </div>
+
+                <div class="field">
+                    <label>Scopes * <small style="text-transform:none;">— which forms this question appears on (results fold it back into one)</small></label>
+                    <% SCOPES.forEach(s => { %>
+                        <label class="fb-check">
+                            <input type="checkbox" name="scopes" value="<%= s.v %>" <%= selScopes.includes(s.v) ? 'checked' : '' %>>
+                            <%= s.label %> <small style="text-transform:none; opacity:0.7;">— <%= s.hint %></small>
+                        </label>
+                    <% }) %>
+                </div>
+
+                <div class="field">
+                    <label for="type">Answer type *</label>
+                    <select id="type" name="type" required>
+                        <option value="rating" <%= type === 'rating' ? 'selected' : '' %>>1–5 rating (charted)</option>
+                        <option value="text"   <%= type === 'text' ? 'selected' : '' %>>Free text (pooled comments)</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="display_order">Display order</label>
+                    <input type="number" id="display_order" name="display_order" value="<%= q.display_order || 0 %>" min="0">
+                    <small>Lower numbers appear first.</small>
+                </div>
+
+                <div class="field">
+                    <label class="fb-check">
+                        <input type="checkbox" name="is_required" value="1" <%= required ? 'checked' : '' %>>
+                        Required (reviewers must answer this question)
+                    </label>
+                </div>
+
+                <div class="field">
+                    <label class="fb-check">
+                        <input type="checkbox" name="is_active" value="1" <%= active ? 'checked' : '' %>>
+                        Active (included in new rounds)
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" style="flex:1;"><%= isEdit ? '💾 Save Changes' : '➕ Add Question' %></button>
+                    <a href="/admin/feedback/questions" class="btn">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </section>
+</div>
+
+<%- include('../../partials/footer') %>

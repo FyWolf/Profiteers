@@ -1,0 +1,94 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>LOCKED PERIODS</h1>
+        <div class="subtitle">Block dates from operation scheduling</div>
+    </header>
+
+    <section class="section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+            <h2 style="margin: 0;">Add Locked Period</h2>
+            <a href="/operations/manage/list" class="btn">← Back to Operations</a>
+        </div>
+
+        <% if (success) { %>
+            <div class="alert alert-success"><%= success %></div>
+        <% } %>
+        <% if (error) { %>
+            <div class="alert alert-error"><%= error %></div>
+        <% } %>
+
+        <form method="POST" action="/operations/manage/blocks/create" class="card" style="padding: 20px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="start_date">Start Date (UTC) *</label>
+                    <input type="date" id="start_date" name="start_date" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="end_date">End Date (UTC, inclusive) *</label>
+                    <input type="date" id="end_date" name="end_date" required>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px; margin-bottom: 0;">
+                <label for="label">Reason / Label *</label>
+                <input type="text" id="label" name="label" required maxlength="200" placeholder="e.g. Holiday break, Modpack maintenance, Mobile release freeze">
+                <small style="color: var(--khaki); margin-top: 5px; display: block;">
+                    Shown to anyone hitting the conflict when creating an operation.
+                </small>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="margin-top: 20px;">
+                🔒 Lock Period
+            </button>
+        </form>
+    </section>
+
+    <section class="section">
+        <h2 style="margin-bottom: 20px;">Existing Locked Periods</h2>
+
+        <% if (blocks.length === 0) { %>
+            <div class="card text-center">
+                <p style="color: var(--khaki);">No locked periods configured.</p>
+            </div>
+        <% } else { %>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: rgba(107,142,35,0.2); border-bottom: 2px solid var(--olive);">
+                            <th style="padding: 12px; text-align: left;">Dates (UTC)</th>
+                            <th style="padding: 12px; text-align: left;">Label</th>
+                            <th style="padding: 12px; text-align: left;">Created by</th>
+                            <th style="padding: 12px; text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% blocks.forEach(b => { %>
+                            <tr style="border-bottom: 1px solid rgba(178, 178, 125, 0.2);">
+                                <td style="padding: 12px; font-family: monospace;">
+                                    <%= b.start_date %><% if (b.end_date !== b.start_date) { %> → <%= b.end_date %><% } %>
+                                </td>
+                                <td style="padding: 12px;">
+                                    <%= b.label %>
+                                </td>
+                                <td style="padding: 12px; color: var(--khaki); font-size: 0.9em;">
+                                    <%= b.created_by_global_name || b.created_by_username || '—' %>
+                                </td>
+                                <td style="padding: 12px; text-align: center;">
+                                    <form method="POST" action="/operations/manage/blocks/delete/<%= b.id %>" style="display: inline;" onsubmit="return confirm('Remove this locked period?')">
+                                        <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.85em;">
+                                            🗑️ Remove
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        <% } %>
+    </section>
+</div>
+
+<%- include('../partials/footer') %>

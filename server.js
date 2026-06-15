@@ -6,6 +6,7 @@
 }
 
 const express = require('express');
+const http = require('http');
 const helmet = require('helmet');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
@@ -21,6 +22,8 @@ if (missing.length > 0) {
 
 const { attachUser } = require('./middleware/auth');
 const { trackPageView } = require('./middleware/analytics');
+const { actionLogger } = require('./middleware/action-log');
+const { attachSeoDefaults } = require('./middleware/seo');
 const passport = require('./config/passport.js');
 
 
@@ -36,10 +39,12 @@ const orbatRoutes = require('./routes/orbat');
 const loaRoutes = require('./routes/loa');
 const operationsRoutes = require('./routes/operations');
 const operationsMapRoutes = require('./routes/operations-map');
+const mapPlansRoutes = require('./routes/map-plans');
 const { router: attendanceRoutes } = require('./routes/attendance');
 const { discordClient, initializeDiscord } = require('./discord');
 const modpacksRoutes = require('./routes/modpacks');
 const infoRoutes = require('./routes/info');
+const feedbackRoutes = require('./routes/feedback');
 const cron = require('node-cron');
 const { runRosterSync } = require('./routes/roster');
 
@@ -58,11 +63,21 @@ app.use(helmet({
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(fileUpload({
+// Default file-upload middleware with a 10 MB cap. Routes that need to accept
+// larger uploads (e.g. terrain zips) are listed here as exceptions and mount
+// their own per-route fileUpload middleware with different limits.
+const FILE_UPLOAD_EXCEPTIONS = [
+    '/admin/map-plans/terrains/import',
+];
+const defaultFileUpload = fileUpload({
     limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024 },
     abortOnLimit: true,
     createParentPath: false
-}));
+});
+app.use((req, res, next) => {
+    if (FILE_UPLOAD_EXCEPTIONS.includes(req.path)) return next();
+    return defaultFileUpload(req, res, next);
+});
 
 const sessionStore = new MySQLStore({
     host:     process.env.DB_HOST || 'localhost',
@@ -76,7 +91,7 @@ const sessionStore = new MySQLStore({
     expiration: 30 * 24 * 60 * 60 * 1000,
 });
 
-app.use(session({
+const sessionMiddleware = session({
     secret: process.env.SESSION_SECRET,
     resave: true,
     saveUninitialized: false,
@@ -90,14 +105,20 @@ app.use(session({
         httpOnly: true,
         maxAge: 30 * 24 * 60 * 60 * 1000
     }
-}));
+});
+app.use(sessionMiddleware);
 
-app.use(passport.initialize());
-app.use(passport.session());
+const passportInit    = passport.initialize();
+const passportSession = passport.session();
+app.use(passportInit);
+app.use(passportSession);
 
 app.use(attachUser);
+app.use(attachSeoDefaults);
 app.use(trackPageView);
+app.use(actionLogger);
 
+app.use('/', require('./routes/sitemap'));
 app.use('/', homeRoutes);
 app.use('/', authRoutes);
 app.use('/auth', discordAuthRoutes);
@@ -108,10 +129,12 @@ app.use('/admin', adminRoutes);
 app.use('/operations', operationsMapRoutes);
 app.use('/operations/:id/post-op', attendanceRoutes);
 app.use('/operations', operationsRoutes);
+app.use('/plans', mapPlansRoutes);
 app.use('/orbat', orbatRoutes);
 app.use('/loa', loaRoutes);
 app.use('/roster', rosterRoutes);
 app.use('/modpacks', modpacksRoutes);
+app.use('/feedback', feedbackRoutes);
 const loreRoutes = require('./routes/lore');
 app.use('/lore', loreRoutes);
 app.use('/info', infoRoutes);
@@ -126,7 +149,19 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
+    // Client disconnected mid-multipart-upload (busboy reports
+    // "Unexpected end of form"). The connection is gone, so there is no
+    // point rendering an error page. Log quietly and bail.
+    if (err && err.message === 'Unexpected end of form') {
+        console.warn('Aborted upload from', req.ip, req.method, req.originalUrl);
+        if (!res.headersSent) {
+            try { res.status(400).end(); } catch (_) {}
+        }
+        return;
+    }
+
     console.error('Error:', err);
+    if (res.headersSent) return next(err);
     res.status(500).render('error', {
         title: '500 - Internal Server Error',
         message: '500 - Internal Server Error',
@@ -135,7 +170,13 @@ app.use((err, req, res, next) => {
     });
 });
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+
+// Real-time collaboration for the Map Plan editor (Socket.IO).
+const plansCollab = require('./services/plans-collab');
+plansCollab.init(server, sessionMiddleware, passportInit, passportSession);
+
+server.listen(PORT, () => {
     console.log(`
 ╔═══════════════════════════════════════════════════╗
 ║         PROFITEERS PMC WEBSITE                    ║
@@ -158,6 +199,17 @@ cron.schedule('0 * * * *', async () => {
         await runRosterSync();
     } catch (error) {
         console.error('[CRON] Roster sync failed:', error.message);
+    }
+});
+
+// Auto-close feedback rounds whose deadline has passed — every minute
+const { closeExpiredRounds } = require('./helpers/feedbackRounds');
+cron.schedule('* * * * *', async () => {
+    try {
+        const closed = await closeExpiredRounds();
+        if (closed > 0) console.log(`[CRON] Closed ${closed} expired feedback round(s)`);
+    } catch (error) {
+        console.error('[CRON] Feedback deadline close failed:', error.message);
     }
 });
 

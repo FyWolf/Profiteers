@@ -4,9 +4,12 @@
 
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
         <h2 style="margin: 0;">Modpacks</h2>
-        <% if (user && (user.isAdmin || user.isZeus)) { %>
-            <a href="/modpacks/upload/new" class="btn btn-primary">Upload Modpack</a>
-        <% } %>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" class="btn" id="checkSizeBtn">📏 Check Modpack Size</button>
+            <% if (user && (user.isAdmin || user.isZeus)) { %>
+                <a href="/modpacks/upload/new" class="btn btn-primary">Upload Modpack</a>
+            <% } %>
+        </div>
     </div>
 
     <% if (success) { %>
@@ -61,5 +64,136 @@
 
 </div>
 
+<!-- Check Modpack Size modal -->
+<div id="checkSizeModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); z-index: 1000; align-items: center; justify-content: center; padding: 20px;">
+    <div style="background: var(--camo-medium); border: 1px solid var(--olive); border-radius: 8px; max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 25px; box-sizing: border-box;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0; color: var(--accent);">Check Modpack Size</h3>
+            <button type="button" id="checkSizeClose" style="background: none; border: none; color: var(--text-secondary); font-size: 1.5em; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+
+        <p style="color: var(--text-secondary); font-size: 0.9em; margin: 0 0 15px 0; line-height: 1.5;">
+            Drop your Arma 3 Launcher preset (.html) below to estimate its total download size from the Steam Workshop. Nothing is saved to the modpack list.
+        </p>
+
+        <div id="csDropZone" style="border: 2px dashed var(--olive); border-radius: 8px; padding: 30px 20px; text-align: center; cursor: pointer; transition: border-color 0.3s, background 0.3s;">
+            <div id="csDropText">
+                <p style="font-size: 1.05em; margin: 0 0 6px 0;">Drop your .html preset file here</p>
+                <p style="color: var(--text-secondary); font-size: 0.85em; margin: 0;">or click to browse</p>
+            </div>
+            <div id="csFileInfo" style="display: none;">
+                <p style="color: #4CAF50; font-size: 1.05em; margin: 0;">✅ <span id="csFileName"></span></p>
+            </div>
+            <input type="file" id="csFileInput" accept=".html,.htm" style="position: absolute; opacity: 0; width: 0; height: 0;">
+        </div>
+
+        <div id="csStatus" style="display: none; margin-top: 18px; text-align: center; color: var(--text-secondary);">
+            <p style="margin: 0;">⏳ Fetching mod sizes from Steam… this can take a moment.</p>
+        </div>
+
+        <div id="csError" style="display: none; margin-top: 18px;" class="alert alert-error"></div>
+
+        <div id="csResult" style="display: none; margin-top: 18px; background: var(--camo-dark); border: 1px solid var(--olive); border-radius: 6px; padding: 18px;">
+            <h4 id="csResultName" style="margin: 0 0 12px 0; color: var(--accent);"></h4>
+            <div style="font-size: 2em; font-weight: bold; color: var(--text-primary); margin-bottom: 10px;" id="csResultSize"></div>
+            <p style="margin: 0; font-size: 0.9em; color: var(--text-secondary);" id="csResultMeta"></p>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const modal = document.getElementById('checkSizeModal');
+    const openBtn = document.getElementById('checkSizeBtn');
+    const closeBtn = document.getElementById('checkSizeClose');
+    const dropZone = document.getElementById('csDropZone');
+    const fileInput = document.getElementById('csFileInput');
+    const dropText = document.getElementById('csDropText');
+    const fileInfo = document.getElementById('csFileInfo');
+    const fileNameEl = document.getElementById('csFileName');
+    const statusEl = document.getElementById('csStatus');
+    const errorEl = document.getElementById('csError');
+    const resultEl = document.getElementById('csResult');
+    const resultName = document.getElementById('csResultName');
+    const resultSize = document.getElementById('csResultSize');
+    const resultMeta = document.getElementById('csResultMeta');
+
+    function resetState() {
+        dropText.style.display = 'block';
+        fileInfo.style.display = 'none';
+        statusEl.style.display = 'none';
+        errorEl.style.display = 'none';
+        resultEl.style.display = 'none';
+        fileInput.value = '';
+    }
+
+    function openModal() { resetState(); modal.style.display = 'flex'; }
+    function closeModal() { modal.style.display = 'none'; }
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'var(--accent)';
+        dropZone.style.background = 'rgba(209, 143, 33, 0.05)';
+    });
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.style.borderColor = 'var(--olive)';
+        dropZone.style.background = '';
+    });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'var(--olive)';
+        dropZone.style.background = '';
+        if (e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            submitFile(e.dataTransfer.files[0]);
+        }
+    });
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) submitFile(fileInput.files[0]);
+    });
+
+    async function submitFile(file) {
+        dropText.style.display = 'none';
+        fileInfo.style.display = 'block';
+        fileNameEl.textContent = file.name;
+        errorEl.style.display = 'none';
+        resultEl.style.display = 'none';
+        statusEl.style.display = 'block';
+
+        const formData = new FormData();
+        formData.append('modpack_file', file);
+
+        try {
+            const res = await fetch('/modpacks/check-size', { method: 'POST', body: formData });
+            const data = await res.json();
+            statusEl.style.display = 'none';
+
+            if (!data.success) {
+                errorEl.textContent = data.error || 'Failed to check modpack size';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            resultName.textContent = data.name;
+            resultSize.textContent = data.totalSizeFormatted;
+            let meta = data.modCount + ' mod' + (data.modCount === 1 ? '' : 's');
+            if (data.missing > 0) {
+                meta += ' · ' + data.missing + ' mod' + (data.missing === 1 ? '' : 's') + ' had no size data (not counted)';
+            }
+            resultMeta.textContent = meta;
+            resultEl.style.display = 'block';
+        } catch (err) {
+            statusEl.style.display = 'none';
+            errorEl.textContent = 'Network error — please try again.';
+            errorEl.style.display = 'block';
+        }
+    }
+})();
+</script>
 
 <%- include('../partials/footer') %>

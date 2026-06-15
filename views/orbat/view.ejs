@@ -11,7 +11,10 @@ function renderRoleCard(role, squad) {
     const isOwnAssignment = assignment && user && assignment.user_id === user.id;
     const attendanceStatus = assignment ? assignment.attendance_status : null;
 
-    if (operation.orbat_type === 'fixed' && !canManage) {
+    const _editorIds = (typeof editorSquadIds !== 'undefined' && Array.isArray(editorSquadIds)) ? editorSquadIds.map(Number) : [];
+    const isEditorOfThisSquad = _editorIds.includes(Number(squad.id));
+
+    if (operation.orbat_type === 'fixed' && !canManage && !isEditorOfThisSquad) {
         if (!assignment || attendanceStatus === 'absent') return '';
     }
 
@@ -68,7 +71,10 @@ function renderRoleCard(role, squad) {
     } else if (canClaim && isOwnAssignment) {
         claimBtn = `<button onclick="unclaimSlot(${role.id})" class="btn" style="background:#e74c3c;padding:2px 7px;font-size:0.72em;">Leave</button>`;
     }
-    const manageMenu = (canManage && operation.orbat_type === 'dynamic')
+    const canDynamicManage = canManage && operation.orbat_type === 'dynamic';
+    const canAssignFixed = operation.orbat_type === 'fixed' && (canManage || isEditorOfThisSquad);
+
+    const manageMenu = canDynamicManage
         ? `<div class="ctrl-menu">
                <button class="ctrl-menu-btn" onclick="toggleCtrlMenu(this)">···</button>
                <div class="ctrl-menu-list">
@@ -79,12 +85,22 @@ function renderRoleCard(role, squad) {
                    <button class="ctrl-menu-item ctrl-menu-danger" onclick="deleteRole(${role.id})">Delete slot</button>
                </div>
            </div>`
+        : canAssignFixed
+        ? `<div class="ctrl-menu">
+               <button class="ctrl-menu-btn" onclick="toggleCtrlMenu(this)">···</button>
+               <div class="ctrl-menu-list">
+                   ${assignment
+                       ? `<button class="ctrl-menu-item" onclick="showAssignModal(${role.id}, ${esc(JSON.stringify(role.role_name))})">Change player</button>
+                          <button class="ctrl-menu-item ctrl-menu-danger" onclick="unassignPlayer(${role.id})">Remove player</button>`
+                       : `<button class="ctrl-menu-item" onclick="showAssignModal(${role.id}, ${esc(JSON.stringify(role.role_name))})">Assign player</button>`}
+               </div>
+           </div>`
         : '';
     const buttonsHtml = (claimBtn || manageMenu)
         ? `<div style="display:flex;gap:3px;align-items:center;flex-shrink:0;">${claimBtn}${manageMenu}</div>`
         : '';
 
-    const grabStyle = (canManage && operation.orbat_type === 'dynamic') ? ' cursor: grab;' : '';
+    const grabStyle = canDynamicManage ? ' cursor: grab;' : '';
 
     return `<div data-role-id="${role.id}" style="display:flex;align-items:center;gap:6px;padding:5px 8px;opacity:${opacity};transition:opacity 0.2s;border-bottom:1px solid rgba(255,255,255,0.04);${grabStyle}">
         ${playerSlot}

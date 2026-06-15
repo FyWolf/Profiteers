@@ -1,0 +1,13 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /admin
+Disallow: /profile
+Disallow: /login
+Disallow: /logout
+Disallow: /auth/
+Disallow: /operations/manage/
+Disallow: /lore/admin
+Disallow: /uploads/squad-icons/
+Disallow: /ping
+
+Sitemap: https://profiteerpmc.com/sitemap.xml

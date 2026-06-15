@@ -20,7 +20,7 @@ const NEWS_ALLOWED_TAGS = [
     'h1', 'h2', 'h3', 'blockquote', 'a', 'img', 'span', 'div'
 ];
 const NEWS_ALLOWED_ATTRS = {
-    'a': ['href', 'target', 'rel'],
+    'a': ['href', 'target', 'rel', 'class'],
     'img': ['src', 'alt', 'width', 'height'],
     'span': ['style'],
     'div': ['style'],
@@ -79,7 +79,8 @@ router.get('/upcoming', async (req, res) => {
         const [operations] = await db.query(query, params);
         
         res.render('operations/upcoming', {
-            title: 'Upcoming Operations - Profiteers PMC',
+            title: 'Upcoming Operations — Profiteers PMC',
+            description: 'Browse upcoming Profiteers PMC Arma 3 operations. RSVP, view briefings, and join the next mission.',
             operations: operations,
             search: search
         });
@@ -121,7 +122,8 @@ router.get('/all', async (req, res) => {
         const [operations] = await db.query(query, params);
         
         res.render('operations/all', {
-            title: 'All Operations - Profiteers PMC',
+            title: 'All Operations — Profiteers PMC',
+            description: 'Complete archive of past and upcoming Profiteers PMC Arma 3 operations.',
             operations: operations,
             search: search
         });
@@ -224,7 +226,7 @@ router.get('/:id', async (req, res) => {
                 u.discord_avatar,
                 u.discord_id
             FROM operation_news opn
-            JOIN users u ON opn.posted_by = u.id
+            LEFT JOIN users u ON opn.posted_by = u.id
             WHERE opn.operation_id = ?
             ORDER BY opn.posted_at DESC
         `, [req.params.id]);
@@ -234,6 +236,29 @@ router.get('/:id', async (req, res) => {
             canManage = await checkZeusStatus(req.session.userId)
                 || (operation && parseInt(operation.host_id) === parseInt(req.session.userId));
         }
+        
+        const siteUrl = (process.env.WEBSITE_URL || '').replace(/\/$/, '');
+        const plainDesc = (operation.description || '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 200);
+        const ogImage = operation.banner_url
+            ? (operation.banner_url.startsWith('http') ? operation.banner_url : (siteUrl + operation.banner_url))
+            : null;
+        const eventJsonLd = {
+            '@context': 'https://schema.org',
+            '@type':    'Event',
+            name:        operation.title,
+            description: plainDesc || undefined,
+            startDate:   operation.start_time ? new Date(operation.start_time * 1000).toISOString() : undefined,
+            endDate:     operation.end_time   ? new Date(operation.end_time   * 1000).toISOString() : undefined,
+            eventAttendanceMode: 'https://schema.org/OnlineEventAttendanceMode',
+            eventStatus: 'https://schema.org/EventScheduled',
+            image:       ogImage || undefined,
+            organizer:   { '@type': 'Organization', name: 'Profiteers PMC', url: siteUrl || undefined },
+            location:    { '@type': 'VirtualLocation', url: siteUrl + '/operations/' + operation.id },
+        };
 
         // Post-op attendance banner flags
         let attendanceBanner = null;
@@ -255,7 +280,13 @@ router.get('/:id', async (req, res) => {
         }
 
         res.render('operations/view', {
-            title: `${operation.title} - Profiteers PMC`,
+            title: `${operation.title} — Profiteers PMC`,
+            description: plainDesc || `Operation briefing for ${operation.title}.`,
+            image: ogImage || undefined,
+            ogType: 'article',
+            articlePublished: operation.created_at ? new Date(operation.created_at).toISOString() : undefined,
+            articleModified:  operation.updated_at ? new Date(operation.updated_at).toISOString() : undefined,
+            jsonLd: eventJsonLd,
             operation: operation,
             attendanceCounts: attendanceCounts,
             attendees: attendees,
@@ -361,6 +392,128 @@ router.get('/manage/list', isZeus, async (req, res) => {
     }
 });
 
+// Locked period date range -> [start_unix, end_unix) in UTC.
+// start_date 00:00 UTC inclusive, end_date 23:59:59 UTC inclusive
+// (i.e. end_date+1 day 00:00 UTC exclusive).
+function lockedPeriodRangeUnix(startDateStr, endDateStr) {
+    const [sy, sm, sd] = startDateStr.split('-').map(Number);
+    const [ey, em, ed] = endDateStr.split('-').map(Number);
+    return {
+        start_unix: Math.floor(Date.UTC(sy, sm - 1, sd) / 1000),
+        end_unix: Math.floor(Date.UTC(ey, em - 1, ed + 1) / 1000),
+    };
+}
+
+router.get('/manage/overlaps', isZeus, async (req, res) => {
+    try {
+        const start = parseInt(req.query.start, 10);
+        const end = parseInt(req.query.end, 10);
+        const excludeId = req.query.exclude_id ? parseInt(req.query.exclude_id, 10) : null;
+
+        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+            return res.json({ success: true, overlaps: [], blocks: [] });
+        }
+
+        const params = [end, start];
+        let sql = `
+            SELECT id, title, start_time, end_time, operation_type, is_published
+            FROM operations
+            WHERE start_time < ? AND end_time > ?
+        `;
+        if (excludeId) {
+            sql += ' AND id <> ?';
+            params.push(excludeId);
+        }
+        sql += ' ORDER BY start_time ASC';
+
+        const [overlaps] = await db.query(sql, params);
+
+        const [lockedRows] = await db.query(`
+            SELECT id, label,
+                   DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date,
+                   DATE_FORMAT(end_date,   '%Y-%m-%d') AS end_date
+            FROM locked_periods
+            ORDER BY start_date ASC
+        `);
+
+        const blocks = lockedRows
+            .map(row => {
+                const range = lockedPeriodRangeUnix(row.start_date, row.end_date);
+                return { ...row, ...range };
+            })
+            .filter(b => b.start_unix < end && b.end_unix > start);
+
+        res.json({ success: true, overlaps, blocks });
+    } catch (error) {
+        console.error('Error checking overlaps:', error);
+        res.status(500).json({ success: false, overlaps: [], blocks: [] });
+    }
+});
+
+router.get('/manage/blocks', isZeus, async (req, res) => {
+    try {
+        const [blocks] = await db.query(`
+            SELECT lp.id, lp.label,
+                   DATE_FORMAT(lp.start_date, '%Y-%m-%d') AS start_date,
+                   DATE_FORMAT(lp.end_date,   '%Y-%m-%d') AS end_date,
+                   lp.created_at,
+                   u.username AS created_by_username,
+                   u.discord_global_name AS created_by_global_name
+            FROM locked_periods lp
+            LEFT JOIN users u ON lp.created_by = u.id
+            ORDER BY lp.start_date ASC, lp.id ASC
+        `);
+
+        res.render('operations/blocks', {
+            title: 'Locked Periods - Profiteers PMC',
+            blocks,
+            success: req.query.success || null,
+            error: req.query.error || null,
+        });
+    } catch (error) {
+        console.error('Error loading locked periods:', error);
+        res.redirect('/operations/manage/list?error=Failed to load locked periods');
+    }
+});
+
+router.post('/manage/blocks/create', isZeus, async (req, res) => {
+    try {
+        const { start_date, end_date, label } = req.body;
+        const labelTrim = (label || '').trim();
+        const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+
+        if (!start_date || !end_date || !dateRe.test(start_date) || !dateRe.test(end_date)) {
+            return res.redirect('/operations/manage/blocks?error=Invalid dates');
+        }
+        if (!labelTrim) {
+            return res.redirect('/operations/manage/blocks?error=Label is required');
+        }
+        if (end_date < start_date) {
+            return res.redirect('/operations/manage/blocks?error=End date must be on or after start date');
+        }
+
+        await db.query(`
+            INSERT INTO locked_periods (start_date, end_date, label, created_by)
+            VALUES (?, ?, ?, ?)
+        `, [start_date, end_date, labelTrim.slice(0, 200), req.session.userId]);
+
+        res.redirect('/operations/manage/blocks?success=Locked period created');
+    } catch (error) {
+        console.error('Error creating locked period:', error);
+        res.redirect('/operations/manage/blocks?error=Failed to create locked period');
+    }
+});
+
+router.post('/manage/blocks/delete/:id', isZeus, async (req, res) => {
+    try {
+        await db.query('DELETE FROM locked_periods WHERE id = ?', [req.params.id]);
+        res.redirect('/operations/manage/blocks?success=Locked period removed');
+    } catch (error) {
+        console.error('Error deleting locked period:', error);
+        res.redirect('/operations/manage/blocks?error=Failed to delete locked period');
+    }
+});
+
 router.get('/manage/create', isZeus, async (req, res) => {
     try {
         const [users] = await db.query(`
@@ -391,7 +544,7 @@ router.get('/manage/create', isZeus, async (req, res) => {
 
 router.post('/manage/create', isZeus, async (req, res) => {
     try {
-        const { title, description, start_time, end_time, banner_url, orbat_type, orbat_template_id, host_id, operation_type, modpack_id, map_world } = req.body;
+        const { title, description, start_time, end_time, banner_url, is_published, orbat_type, orbat_template_id, host_id, operation_type, modpack_id, map_world } = req.body;
         let finalBannerUrl = banner_url || '/images/operations/default-banner.jpg';
 
         if (req.files && req.files.banner_upload) {
@@ -418,7 +571,7 @@ router.post('/manage/create', isZeus, async (req, res) => {
         const finalOperationType = operation_type || 'main';
         const finalModpackId = modpack_id ? parseInt(modpack_id) : null;
         const finalMapWorld = (map_world && /^[a-zA-Z0-9_-]+$/.test(map_world.trim())) ? map_world.trim() : null;
-        const published = true;
+        const published = parseBoolean(is_published);
 
         const [result] = await db.query(`
             INSERT INTO operations
@@ -562,6 +715,61 @@ router.post('/manage/delete/:id', canDeleteOp, async (req, res) => {
     } catch (error) {
         console.error('Error deleting operation:', error);
         res.redirect('/operations/manage/list?error=Failed to delete operation');
+    }
+});
+
+router.post('/:id/news/file', isAuthenticated, async (req, res) => {
+    try {
+        const [opCheck] = await db.query('SELECT host_id FROM operations WHERE id = ?', [req.params.id]);
+        if (!opCheck.length) return res.json({ success: false, error: 'Operation not found' });
+
+        const isZeusUser = await checkZeusStatus(req.session.userId);
+        const isHost = parseInt(opCheck[0].host_id) === parseInt(req.session.userId);
+        if (!isZeusUser && !isHost) return res.status(403).json({ success: false, error: 'Access denied' });
+
+        if (!req.files || !req.files.file) return res.json({ success: false, error: 'No file uploaded' });
+
+        const file = req.files.file;
+        const blockedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+        if (blockedTypes.includes(file.mimetype)) return res.json({ success: false, error: 'Use the image button for images' });
+
+        const fileExt = path.extname(file.name).replace(/[^a-z0-9.]/gi, '').toLowerCase();
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const fileName = `op${req.params.id}_${Date.now()}_${safeName}`;
+        const uploadPath = path.join(__dirname, '../public/uploads/', fileName);
+        await file.mv(uploadPath);
+
+        res.json({ success: true, url: '/uploads/' + fileName, name: file.name });
+    } catch (error) {
+        console.error('Error uploading news file:', error);
+        res.json({ success: false, error: 'Upload failed' });
+    }
+});
+
+router.post('/:id/news/image', isAuthenticated, async (req, res) => {
+    try {
+        const [opCheck] = await db.query('SELECT host_id FROM operations WHERE id = ?', [req.params.id]);
+        if (!opCheck.length) return res.json({ success: false, error: 'Operation not found' });
+
+        const isZeusUser = await checkZeusStatus(req.session.userId);
+        const isHost = parseInt(opCheck[0].host_id) === parseInt(req.session.userId);
+        if (!isZeusUser && !isHost) return res.status(403).json({ success: false, error: 'Access denied' });
+
+        if (!req.files || !req.files.image) return res.json({ success: false, error: 'No file uploaded' });
+
+        const file = req.files.image;
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedTypes.includes(file.mimetype)) return res.json({ success: false, error: 'Invalid file type' });
+
+        const fileExt = path.extname(file.name).replace(/[^a-z0-9.]/gi, '').toLowerCase();
+        const fileName = `news_${req.params.id}_${Date.now()}${fileExt}`;
+        const uploadPath = path.join(__dirname, '../public/images/news/', fileName);
+        await file.mv(uploadPath);
+
+        res.json({ success: true, url: '/images/news/' + fileName });
+    } catch (error) {
+        console.error('Error uploading news image:', error);
+        res.json({ success: false, error: 'Upload failed' });
     }
 });
 

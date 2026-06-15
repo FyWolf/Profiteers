@@ -1,0 +1,66 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>MAP PLANS</h1>
+        <div class="subtitle">Personal mission planning maps</div>
+    </header>
+
+    <section class="section">
+        <div class="top-row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+            <h2>MY PLANS</h2>
+            <a href="/plans/new" class="btn btn-primary">➕ New Plan</a>
+        </div>
+
+        <% if (mine.length === 0) { %>
+            <div class="empty-state" style="padding:40px;text-align:center;color:var(--khaki);">
+                <div style="font-size:2.4em;margin-bottom:8px;">🗺</div>
+                <strong>No plans yet</strong>
+                <p>Create a plan to start drawing on a terrain.</p>
+            </div>
+        <% } else { %>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
+            <% mine.forEach(p => { %>
+                <a href="/plans/<%= p.id %>" style="display:block;background:rgba(20,32,20,0.6);border:1px solid var(--border);border-radius:6px;padding:14px;text-decoration:none;color:inherit;transition:border-color 0.15s;">
+                    <% if (p.map_world) { %>
+                        <div style="height:96px;background:#1a1a1a url('/images/maps/<%= p.map_world %>/preview_512.png') center/cover;border-radius:4px;margin-bottom:10px;"></div>
+                    <% } else { %>
+                        <div style="height:96px;background:#1a1a1a;border-radius:4px;margin-bottom:10px;display:flex;align-items:center;justify-content:center;color:#444;font-size:1.6em;">🗺</div>
+                    <% } %>
+                    <div style="font-weight:700;color:var(--accent);"><%= p.name %></div>
+                    <% if (p.description) { %>
+                        <div style="color:var(--khaki);font-size:0.85em;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><%= p.description %></div>
+                    <% } %>
+                    <div style="color:#666;font-size:0.78em;margin-top:6px;">
+                        <%= p.map_world || 'no terrain' %>
+                        <% if (p.link_access === 'view') { %><span style="color:var(--olive-light);margin-left:8px;">🔗 link</span><% } %>
+                    </div>
+                </a>
+            <% }); %>
+            </div>
+        <% } %>
+    </section>
+
+    <% if (shared.length > 0) { %>
+    <section class="section" style="margin-top:32px;">
+        <h2>SHARED WITH ME</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:18px;">
+        <% shared.forEach(p => { %>
+            <a href="/plans/<%= p.id %>" style="display:block;background:rgba(20,32,20,0.6);border:1px solid var(--border);border-radius:6px;padding:14px;text-decoration:none;color:inherit;">
+                <% if (p.map_world) { %>
+                    <div style="height:96px;background:#1a1a1a url('/images/maps/<%= p.map_world %>/preview_512.png') center/cover;border-radius:4px;margin-bottom:10px;"></div>
+                <% } else { %>
+                    <div style="height:96px;background:#1a1a1a;border-radius:4px;margin-bottom:10px;display:flex;align-items:center;justify-content:center;color:#444;font-size:1.6em;">🗺</div>
+                <% } %>
+                <div style="font-weight:700;color:var(--accent);"><%= p.name %></div>
+                <div style="color:#666;font-size:0.78em;margin-top:6px;">
+                    by <%= p.owner_username %> · <span style="color:var(--olive-light);"><%= p.role %></span>
+                </div>
+            </a>
+        <% }); %>
+        </div>
+    </section>
+    <% } %>
+</div>
+
+<%- include('../partials/footer') %>

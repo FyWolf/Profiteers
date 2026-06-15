@@ -246,11 +246,40 @@ async function runRosterSync() {
             memberLabels.length > 0 ? JSON.stringify(memberLabels) : null
         ]);
 
+        await db.query(`
+            UPDATE users SET
+                discord_username = ?,
+                discord_global_name = ?,
+                discord_avatar = ?
+            WHERE discord_id = ?
+        `, [
+            member.user.username,
+            member.user.global_name || member.user.username,
+            member.user.avatar,
+            member.user.id
+        ]);
+
         syncedCount++;
     }
 
-    console.log(`Roster sync complete: ${syncedCount} members synced (${skippedBots} bots skipped)`);
-    return { total: allMembers.length, synced: syncedCount, skipped: skippedBots };
+    // Remove static (template) ORBAT assignments for members who are no longer
+    // in the roster (i.e. they left the Discord guild). Dynamic operation ORBATs
+    // are left alone — hosts manage those per-operation.
+    const [cleanup] = await db.query(`
+        DELETE oa FROM orbat_assignments oa
+        JOIN orbat_roles r ON oa.role_id = r.id
+        JOIN orbat_squads s ON r.squad_id = s.id
+        JOIN users u ON oa.user_id = u.id
+        WHERE s.orbat_id IS NOT NULL
+          AND u.discord_id IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM roster_members rm WHERE rm.discord_id = u.discord_id
+          )
+    `);
+    const orbatRemoved = cleanup.affectedRows || 0;
+
+    console.log(`Roster sync complete: ${syncedCount} members synced (${skippedBots} bots skipped, ${orbatRemoved} stale ORBAT assignments removed)`);
+    return { total: allMembers.length, synced: syncedCount, skipped: skippedBots, orbatRemoved };
 }
 
 router.post('/sync', async (req, res) => {
@@ -259,7 +288,10 @@ router.post('/sync', async (req, res) => {
     }
     try {
         const result = await runRosterSync();
-        res.json({ success: true, message: `Synced ${result.synced} members`, ...result });
+        const msg = result.orbatRemoved > 0
+            ? `Synced ${result.synced} members (${result.orbatRemoved} stale ORBAT assignments removed)`
+            : `Synced ${result.synced} members`;
+        res.json({ success: true, message: msg, ...result });
     } catch (error) {
         console.error('Error syncing roster:', error);
         res.json({ success: false, error: error.response?.data?.message || error.message || 'Failed to sync roster' });

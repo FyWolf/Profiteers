@@ -1,0 +1,746 @@
+<%- include('../partials/map-editor', {
+    title:       title,
+    apiBase:     '/plans/' + plan.id,
+    backUrl:     '/plans',
+    headerTitle: plan.name + ' — MAP PLAN',
+    canEdit:     canEdit,
+    squads:      squads,
+    apiTokenQs:  tokenSuffix ? tokenSuffix.replace(/^\?/, '') : '',
+    planContext: { id: plan.id, canManage: canManage, isOwner: isOwner, ownerName: ownerName, role: role },
+    user:        user
+}) %>
+
+<% if (canManage) { %>
+<!-- ─── Plan management modals (Share / ACL / Plan settings) ─────────── -->
+<style>
+.plan-mgmt-btn {
+    margin-left: 6px;
+    padding: 5px 12px; font-size: 0.72em; font-family: 'Orbitron', sans-serif;
+    font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    background: rgba(15,26,15,0.8); border: 1px solid var(--olive);
+    color: var(--olive-light); border-radius: 5px; cursor: pointer;
+    transition: all 0.15s;
+}
+.plan-mgmt-btn:hover { background: rgba(107,142,35,0.25); color: var(--sand); border-color: var(--accent); }
+
+.plan-modal {
+    display: none; position: fixed; inset: 0; z-index: 5000;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(3px);
+    align-items: center; justify-content: center;
+}
+.plan-modal.open { display: flex; }
+.plan-modal-box {
+    background: linear-gradient(135deg, rgba(20,32,20,0.99) 0%, rgba(15,26,15,0.99) 100%);
+    border: 2px solid var(--olive); border-radius: 10px;
+    width: min(640px, 96vw); max-height: 90vh; display: flex; flex-direction: column;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.7);
+}
+.plan-modal-head {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+}
+.plan-modal-head h3 {
+    flex: 1; color: var(--accent);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.95em; letter-spacing: 0.1em; margin: 0;
+}
+.plan-modal-close {
+    background: none; border: none; color: var(--muted); font-size: 1.3em;
+    cursor: pointer; padding: 3px 8px;
+}
+.plan-modal-body { padding: 16px 20px; overflow-y: auto; }
+.plan-modal-foot {
+    padding: 12px 20px; border-top: 1px solid var(--border);
+    display: flex; gap: 10px; justify-content: flex-end;
+    background: rgba(0,0,0,0.15);
+}
+.plan-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+.plan-row .plan-row-name { flex: 1; color: var(--sand); }
+.plan-row .plan-role-sel {
+    background: var(--input-bg); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--sand); padding: 4px 8px; font-family: inherit; font-size: 0.85em;
+}
+.plan-input {
+    background: var(--input-bg); border: 1px solid var(--border); border-radius: 5px;
+    color: var(--sand); padding: 7px 11px; font-family: inherit; font-size: 0.9em;
+    box-sizing: border-box;
+}
+.plan-btn {
+    font-size: 0.85em; padding: 7px 16px; border-radius: 5px; cursor: pointer;
+    border: 1px solid var(--border); background: rgba(15,26,15,0.8);
+    color: var(--khaki); font-family: inherit; font-weight: 600;
+}
+.plan-btn:hover { border-color: var(--olive); color: var(--sand); }
+.plan-btn.primary {
+    background: linear-gradient(135deg, var(--accent), #e6a000);
+    color: #1a2a1a; border-color: var(--accent); font-weight: 700;
+}
+.plan-btn.danger { color: #e74c3c; border-color: rgba(231,76,60,0.5); }
+.plan-btn.danger:hover { background: #e74c3c; color: #fff; }
+</style>
+
+<!-- Share modal -->
+<div id="plan-share-modal" class="plan-modal">
+    <div class="plan-modal-box">
+        <div class="plan-modal-head">
+            <h3>SHARE LINK</h3>
+            <button class="plan-modal-close" onclick="closePlanModal('plan-share-modal')">✕</button>
+        </div>
+        <div class="plan-modal-body">
+            <p style="color:var(--khaki);font-size:0.9em;margin-bottom:14px;">
+                Anyone with the link can view this plan (read-only). Members in the access list have their permissions regardless of this setting.
+            </p>
+            <label style="display:flex;align-items:center;gap:8px;color:var(--sand);margin-bottom:14px;">
+                <input type="checkbox" id="plan-share-enabled">
+                Enable shareable link
+            </label>
+            <div id="plan-share-link-row" style="display:none;">
+                <label style="font-size:0.78em;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;">Link</label>
+                <div style="display:flex;gap:8px;margin-top:5px;">
+                    <input type="text" id="plan-share-link" class="plan-input" readonly style="flex:1;">
+                    <button class="plan-btn" onclick="copyShareLink()">Copy</button>
+                    <button class="plan-btn" onclick="rotateShareToken()" title="Generate a new token, invalidating the old link">↻</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ACL modal -->
+<div id="plan-acl-modal" class="plan-modal">
+    <div class="plan-modal-box">
+        <div class="plan-modal-head">
+            <h3>ACCESS CONTROL</h3>
+            <button class="plan-modal-close" onclick="closePlanModal('plan-acl-modal')">✕</button>
+        </div>
+        <div class="plan-modal-body">
+            <div style="display:flex;gap:8px;margin-bottom:16px;position:relative;">
+                <div style="flex:1;position:relative;">
+                    <input type="text" id="plan-acl-username" class="plan-input" placeholder="Username" autocomplete="off" style="width:100%;">
+                    <div id="plan-acl-suggest" style="display:none;position:absolute;top:100%;left:0;right:0;margin-top:2px;background:rgba(15,26,15,0.98);border:1px solid var(--olive);border-radius:5px;max-height:220px;overflow-y:auto;z-index:10;box-shadow:0 4px 14px rgba(0,0,0,0.5);"></div>
+                </div>
+                <select id="plan-acl-role" class="plan-input" style="width:auto;">
+                    <option value="viewer">Viewer</option>
+                    <option value="editor">Editor</option>
+                    <option value="admin">Admin</option>
+                </select>
+                <button class="plan-btn primary" onclick="addAclMember()">Add</button>
+            </div>
+            <div id="plan-acl-list"></div>
+
+            <style>
+            .acl-suggest-item {
+                padding: 7px 11px; cursor: pointer; color: var(--sand); font-size: 0.88em;
+                border-bottom: 1px solid rgba(107,142,35,0.15);
+            }
+            .acl-suggest-item:last-child { border-bottom: none; }
+            .acl-suggest-item:hover, .acl-suggest-item.active {
+                background: rgba(107,142,35,0.2); color: var(--accent);
+            }
+            .acl-suggest-empty { padding: 10px 12px; color: var(--muted); font-size: 0.85em; text-align: center; }
+            </style>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const PLAN_ID    = PLAN_CONTEXT.id;
+    const SHARE_BASE = window.location.origin + window.location.pathname.replace(/\/$/, '');
+
+    // ─ Inject management buttons into the topbar ────────────────────
+    const topbar = document.getElementById('topbar');
+    if (topbar) {
+        const saveStatus = document.getElementById('save-status');
+        const exportBtn  = document.getElementById('btn-export-sqf');
+
+        const editBtn = document.createElement('a');
+        editBtn.href = '/plans/' + PLAN_ID + '/edit';
+        editBtn.className = 'plan-mgmt-btn';
+        editBtn.textContent = '⚙ Settings';
+
+        const shareBtn = document.createElement('button');
+        shareBtn.className = 'plan-mgmt-btn';
+        shareBtn.textContent = '🔗 Share';
+        shareBtn.onclick = openShareModal;
+
+        const aclBtn = document.createElement('button');
+        aclBtn.className = 'plan-mgmt-btn';
+        aclBtn.textContent = '👥 Members';
+        aclBtn.onclick = openAclModal;
+
+        if (exportBtn) {
+            exportBtn.parentNode.insertBefore(aclBtn,   exportBtn);
+            exportBtn.parentNode.insertBefore(shareBtn, exportBtn);
+            exportBtn.parentNode.insertBefore(editBtn,  exportBtn);
+        }
+    }
+
+    // ─ Share ─────────────────────────────────────────────────────────
+    window.openPlanModal  = id => document.getElementById(id).classList.add('open');
+    window.closePlanModal = id => document.getElementById(id).classList.remove('open');
+
+    async function openShareModal() {
+        const r = await fetch(`/plans/${PLAN_ID}/share`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const data = await r.json();
+        if (!data.success) return alert(data.error || 'Failed');
+        applyShareState(data);
+        openPlanModal('plan-share-modal');
+    }
+
+    function applyShareState(data) {
+        const cb = document.getElementById('plan-share-enabled');
+        const row = document.getElementById('plan-share-link-row');
+        const linkInput = document.getElementById('plan-share-link');
+        cb.checked = data.link_access === 'view';
+        row.style.display = cb.checked ? 'block' : 'none';
+        linkInput.value = `${SHARE_BASE}?t=${data.share_token}`;
+    }
+
+    document.getElementById('plan-share-enabled').addEventListener('change', async e => {
+        const r = await fetch(`/plans/${PLAN_ID}/share`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ link_access: e.target.checked ? 'view' : 'none' })
+        });
+        const data = await r.json();
+        if (!data.success) return alert(data.error || 'Failed');
+        applyShareState(data);
+    });
+
+    window.copyShareLink = () => {
+        const inp = document.getElementById('plan-share-link');
+        inp.select();
+        try { navigator.clipboard.writeText(inp.value); } catch { document.execCommand('copy'); }
+    };
+
+    window.rotateShareToken = async () => {
+        if (!confirm('Generate a new link? The old link will stop working.')) return;
+        const r = await fetch(`/plans/${PLAN_ID}/share`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rotate: true })
+        });
+        const data = await r.json();
+        if (data.success) applyShareState(data);
+    };
+
+    // ─ ACL ───────────────────────────────────────────────────────────
+    async function openAclModal() {
+        await refreshAclList();
+        openPlanModal('plan-acl-modal');
+    }
+
+    async function refreshAclList() {
+        const r = await fetch(`/plans/${PLAN_ID}/acl`);
+        const data = await r.json();
+        const list = document.getElementById('plan-acl-list');
+        if (!data.success) { list.innerHTML = '<div style="color:#e74c3c;">Failed to load</div>'; return; }
+
+        if (!data.members.length) {
+            list.innerHTML = '<div style="color:var(--muted);font-size:0.85em;text-align:center;padding:20px;">No members yet. Add someone above.</div>';
+            return;
+        }
+
+        list.innerHTML = data.members.map(m => `
+            <div class="plan-row">
+                <span class="plan-row-name">${escapeHtml(m.username)}</span>
+                <select class="plan-role-sel" data-uid="${m.user_id}" onchange="changeAclRole(this)">
+                    <option value="viewer" ${m.role === 'viewer' ? 'selected' : ''}>Viewer</option>
+                    <option value="editor" ${m.role === 'editor' ? 'selected' : ''}>Editor</option>
+                    <option value="admin"  ${m.role === 'admin'  ? 'selected' : ''}>Admin</option>
+                </select>
+                <button class="plan-btn danger" onclick="removeAclMember(${m.user_id})">✕</button>
+            </div>
+        `).join('');
+    }
+
+    // ─ Username autocomplete ────────────────────────────────────────
+    const aclInput   = document.getElementById('plan-acl-username');
+    const aclSuggest = document.getElementById('plan-acl-suggest');
+    let suggestDebounce = null;
+    let suggestActiveIdx = -1;
+    let suggestItems = [];
+
+    function hideSuggest() {
+        aclSuggest.style.display = 'none';
+        suggestActiveIdx = -1;
+    }
+
+    function renderSuggest(users, query) {
+        suggestItems = users;
+        suggestActiveIdx = users.length ? 0 : -1;
+        if (!users.length) {
+            aclSuggest.innerHTML = `<div class="acl-suggest-empty">No matches for "${escapeHtml(query)}"</div>`;
+            aclSuggest.style.display = 'block';
+            return;
+        }
+        aclSuggest.innerHTML = users.map((u, i) => `
+            <div class="acl-suggest-item${i === 0 ? ' active' : ''}" data-username="${escapeHtml(u.username)}" data-idx="${i}">
+                ${escapeHtml(u.username)}
+            </div>
+        `).join('');
+        aclSuggest.style.display = 'block';
+        aclSuggest.querySelectorAll('.acl-suggest-item').forEach(el => {
+            el.addEventListener('mousedown', e => {
+                e.preventDefault();
+                pickSuggest(parseInt(el.dataset.idx));
+            });
+            el.addEventListener('mouseenter', () => {
+                setActiveSuggest(parseInt(el.dataset.idx));
+            });
+        });
+    }
+
+    function setActiveSuggest(idx) {
+        suggestActiveIdx = idx;
+        aclSuggest.querySelectorAll('.acl-suggest-item').forEach((el, i) => {
+            el.classList.toggle('active', i === idx);
+        });
+    }
+
+    function pickSuggest(idx) {
+        if (idx < 0 || idx >= suggestItems.length) return;
+        aclInput.value = suggestItems[idx].username;
+        hideSuggest();
+    }
+
+    async function searchUsers(q) {
+        try {
+            const r = await fetch(`/plans/${PLAN_ID}/acl/search?q=` + encodeURIComponent(q));
+            const data = await r.json();
+            if (!data.success) { hideSuggest(); return; }
+            // Drop stale results if the input changed while in-flight.
+            if (aclInput.value.trim() !== q) return;
+            renderSuggest(data.users, q);
+        } catch { hideSuggest(); }
+    }
+
+    aclInput.addEventListener('input', () => {
+        clearTimeout(suggestDebounce);
+        const q = aclInput.value.trim();
+        if (!q) { hideSuggest(); return; }
+        suggestDebounce = setTimeout(() => searchUsers(q), 150);
+    });
+
+    aclInput.addEventListener('keydown', e => {
+        if (aclSuggest.style.display === 'none' || !suggestItems.length) {
+            if (e.key === 'Enter') { e.preventDefault(); window.addAclMember(); }
+            return;
+        }
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setActiveSuggest((suggestActiveIdx + 1) % suggestItems.length);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setActiveSuggest((suggestActiveIdx - 1 + suggestItems.length) % suggestItems.length);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (suggestActiveIdx >= 0) pickSuggest(suggestActiveIdx);
+            else window.addAclMember();
+        } else if (e.key === 'Escape') {
+            hideSuggest();
+        }
+    });
+
+    aclInput.addEventListener('blur', () => setTimeout(hideSuggest, 150));
+
+    window.addAclMember = async () => {
+        const username = document.getElementById('plan-acl-username').value.trim();
+        const role     = document.getElementById('plan-acl-role').value;
+        if (!username) return;
+        const r = await fetch(`/plans/${PLAN_ID}/acl`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, role })
+        });
+        const data = await r.json();
+        if (!data.success) return alert(data.error || 'Failed');
+        document.getElementById('plan-acl-username').value = '';
+        await refreshAclList();
+    };
+
+    window.changeAclRole = async sel => {
+        const uid  = sel.dataset.uid;
+        const role = sel.value;
+        const r = await fetch(`/plans/${PLAN_ID}/acl/${uid}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role })
+        });
+        const data = await r.json();
+        if (!data.success) alert(data.error || 'Failed');
+    };
+
+    window.removeAclMember = async uid => {
+        if (!confirm('Remove this member?')) return;
+        const r = await fetch(`/plans/${PLAN_ID}/acl/${uid}`, { method: 'DELETE' });
+        const data = await r.json();
+        if (data.success) refreshAclList();
+        else alert(data.error || 'Failed');
+    };
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+
+    [...document.querySelectorAll('.plan-modal')].forEach(m => {
+        m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+    });
+})();
+</script>
+<% } %>
+
+<!-- ─── Real-time collaboration (presence, live edits, cursors) ──────────── -->
+<style>
+#collab-presence {
+    position: absolute; top: 64px; right: 12px; z-index: 850;
+    display: flex; gap: 5px; align-items: center; flex-wrap: wrap-reverse;
+    max-width: 320px; justify-content: flex-end;
+    pointer-events: none;
+}
+/* Push the Leaflet zoom buttons down so they don't overlap presence chips. */
+#map-wrap .leaflet-top.leaflet-right { top: 56px; }
+.collab-chip {
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(12,22,12,0.93);
+    border: 1px solid var(--border);
+    border-radius: 14px; padding: 3px 9px 3px 4px;
+    font-size: 0.72em; font-family: 'Roboto Mono', monospace;
+    color: var(--sand); pointer-events: auto;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    white-space: nowrap;
+}
+.collab-chip .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    box-shadow: 0 0 4px currentColor;
+    flex-shrink: 0;
+}
+.collab-chip .role {
+    font-size: 0.78em; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em;
+}
+.collab-chip.self { border-color: var(--accent); }
+.collab-chip.self .role { color: var(--accent); }
+
+.collab-cursor {
+    position: absolute; z-index: 700;
+    pointer-events: none;
+    transition: transform 0.08s linear;
+    transform-origin: top left;
+    will-change: transform;
+}
+.collab-cursor svg { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); }
+.collab-cursor .label {
+    position: absolute; top: 18px; left: 14px;
+    padding: 1px 6px; border-radius: 3px;
+    font-size: 11px; font-family: 'Roboto Mono', monospace; font-weight: 700;
+    color: #1a2a1a;
+    white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+#tb-cursor-share.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+
+.collab-toast {
+    position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+    background: rgba(12,22,12,0.95); border: 1px solid var(--olive);
+    color: var(--sand); padding: 6px 14px; border-radius: 6px;
+    font-size: 0.78em; font-family: 'Roboto Mono', monospace;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+    z-index: 1100; pointer-events: none;
+    opacity: 0; transition: opacity 0.2s;
+}
+.collab-toast.show { opacity: 1; }
+</style>
+
+<div id="collab-presence"></div>
+<div id="collab-cursor-layer" style="position:absolute;inset:0;z-index:700;pointer-events:none;overflow:hidden;"></div>
+<div id="collab-toast" class="collab-toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function () {
+    if (typeof io === 'undefined') { console.warn('[collab] socket.io client not loaded'); return; }
+
+    const PLAN_ID = PLAN_CONTEXT.id;
+    const TOKEN   = (typeof MAP_API_TOKEN_QS === 'string' && MAP_API_TOKEN_QS)
+                    ? new URLSearchParams(MAP_API_TOKEN_QS).get('t') : null;
+
+    const socket = io('/plans', {
+        query: { planId: PLAN_ID, t: TOKEN || '' },
+        transports: ['websocket', 'polling']
+    });
+
+    // Presence state, keyed by socket id.
+    const peers = new Map();
+    let selfPresence = null;
+    let cursorShared = false;
+
+    // ─ DOM refs ─────────────────────────────────────────────────────────
+    const presenceEl = document.getElementById('collab-presence');
+    const cursorEl   = document.getElementById('collab-cursor-layer');
+    const toastEl    = document.getElementById('collab-toast');
+    const mapEl      = document.getElementById('map');
+
+    // The cursor layer must share the map's coordinate origin, otherwise
+    // Leaflet's containerPoint values land at the wrong place on screen
+    // (offset by the sidebar + topbar). Re-parent it into #map-wrap.
+    const mapWrap = document.getElementById('map-wrap');
+    if (mapWrap && cursorEl.parentNode !== mapWrap) mapWrap.appendChild(cursorEl);
+
+    function escHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+
+    function showToast(msg) {
+        toastEl.textContent = msg;
+        toastEl.classList.add('show');
+        clearTimeout(toastEl._t);
+        toastEl._t = setTimeout(() => toastEl.classList.remove('show'), 2200);
+    }
+
+    function renderPresence() {
+        const chips = [];
+        if (selfPresence) {
+            chips.push(`<div class="collab-chip self">
+                <span class="dot" style="background:${selfPresence.color};color:${selfPresence.color}"></span>
+                <span>${escHtml(selfPresence.username)}</span>
+                <span class="role">YOU · ${escHtml(selfPresence.role || 'viewer')}</span>
+            </div>`);
+        }
+        for (const p of peers.values()) {
+            chips.push(`<div class="collab-chip">
+                <span class="dot" style="background:${p.color};color:${p.color}"></span>
+                <span>${escHtml(p.username)}</span>
+                <span class="role">${escHtml(p.role || 'viewer')}</span>
+            </div>`);
+        }
+        presenceEl.innerHTML = chips.join('');
+    }
+
+    // ─ Cursor rendering ─────────────────────────────────────────────────
+    const cursorNodes = new Map(); // sid → DOM node
+
+    function ensureCursorNode(sid, p) {
+        let n = cursorNodes.get(sid);
+        if (n) return n;
+        n = document.createElement('div');
+        n.className = 'collab-cursor';
+        n.innerHTML = `
+            <svg width="22" height="22" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2 2 L2 18 L7 13 L10 20 L13 19 L10 12 L17 12 Z"
+                      fill="${p.color}" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/>
+            </svg>
+            <div class="label" style="background:${p.color}">${escHtml(p.username)}</div>`;
+        cursorEl.appendChild(n);
+        cursorNodes.set(sid, n);
+        return n;
+    }
+
+    function removeCursorNode(sid) {
+        const n = cursorNodes.get(sid);
+        if (n) { n.remove(); cursorNodes.delete(sid); }
+    }
+
+    // Map-space (lat,lng) cursors so they stay anchored as people pan/zoom.
+    const peerCursorLatLng = new Map(); // sid → L.LatLng
+
+    function refreshAllCursors() {
+        if (typeof map === 'undefined' || !map) return;
+        for (const [sid, latlng] of peerCursorLatLng.entries()) {
+            const p = peers.get(sid);
+            if (!p) continue;
+            const pt = map.latLngToContainerPoint(latlng);
+            const n = ensureCursorNode(sid, p);
+            n.style.transform = `translate(${pt.x}px, ${pt.y}px)`;
+        }
+    }
+
+    function whenMapReady(cb) {
+        if (typeof map !== 'undefined' && map) return cb();
+        const iv = setInterval(() => {
+            if (typeof map !== 'undefined' && map) { clearInterval(iv); cb(); }
+        }, 100);
+    }
+
+    whenMapReady(() => {
+        map.on('move zoom moveend zoomend', refreshAllCursors);
+    });
+
+    // ─ Outgoing cursor stream ───────────────────────────────────────────
+    let lastCursorSend = 0;
+    const CURSOR_MIN_MS = 33; // ~30 Hz
+
+    function onMouseMoveBroadcast(e) {
+        if (!cursorShared || typeof map === 'undefined' || !map) return;
+        const now = performance.now();
+        if (now - lastCursorSend < CURSOR_MIN_MS) return;
+        lastCursorSend = now;
+
+        const rect = mapEl.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        const latlng = map.containerPointToLatLng(L.point(px, py));
+        socket.emit('cursor:move', { x: latlng.lat, y: latlng.lng });
+    }
+    mapEl.addEventListener('mousemove', onMouseMoveBroadcast);
+    mapEl.addEventListener('mouseleave', () => {
+        // Stop showing our cursor on peers when it leaves the map area.
+        if (cursorShared) socket.emit('cursor:move', { x: -9999, y: -9999 });
+    });
+
+    // ─ Toolbar toggle ───────────────────────────────────────────────────
+    function injectToolbarToggle() {
+        const toolbar = document.getElementById('toolbar');
+        if (!toolbar || document.getElementById('tb-cursor-share')) return;
+        const btn = document.createElement('button');
+        btn.className = 'tb-btn';
+        btn.id = 'tb-cursor-share';
+        btn.title = 'Share my cursor with everyone viewing this plan';
+        btn.innerHTML = '👆 Share cursor';
+        btn.onclick = () => {
+            cursorShared = !cursorShared;
+            btn.classList.toggle('active', cursorShared);
+            btn.innerHTML = cursorShared ? '👆 Sharing cursor' : '👆 Share cursor';
+            socket.emit('cursor:toggle', cursorShared);
+        };
+        // Add a separator + button at the end of the toolbar.
+        const sep = document.createElement('div');
+        sep.className = 'tb-sep';
+        toolbar.appendChild(sep);
+        toolbar.appendChild(btn);
+    }
+    injectToolbarToggle();
+
+    // ─ Incoming events ──────────────────────────────────────────────────
+    socket.on('connect', () => {
+        window.PLAN_SOCKET_ID = socket.id;
+    });
+    socket.on('disconnect', () => { window.PLAN_SOCKET_ID = null; });
+
+    socket.on('hello', ({ self, peers: initialPeers }) => {
+        selfPresence = self;
+        peers.clear();
+        for (const p of initialPeers) peers.set(p.sid, p);
+        renderPresence();
+    });
+
+    socket.on('presence:join', p => {
+        peers.set(p.sid, p);
+        renderPresence();
+        showToast(`${p.username} joined`);
+    });
+    socket.on('presence:leave', ({ sid }) => {
+        const p = peers.get(sid);
+        peers.delete(sid);
+        peerCursorLatLng.delete(sid);
+        removeCursorNode(sid);
+        renderPresence();
+        if (p) showToast(`${p.username} left`);
+    });
+
+    socket.on('cursor:toggle', ({ sid, enabled }) => {
+        const p = peers.get(sid);
+        if (p) p.cursorOn = enabled;
+        if (!enabled) { peerCursorLatLng.delete(sid); removeCursorNode(sid); }
+    });
+    socket.on('cursor:leave', ({ sid }) => {
+        peerCursorLatLng.delete(sid);
+        removeCursorNode(sid);
+    });
+    socket.on('cursor:move', ({ sid, x, y }) => {
+        if (typeof map === 'undefined' || !map) return;
+        if (x === -9999 || y === -9999) { peerCursorLatLng.delete(sid); removeCursorNode(sid); return; }
+        peerCursorLatLng.set(sid, L.latLng(x, y));
+        refreshAllCursors();
+    });
+
+    // ─ Layer events ─────────────────────────────────────────────────────
+    socket.on('layer:create', ({ layer, by }) => {
+        if (!layer || layers[layer.id]) return;
+        createLocalLayer(layer);
+        renderLayerPanel();
+        if (by) showToast(`${by.username} added layer "${layer.name}"`);
+    });
+
+    socket.on('layer:update', ({ id, patch, by }) => {
+        const l = layers[id];
+        if (!l) return;
+        const prevColor   = l.meta.color;
+        const prevVisible = l.meta.is_visible;
+        Object.assign(l.meta, patch);
+        // Re-apply visibility immediately.
+        if (patch.is_visible !== undefined && prevVisible !== patch.is_visible) {
+            if (patch.is_visible) l.group.addTo(map);
+            else                   map.removeLayer(l.group);
+        }
+        // If color changed, re-render all features in this layer so styles update.
+        if (patch.color !== undefined && prevColor !== patch.color) {
+            const annsToRerender = Object.values(l.featureMap).map(rec => rec.ann);
+            for (const ann of annsToRerender) {
+                removeFeatureFromMap(ann.id, id);
+                renderAnnotation(ann);
+            }
+        }
+        renderLayerPanel();
+    });
+
+    socket.on('layer:delete', ({ id, by }) => {
+        const l = layers[id];
+        if (!l) return;
+        map.removeLayer(l.group);
+        delete layers[id];
+        if (typeof activeLayerId !== 'undefined' && activeLayerId === id) {
+            const remaining = Object.keys(layers);
+            setActiveLayer(remaining.length ? parseInt(remaining[0]) : null);
+        }
+        renderLayerPanel();
+        if (by) showToast(`${by.username} deleted a layer`);
+    });
+
+    // ─ Annotation events ────────────────────────────────────────────────
+    socket.on('annotation:create', ({ annotation, by }) => {
+        if (!annotation) return;
+        const l = layers[annotation.layer_id];
+        if (!l) return;
+        if (l.featureMap[annotation.id]) return; // already have it
+        renderAnnotation(annotation);
+        renderLayerPanel();
+    });
+
+    socket.on('annotation:update', ({ id, patch, by }) => {
+        // Locate the annotation across layers.
+        let foundLayerId = null, rec = null;
+        for (const [lid, l] of Object.entries(layers)) {
+            if (l.featureMap[id]) { foundLayerId = parseInt(lid); rec = l.featureMap[id]; break; }
+        }
+        if (!rec) return;
+        const ann = rec.ann;
+        if (patch.geometry   !== undefined) ann.geometry   = patch.geometry;
+        if (patch.properties !== undefined) ann.properties = patch.properties;
+        removeFeatureFromMap(id, foundLayerId);
+        renderAnnotation(ann);
+    });
+
+    socket.on('annotation:delete', ({ id, by }) => {
+        for (const [lid, l] of Object.entries(layers)) {
+            if (l.featureMap[id]) {
+                removeFeatureFromMap(id, parseInt(lid));
+                renderLayerPanel();
+                break;
+            }
+        }
+    });
+
+    socket.on('connect_error', err => {
+        console.warn('[collab] connection error:', err.message);
+    });
+})();
+</script>
+
+</body>
+</html>

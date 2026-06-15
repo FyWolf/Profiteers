@@ -1,0 +1,65 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>GIVE FEEDBACK</h1>
+        <div class="subtitle">About your <%= directionVerb %>: <%= subjectName %></div>
+    </header>
+
+    <section class="section">
+        <div class="form-wrap" style="max-width:760px;">
+            <% if (locals.error) { %><div class="alert alert-error"><%= error %></div><% } %>
+            <p class="fb-intro">
+                Please be honest and constructive. Your response is
+                <strong>anonymous</strong> — <%= subjectName %> will only see combined results
+                pooled with everyone else's, never your name.
+            </p>
+
+            <% if (questions.length === 0) { %>
+                <div class="empty-state">
+                    <div class="empty-icon">📝</div>
+                    <strong>No questions configured</strong>
+                    <p>There are no questions set up for this type of feedback yet.</p>
+                    <p style="margin-top:14px;"><a href="/feedback" class="btn">← Back</a></p>
+                </div>
+            <% } else { %>
+            <form method="POST" action="<%= formAction %>">
+                <% Object.entries(locals.hiddenFields || {}).forEach(([k, v]) => { %>
+                    <input type="hidden" name="<%= k %>" value="<%= v %>">
+                <% }) %>
+                <% questions.forEach(q => { %>
+                    <div class="field fb-question">
+                        <label><%= q.prompt %><% if (q.is_required) { %> <span class="fb-req">*</span><% } else { %> <span class="fb-optional">(optional)</span><% } %></label>
+                        <% if (q.type === 'rating') { %>
+                            <div class="rating-scale">
+                                <% for (let n = 1; n <= 5; n++) { %>
+                                    <label class="rating-opt">
+                                        <input type="radio" name="q_<%= q.id %>" value="<%= n %>" <%= q.is_required ? 'required' : '' %>>
+                                        <span class="rating-num"><%= n %></span>
+                                    </label>
+                                <% } %>
+                            </div>
+                            <div class="rating-legend"><span>1 — Poor</span><span>5 — Excellent</span></div>
+                        <% } else { %>
+                            <textarea name="q_<%= q.id %>" rows="4" <%= q.is_required ? 'required' : '' %>
+                                      placeholder="Write your thoughts…<%= q.is_required ? '' : ' (optional)' %>"></textarea>
+                        <% } %>
+                    </div>
+                <% }) %>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" style="flex:1;">Submit feedback</button>
+                    <a href="/feedback" class="btn">Cancel</a>
+                </div>
+                <% if (locals.adhoc) { %>
+                    <p class="fb-warn">⚠️ Each submission is saved as its own final record — you can record another afterwards.</p>
+                <% } else { %>
+                    <p class="fb-warn">⚠️ Once submitted, this form is final and cannot be changed.</p>
+                <% } %>
+            </form>
+            <% } %>
+        </div>
+    </section>
+</div>
+
+<%- include('../partials/footer') %>

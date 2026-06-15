@@ -1,0 +1,6 @@
+<% groups.forEach(g => { %>
+    <p class="fb-q-label"><%= g.prompt %></p>
+    <% g.comments.forEach(c => { %>
+        <blockquote class="fb-comment"><%= c %></blockquote>
+    <% }) %>
+<% }) %>

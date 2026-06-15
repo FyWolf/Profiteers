@@ -268,6 +268,17 @@
             </div>
             <% } %>
 
+            <% if (can('feedback.manage')) { %>
+            <div class="manage-card">
+                <div class="manage-card-top"><span class="manage-icon">📋</span></div>
+                <div class="manage-title">Leadership Feedback</div>
+                <div class="manage-desc">Open ORBAT-driven 360° feedback rounds, edit the question bank, and review participation.</div>
+                <div class="manage-card-footer">
+                    <a href="/admin/feedback" class="manage-link primary">Manage</a>
+                </div>
+            </div>
+            <% } %>
+
             <% if (can('trainings.manage')) { %>
             <div class="manage-card">
                 <div class="manage-card-top">
@@ -314,6 +325,17 @@
                 <div class="manage-card-footer">
                     <a href="/lore/admin" class="manage-link primary">Manage</a>
                     <a href="/lore" class="manage-link secondary">View Terminal</a>
+                </div>
+            </div>
+            <% } %>
+
+            <% if (can('map.plans.admin')) { %>
+            <div class="manage-card">
+                <div class="manage-card-top"><span class="manage-icon">🗺</span></div>
+                <div class="manage-title">Map Plans &amp; Terrains</div>
+                <div class="manage-desc">Manage user-created map plans, transfer ownership, and import terrain zips.</div>
+                <div class="manage-card-footer">
+                    <a href="/admin/map-plans" class="manage-link primary">Manage</a>
                 </div>
             </div>
             <% } %>
@@ -391,6 +413,17 @@
                     <a href="/admin/presence" class="manage-link primary">View Stats</a>
                 </div>
             </div>
+
+            <% if (can('logs.view')) { %>
+            <div class="manage-card">
+                <div class="manage-card-top"><span class="manage-icon">📜</span></div>
+                <div class="manage-title">Action Log</div>
+                <div class="manage-desc">Full audit trail of every action taken on the site — who did what, where and when.</div>
+                <div class="manage-card-footer">
+                    <a href="/admin/logs" class="manage-link primary">View Log</a>
+                </div>
+            </div>
+            <% } %>
 
         </div>
     </section>

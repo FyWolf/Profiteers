@@ -1,0 +1,116 @@
+<%- include('../../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>LEADERSHIP FEEDBACK</h1>
+        <div class="subtitle">Open feedback rounds and review participation</div>
+    </header>
+
+    <section class="section">
+        <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+        <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+        <div class="top-row">
+            <h2 style="margin:0;">QUESTION BANK</h2>
+            <a href="/admin/feedback/questions" class="btn">⚙️ Manage questions (<%= questionCount %>)</a>
+        </div>
+
+        <% if (questionCount === 0) { %>
+            <div class="alert alert-error">No active questions yet — add some before opening a round.</div>
+        <% } %>
+
+        <!-- ── Open a new round ─────────────────────────────────────────────── -->
+        <h2 class="fb-group-title" style="margin-top:24px;">OPEN A NEW ROUND</h2>
+        <% if (hasOpen) { %>
+            <div class="alert alert-error">A round is already open. Close it below before opening another.</div>
+        <% } else if (templates.length === 0) { %>
+            <div class="alert alert-error">No active ORBAT templates found. Create/activate a fixed ORBAT template with slot assignments first.</div>
+        <% } else { %>
+            <div class="form-wrap" style="max-width:680px;">
+                <form method="POST" action="/admin/feedback/open">
+                    <div class="field">
+                        <label for="title">Round title *</label>
+                        <input type="text" id="title" name="title" required maxlength="150"
+                               placeholder="e.g., June 2026 Leadership Feedback">
+                    </div>
+                    <div class="field">
+                        <label for="template_id">Command structure (ORBAT template) *</label>
+                        <select id="template_id" name="template_id" required>
+                            <% templates.forEach(t => { %>
+                                <option value="<%= t.id %>"><%= t.name %></option>
+                            <% }) %>
+                        </select>
+                        <small>Superior / peer / subordinate relationships are derived from this template's slot assignments and frozen for the round.</small>
+                    </div>
+                    <div class="field">
+                        <label for="deadline">Deadline (optional)</label>
+                        <input type="datetime-local" id="deadline" name="deadline">
+                        <small>The round auto-closes at this time (announced in Discord). Leave blank for no deadline — it then closes manually or once every assigned review is in.</small>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" <%= questionCount === 0 ? 'disabled' : '' %>>📢 Open round &amp; announce</button>
+                    </div>
+                </form>
+            </div>
+        <% } %>
+
+        <!-- ── Past & current rounds ────────────────────────────────────────── -->
+        <h2 class="fb-group-title" style="margin-top:28px;">ROUNDS</h2>
+        <% if (cycles.length === 0) { %>
+            <div class="empty-state">
+                <div class="empty-icon">📋</div>
+                <strong>No rounds yet</strong>
+            </div>
+        <% } else { %>
+            <table class="act-table fb-rounds">
+                <thead>
+                    <tr>
+                        <th>ROUND</th>
+                        <th>STRUCTURE</th>
+                        <th class="r">PROGRESS</th>
+                        <th>DEADLINE</th>
+                        <th>STATUS</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% cycles.forEach(c => {
+                        const pct = c.total_pairs > 0 ? Math.round((c.submitted_pairs / c.total_pairs) * 100) : 0;
+                    %>
+                        <tr>
+                            <td><a href="/admin/feedback/round/<%= c.id %>"><strong><%= c.title %></strong></a></td>
+                            <td class="khaki"><%= c.template_name || '—' %></td>
+                            <td class="r">
+                                <%= c.submitted_pairs %>/<%= c.total_pairs %>
+                                <div class="ret-bar-wrap"><div class="ret-bar-fill" style="width:<%= pct %>%;background:var(--accent);opacity:0.7;"></div></div>
+                            </td>
+                            <td class="khaki">
+                                <% if (c.deadline) { %>
+                                    <%= new Date(c.deadline * 1000).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) %> UTC
+                                <% } else { %>—<% } %>
+                            </td>
+                            <td>
+                                <% if (c.status === 'open') { %><span class="fb-badge fb-badge-open">OPEN</span>
+                                <% } else { %><span class="fb-badge fb-badge-closed">CLOSED</span><% } %>
+                            </td>
+                            <td class="r">
+                                <% if (c.status === 'open') { %>
+                                    <form method="POST" action="/admin/feedback/close/<%= c.id %>"
+                                          onsubmit="return confirm('Close this round? Members will no longer be able to submit.')">
+                                        <button type="submit" class="act act-del">Close</button>
+                                    </form>
+                                <% } else { %>
+                                    <a href="/admin/feedback/round/<%= c.id %>" class="act act-edit">View</a>
+                                <% } %>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        <% } %>
+    </section>
+
+    <div class="mt-2"><a href="/admin" class="btn">← Back to Dashboard</a></div>
+</div>
+
+<%- include('../../partials/footer') %>
