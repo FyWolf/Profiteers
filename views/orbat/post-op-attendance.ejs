@@ -1,0 +1,121 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>POST-OP ATTENDANCE</h1>
+        <div class="subtitle"><%= operation.title %></div>
+        <div class="stat-bar">
+            <div class="stat-chip">
+                <span class="stat-val"><%= squads.reduce((s, sq) => s + sq.roles.length, 0) %></span>
+                <span class="stat-lbl">Slots in Scope</span>
+            </div>
+            <div class="stat-chip">
+                <span class="stat-val"><%= Object.keys(existingMap).length %></span>
+                <span class="stat-lbl">Records Saved</span>
+            </div>
+        </div>
+    </header>
+
+    <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+    <% if (error)   { %><div class="alert alert-error"><%= error %></div><% } %>
+
+    <% if (squads.length === 0) { %>
+        <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <strong>No assigned slots in your scope</strong>
+            <p>There are no filled slots in the squads you manage for this operation.</p>
+        </div>
+    <% } else { %>
+
+    <form method="POST" action="/operations/<%= operation.id %>/post-op">
+        <% squads.forEach(squad => { %>
+        <div class="panel" style="margin-bottom:18px;">
+            <h3 style="margin:0 0 14px;font-size:0.92em;color:var(--accent);letter-spacing:0.06em;"><%= squad.squad_name %></h3>
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:1px solid rgba(107,142,35,0.3);">
+                        <th style="padding:8px 10px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">PLAYER</th>
+                        <th style="padding:8px 10px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">SLOT</th>
+                        <th style="padding:8px 10px;text-align:center;font-size:0.75em;color:var(--khaki);font-weight:600;">STATUS</th>
+                        <th style="padding:8px 10px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">NOTES</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <% squad.roles.forEach(role => {
+                    const existing = existingMap[role.user_id] || {};
+                    const status = existing.status || '';
+                    const loa = loaMap[role.user_id];
+                %>
+                    <tr style="border-bottom:1px solid rgba(107,142,35,0.1);">
+                        <td style="padding:10px 10px;font-size:0.88em;color:var(--sand);">
+                            <%= role.discord_global_name || role.username %>
+                            <% if (loa) {
+                                const fmt = ts => new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            %>
+                            <span title="LOA: <%= fmt(loa.start_date) %> – <%= fmt(loa.end_date) %>"
+                                  style="margin-left:6px;padding:2px 7px;background:rgba(52,152,219,0.18);border:1px solid rgba(52,152,219,0.45);border-radius:3px;font-size:0.75em;color:#5dade2;white-space:nowrap;vertical-align:middle;cursor:default;">
+                                LOA &nbsp;<span style="opacity:0.75;font-weight:400;"><%= fmt(loa.start_date) %> – <%= fmt(loa.end_date) %></span>
+                            </span>
+                            <% } %>
+                        </td>
+                        <td style="padding:10px 10px;font-size:0.82em;color:var(--khaki);">
+                            <% if (role.slot_type_abbr) { %>
+                                <span class="badge" style="background:rgba(107,142,35,0.2);"><%= role.slot_type_abbr %></span>
+                            <% } %>
+                            <%= role.slot_type_name || '—' %>
+                        </td>
+                        <td style="padding:10px 10px;text-align:center;">
+                            <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">
+                                <% ['present','excused','awol'].forEach(s => { %>
+                                <label class="att-status-label att-<%= s %> <%= status === s ? 'selected' : '' %>"
+                                       style="cursor:pointer;">
+                                    <input type="radio" name="entries[u<%= role.user_id %>][status]"
+                                           value="<%= s %>" <%= status === s ? 'checked' : '' %>
+                                           onchange="this.closest('tr').querySelectorAll('.att-status-label').forEach(l=>l.classList.remove('selected')); this.parentElement.classList.add('selected');"
+                                           style="display:none;">
+                                    <%= s.charAt(0).toUpperCase() + s.slice(1) %>
+                                </label>
+                                <% }); %>
+                            </div>
+                        </td>
+                        <td style="padding:10px 10px;">
+                            <input type="text" name="entries[u<%= role.user_id %>][notes]"
+                                   value="<%= existing.notes || '' %>" placeholder="Optional"
+                                   style="width:100%;box-sizing:border-box;padding:5px 8px;background:rgba(40,40,40,0.8);color:var(--sand);border:1px solid rgba(107,142,35,0.35);border-radius:4px;font-family:var(--body-font);font-size:0.82em;">
+                        </td>
+                    </tr>
+                <% }); %>
+                </tbody>
+            </table>
+        </div>
+        <% }); %>
+
+        <div style="display:flex;gap:10px;margin-top:6px;">
+            <button type="submit" class="btn btn-primary" style="padding:9px 24px;">Save Attendance</button>
+            <a href="/operations/<%= operation.id %>/post-op/overview" class="btn" style="padding:9px 18px;">Overview</a>
+            <a href="/operations/<%= operation.id %>" class="btn" style="padding:9px 18px;">← Back to Op</a>
+        </div>
+    </form>
+
+    <% } %>
+</div>
+
+<style>
+.att-status-label {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.78em;
+    font-weight: 600;
+    border: 1px solid rgba(107,142,35,0.3);
+    background: rgba(40,40,40,0.6);
+    color: var(--khaki);
+    transition: all 0.15s;
+    user-select: none;
+}
+.att-status-label:hover { opacity: 0.85; }
+.att-present.selected  { background: rgba(46,160,67,0.25);  border-color: #2ea043; color: #4caf6e; }
+.att-excused.selected  { background: rgba(52,152,219,0.2);  border-color: #3498db; color: #5dade2; }
+.att-awol.selected     { background: rgba(220,53,69,0.2);   border-color: #dc3545; color: #e86070; }
+</style>
+
+<%- include('../partials/footer') %>

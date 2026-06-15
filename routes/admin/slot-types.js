@@ -47,7 +47,7 @@ router.get('/', async (req, res) => {
 
 router.post('/add', async (req, res) => {
     try {
-        const { name, abbreviation } = req.body;
+        const { name, abbreviation, is_leader } = req.body;
 
         if (!name || !name.trim()) {
             return res.redirect('/admin/slot-types?error=Name is required');
@@ -57,8 +57,8 @@ router.post('/add', async (req, res) => {
         const nextOrder = (maxOrder ?? -1) + 1;
 
         await db.query(
-            'INSERT INTO slot_types (name, abbreviation, display_order, created_by) VALUES (?, ?, ?, ?)',
-            [name.trim(), abbreviation?.trim() || null, nextOrder, req.session.userId]
+            'INSERT INTO slot_types (name, abbreviation, is_leader, display_order, created_by) VALUES (?, ?, ?, ?, ?)',
+            [name.trim(), abbreviation?.trim() || null, is_leader === 'on' ? 1 : 0, nextOrder, req.session.userId]
         );
 
         res.redirect('/admin/slot-types?success=Slot type created');
@@ -75,15 +75,15 @@ router.post('/edit/:id', async (req, res) => {
             return res.redirect('/admin/slot-types?error=Slot type not found');
         }
 
-        const { name, abbreviation } = req.body;
+        const { name, abbreviation, is_leader } = req.body;
 
         if (!name || !name.trim()) {
             return res.redirect('/admin/slot-types?error=Name is required');
         }
 
         await db.query(
-            'UPDATE slot_types SET name = ?, abbreviation = ? WHERE id = ?',
-            [name.trim(), abbreviation?.trim() || null, req.params.id]
+            'UPDATE slot_types SET name = ?, abbreviation = ?, is_leader = ? WHERE id = ?',
+            [name.trim(), abbreviation?.trim() || null, is_leader === 'on' ? 1 : 0, req.params.id]
         );
 
         res.redirect('/admin/slot-types?success=Slot type updated');
@@ -120,20 +120,20 @@ router.post('/reorder', async (req, res) => {
     if (!Array.isArray(ids) || ids.length === 0) {
         return res.json({ success: false, error: 'Invalid order data' });
     }
-    const conn = await db.getConnection();
+    const parsed = ids.map(id => parseInt(id));
+    if (parsed.some(isNaN)) {
+        return res.json({ success: false, error: 'Invalid order data' });
+    }
     try {
-        await conn.beginTransaction();
-        for (let idx = 0; idx < ids.length; idx++) {
-            await conn.query('UPDATE slot_types SET display_order = ? WHERE id = ?', [idx, parseInt(ids[idx])]);
-        }
-        await conn.commit();
+        const cases = parsed.map((_, idx) => `WHEN ? THEN ${idx}`).join(' ');
+        await db.query(
+            `UPDATE slot_types SET display_order = CASE id ${cases} END WHERE id IN (${parsed.map(() => '?').join(',')})`,
+            [...parsed, ...parsed]
+        );
         res.json({ success: true });
     } catch (error) {
-        await conn.rollback();
         console.error('Error reordering slot types:', error);
         res.json({ success: false, error: 'Failed to save order' });
-    } finally {
-        conn.release();
     }
 });
 

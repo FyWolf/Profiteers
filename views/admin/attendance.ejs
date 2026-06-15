@@ -1,0 +1,124 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>ATTENDANCE REPORT</h1>
+        <div class="subtitle">Post-operation attendance records</div>
+        <div class="stat-bar">
+            <div class="stat-chip">
+                <span class="stat-val"><%= records.length %></span>
+                <span class="stat-lbl">Records</span>
+            </div>
+            <div class="stat-chip">
+                <span class="stat-val" style="color:#4caf6e;"><%= totalPresent %></span>
+                <span class="stat-lbl">Present</span>
+            </div>
+            <div class="stat-chip">
+                <span class="stat-val"><%= pctPresent %>%</span>
+                <span class="stat-lbl">Attendance Rate</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Filters -->
+    <div class="panel" style="margin-bottom:18px;">
+        <h3 style="margin:0 0 12px;font-size:0.88em;">FILTER</h3>
+        <form method="GET" action="/admin/attendance">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
+                <div style="flex:2;min-width:160px;">
+                    <label style="font-size:0.75em;color:var(--khaki);display:block;margin-bottom:3px;">Operation</label>
+                    <select name="operation_id"
+                            style="width:100%;box-sizing:border-box;padding:6px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.85em;">
+                        <option value="">All operations</option>
+                        <% operations.forEach(op => { %>
+                            <option value="<%= op.id %>" <%= filters.operation_id == op.id ? 'selected' : '' %>><%= op.title %></option>
+                        <% }); %>
+                    </select>
+                </div>
+                <div style="flex:2;min-width:140px;">
+                    <label style="font-size:0.75em;color:var(--khaki);display:block;margin-bottom:3px;">Player</label>
+                    <input type="text" name="player" value="<%= filters.player || '' %>" placeholder="Username or name"
+                           style="width:100%;box-sizing:border-box;padding:6px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.85em;">
+                </div>
+                <div style="flex:1;min-width:120px;">
+                    <label style="font-size:0.75em;color:var(--khaki);display:block;margin-bottom:3px;">Status</label>
+                    <select name="status"
+                            style="width:100%;box-sizing:border-box;padding:6px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.85em;">
+                        <option value="">All</option>
+                        <% ['present','excused','awol'].forEach(s => { %>
+                            <option value="<%= s %>" <%= filters.status === s ? 'selected' : '' %>><%= s.charAt(0).toUpperCase() + s.slice(1) %></option>
+                        <% }); %>
+                    </select>
+                </div>
+                <div style="flex:1;min-width:120px;">
+                    <label style="font-size:0.75em;color:var(--khaki);display:block;margin-bottom:3px;">From</label>
+                    <input type="date" name="date_from" value="<%= filters.date_from || '' %>"
+                           style="width:100%;box-sizing:border-box;padding:6px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.85em;">
+                </div>
+                <div style="flex:1;min-width:120px;">
+                    <label style="font-size:0.75em;color:var(--khaki);display:block;margin-bottom:3px;">To</label>
+                    <input type="date" name="date_to" value="<%= filters.date_to || '' %>"
+                           style="width:100%;box-sizing:border-box;padding:6px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.85em;">
+                </div>
+                <div style="flex:0 0 auto;display:flex;gap:6px;">
+                    <button type="submit" class="btn btn-primary" style="padding:6px 16px;">Filter</button>
+                    <a href="/admin/attendance" class="btn" style="padding:6px 12px;">Clear</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <% if (records.length === 0) { %>
+        <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <strong>No records found</strong>
+            <p>No attendance records match the selected filters.</p>
+        </div>
+    <% } else { %>
+    <div class="panel" style="padding:0;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr style="border-bottom:1px solid rgba(107,142,35,0.3);">
+                    <th style="padding:10px 14px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">OPERATION</th>
+                    <th style="padding:10px 14px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">DATE</th>
+                    <th style="padding:10px 14px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">PLAYER</th>
+                    <th style="padding:10px 14px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">SQUAD</th>
+                    <th style="padding:10px 14px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">SLOT</th>
+                    <th style="padding:10px 14px;text-align:center;font-size:0.75em;color:var(--khaki);font-weight:600;">STATUS</th>
+                    <th style="padding:10px 14px;text-align:left;font-size:0.75em;color:var(--khaki);font-weight:600;">SUBMITTED BY</th>
+                </tr>
+            </thead>
+            <tbody>
+            <% const statusColors = { present: '#4caf6e', excused: '#5dade2', awol: '#e86070' }; %>
+            <% records.forEach(r => { %>
+                <tr style="border-bottom:1px solid rgba(107,142,35,0.1);">
+                    <td style="padding:9px 14px;font-size:0.85em;color:var(--sand);">
+                        <a href="/operations/<%= r.operation_id %>" style="color:var(--sand);text-decoration:none;"><%= r.operation_title %></a>
+                    </td>
+                    <td style="padding:9px 14px;font-size:0.82em;color:var(--khaki);">
+                        <% if (r.operation_date) { %><%= new Date(r.operation_date * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %><% } else { %>—<% } %>
+                    </td>
+                    <td style="padding:9px 14px;font-size:0.85em;color:var(--sand);">
+                        <%= r.player_display || r.player_username %>
+                    </td>
+                    <td style="padding:9px 14px;font-size:0.82em;color:var(--khaki);"><%= r.squad_name %></td>
+                    <td style="padding:9px 14px;font-size:0.82em;color:var(--khaki);">
+                        <% if (r.slot_type_abbr) { %><span class="badge" style="background:rgba(107,142,35,0.2);" title="<%= r.slot_type_name %>"><%= r.slot_type_abbr %></span><% } else { %><%= r.slot_type_name %><% } %>
+                    </td>
+                    <td style="padding:9px 14px;text-align:center;">
+                        <span class="badge" style="color:<%= statusColors[r.status] || 'var(--khaki)' %>;background:rgba(40,40,40,0.6);border:1px solid <%= statusColors[r.status] || 'rgba(107,142,35,0.3)' %>;">
+                            <%= r.status === 'awol' ? 'AWOL' : r.status.charAt(0).toUpperCase() + r.status.slice(1) %>
+                        </span>
+                    </td>
+                    <td style="padding:9px 14px;font-size:0.82em;color:var(--khaki);opacity:0.7;"><%= r.submitted_by_username %></td>
+                </tr>
+            <% }); %>
+            </tbody>
+        </table>
+    </div>
+    <% } %>
+
+    <div class="mt-2"><a href="/admin" class="btn">← Back to Dashboard</a></div>
+</div>
+
+<%- include('../partials/footer') %>

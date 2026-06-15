@@ -108,6 +108,36 @@ function timestampToUTC(timestamp) {
         <% } %>
     </div>
 
+    <!-- ── Post-op attendance banner ────────────────────────────────── -->
+    <% if (attendanceBanner === 'pending') { %>
+    <div style="margin-bottom:18px;padding:12px 18px;background:rgba(252,176,13,0.1);border:1px solid rgba(252,176,13,0.5);border-radius:6px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <div style="font-size:0.88em;font-weight:700;color:var(--accent);">POST-OP ATTENDANCE PENDING</div>
+            <div style="font-size:0.8em;color:var(--khaki);margin-top:2px;">This operation has ended. Please submit attendance for your squad.</div>
+        </div>
+        <a href="/operations/<%= operation.id %>/post-op" class="btn btn-primary" style="padding:7px 16px;white-space:nowrap;">Submit Attendance</a>
+    </div>
+    <% } else if (attendanceBanner === 'submitted') { %>
+    <div style="margin-bottom:18px;padding:12px 18px;background:rgba(46,160,67,0.1);border:1px solid rgba(46,160,67,0.45);border-radius:6px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <div style="font-size:0.88em;font-weight:700;color:#4caf6e;">ATTENDANCE SUBMITTED</div>
+            <div style="font-size:0.8em;color:var(--khaki);margin-top:2px;">You have submitted attendance for this operation. You can edit it at any time.</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <a href="/operations/<%= operation.id %>/post-op/overview" class="btn" style="padding:7px 16px;white-space:nowrap;">View Overview</a>
+            <a href="/operations/<%= operation.id %>/post-op" class="btn" style="padding:7px 16px;white-space:nowrap;">Edit</a>
+        </div>
+    </div>
+    <% } else if (attendanceBanner === 'admin') { %>
+    <div style="margin-bottom:18px;padding:12px 18px;background:rgba(40,40,40,0.6);border:1px solid rgba(107,142,35,0.35);border-radius:6px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <div style="font-size:0.88em;font-weight:700;color:var(--khaki);">POST-OP ATTENDANCE</div>
+            <div style="font-size:0.8em;color:var(--khaki);opacity:0.7;margin-top:2px;">View or manage attendance for this operation.</div>
+        </div>
+        <a href="/operations/<%= operation.id %>/post-op/overview" class="btn" style="padding:7px 16px;white-space:nowrap;">View Attendance</a>
+    </div>
+    <% } %>
+
     <!-- ── Main 2-col grid ────────────────────────────────────────────── -->
     <div class="grid grid-2" style="align-items:start;grid-template-columns:3fr 2fr;">
 
