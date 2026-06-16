@@ -1,0 +1,223 @@
+<%- include('../partials/header') %>
+
+<%
+// Normalize a stored JSON role-id column into an array of id strings.
+function ridList(v) {
+    if (Array.isArray(v)) return v.map(String);
+    if (typeof v === 'string' && v.trim()) {
+        try { const a = JSON.parse(v); return Array.isArray(a) ? a.map(String) : []; } catch { return []; }
+    }
+    return [];
+}
+%>
+
+<div class="container">
+    <header>
+        <h1>ATTENDANCE REWARDS</h1>
+        <div class="subtitle">Automatically grant or remove Discord roles at attendance milestones</div>
+        <div class="stat-bar">
+            <div class="stat-chip">
+                <span class="stat-val"><%= rules.length %></span>
+                <span class="stat-lbl">Rules</span>
+            </div>
+            <div class="stat-chip">
+                <span class="stat-val"><%= rules.filter(r => r.is_active).length %></span>
+                <span class="stat-lbl">Active</span>
+            </div>
+            <div class="stat-chip">
+                <span class="stat-val"><%= guildRoles.length %></span>
+                <span class="stat-lbl">Discord Roles</span>
+            </div>
+        </div>
+    </header>
+
+    <section class="section">
+        <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+        <% if (error)   { %><div class="alert alert-error"><%= error %></div><% } %>
+        <% if (rolesError) { %><div class="alert alert-error"><%= rolesError %></div><% } %>
+
+        <div class="panel" style="margin-bottom:18px;font-size:0.82em;color:var(--khaki);line-height:1.5;">
+            Counts are based on confirmed <strong style="color:var(--sand);">Present</strong> post-op attendance (cumulative).
+            A rule applies its role changes <strong style="color:var(--sand);">once</strong> per member when they reach the threshold.
+            The bot needs the <strong style="color:var(--sand);">Manage Roles</strong> permission, and its highest role must sit
+            <strong style="color:var(--sand);">above</strong> any role it grants or removes.
+            When a member is granted a role they didn't already have, a congratulations message is posted to the
+            <strong style="color:var(--sand);">DISCORD_REWARDS_CHANNEL_ID</strong> channel (members already holding the role are not congratulated).
+            Backfill on rule creation and "Re-run all" apply roles silently (no notifications).
+        </div>
+
+        <!-- Add new rule -->
+        <div class="panel" style="margin-bottom:18px;">
+            <h3 style="margin:0 0 12px;">ADD RULE</h3>
+            <form method="POST" action="/admin/attendance-rewards/add">
+                <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">
+                    <div style="flex:2;min-width:160px;">
+                        <label style="font-size:0.78em;color:var(--khaki);display:block;margin-bottom:4px;">Name *</label>
+                        <input type="text" name="name" required placeholder="e.g. Veteran promotion"
+                               style="width:100%;box-sizing:border-box;padding:7px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.88em;">
+                    </div>
+                    <div style="flex:0 0 130px;">
+                        <label style="font-size:0.78em;color:var(--khaki);display:block;margin-bottom:4px;">After X attendances *</label>
+                        <input type="number" name="threshold" min="1" required placeholder="10"
+                               style="width:100%;box-sizing:border-box;padding:7px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.88em;">
+                    </div>
+                    <div style="flex:1;min-width:200px;">
+                        <label style="font-size:0.78em;color:#4caf6e;display:block;margin-bottom:4px;">Roles to ADD</label>
+                        <select multiple name="add_role_ids" size="6"
+                                style="width:100%;box-sizing:border-box;padding:5px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(46,160,67,0.4);border-radius:5px;font-family:var(--body-font);font-size:0.84em;">
+                            <% guildRoles.forEach(role => { %>
+                                <option value="<%= role.id %>"><%= role.name %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div style="flex:1;min-width:200px;">
+                        <label style="font-size:0.78em;color:#e86070;display:block;margin-bottom:4px;">Roles to REMOVE</label>
+                        <select multiple name="remove_role_ids" size="6"
+                                style="width:100%;box-sizing:border-box;padding:5px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(220,53,69,0.4);border-radius:5px;font-family:var(--body-font);font-size:0.84em;">
+                            <% guildRoles.forEach(role => { %>
+                                <option value="<%= role.id %>"><%= role.name %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;margin-top:12px;">
+                    <button type="submit" class="btn btn-primary" style="padding:8px 18px;">Add Rule</button>
+                    <span style="font-size:0.74em;color:var(--khaki);opacity:0.6;">Ctrl / Cmd-click to select multiple roles. Creating a rule applies it to members who already qualify.</span>
+                </div>
+            </form>
+        </div>
+
+        <!-- Existing rules -->
+        <% if (rules.length === 0) { %>
+            <div class="empty-state">
+                <div class="empty-icon">🎖️</div>
+                <strong>No reward rules yet</strong>
+                <p>Add your first rule above to start granting roles automatically.</p>
+            </div>
+        <% } else { %>
+        <div class="panel" style="padding:0;overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:1px solid rgba(107,142,35,0.3);">
+                        <th style="padding:10px 14px;text-align:left;font-size:0.78em;color:var(--khaki);font-weight:600;">RULE</th>
+                        <th style="padding:10px 14px;text-align:center;font-size:0.78em;color:var(--khaki);font-weight:600;">AFTER</th>
+                        <th style="padding:10px 14px;text-align:left;font-size:0.78em;color:var(--khaki);font-weight:600;">ADD</th>
+                        <th style="padding:10px 14px;text-align:left;font-size:0.78em;color:var(--khaki);font-weight:600;">REMOVE</th>
+                        <th style="padding:10px 14px;text-align:center;font-size:0.78em;color:var(--khaki);font-weight:600;">APPLIED</th>
+                        <th style="padding:10px 14px;text-align:center;font-size:0.78em;color:var(--khaki);font-weight:600;">ACTIVE</th>
+                        <th style="padding:10px 14px;text-align:right;font-size:0.78em;color:var(--khaki);font-weight:600;">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <% rules.forEach(rule => {
+                    const addIds = ridList(rule.add_role_ids);
+                    const remIds = ridList(rule.remove_role_ids);
+                %>
+                    <tr style="border-bottom:1px solid rgba(107,142,35,0.12);">
+                        <td style="padding:10px 14px;">
+                            <strong style="font-family:var(--heading-font);font-size:0.85em;color:var(--sand);"><%= rule.name %></strong>
+                        </td>
+                        <td style="padding:10px 14px;text-align:center;font-size:0.85em;color:var(--sand);"><%= rule.threshold %></td>
+                        <td style="padding:10px 14px;">
+                            <% if (addIds.length === 0) { %><span style="color:var(--khaki);opacity:0.4;">—</span><% } %>
+                            <% addIds.forEach(id => { %>
+                                <span class="badge" style="background:rgba(46,160,67,0.18);color:#4caf6e;font-size:0.72em;margin:1px;<%= roleNameById[id] ? '' : 'opacity:0.6;font-style:italic;' %>"><%= roleNameById[id] || ('#' + id) %></span>
+                            <% }) %>
+                        </td>
+                        <td style="padding:10px 14px;">
+                            <% if (remIds.length === 0) { %><span style="color:var(--khaki);opacity:0.4;">—</span><% } %>
+                            <% remIds.forEach(id => { %>
+                                <span class="badge" style="background:rgba(220,53,69,0.18);color:#e86070;font-size:0.72em;margin:1px;<%= roleNameById[id] ? '' : 'opacity:0.6;font-style:italic;' %>"><%= roleNameById[id] || ('#' + id) %></span>
+                            <% }) %>
+                        </td>
+                        <td style="padding:10px 14px;text-align:center;">
+                            <span class="badge" style="background:rgba(107,142,35,0.2);"><%= rule.applied_count %></span>
+                        </td>
+                        <td style="padding:10px 14px;text-align:center;">
+                            <% if (rule.is_active) { %>
+                                <span class="badge" style="background:rgba(46,160,67,0.2);color:#4caf6e;font-size:0.72em;">ON</span>
+                            <% } else { %>
+                                <span class="badge" style="background:rgba(40,40,40,0.6);color:var(--khaki);font-size:0.72em;">OFF</span>
+                            <% } %>
+                        </td>
+                        <td style="padding:10px 14px;text-align:right;">
+                            <div style="display:inline-flex;gap:6px;justify-content:flex-end;">
+                                <button onclick="toggleEdit(<%= rule.id %>)" class="btn" style="padding:4px 10px;font-size:0.78em;">Edit</button>
+                                <form method="POST" action="/admin/attendance-rewards/delete/<%= rule.id %>" style="display:inline;"
+                                      onsubmit="return confirm('Delete rule &quot;<%= rule.name.replace(/'/g, "\\'") %>&quot;? Already-granted roles stay on members.');">
+                                    <button type="submit" class="btn btn-danger" style="padding:4px 10px;font-size:0.78em;">Del</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Inline edit row -->
+                    <tr id="edit-row-<%= rule.id %>" style="display:none;background:rgba(0,0,0,0.25);">
+                        <td colspan="7" style="padding:14px;">
+                            <form method="POST" action="/admin/attendance-rewards/edit/<%= rule.id %>">
+                                <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">
+                                    <div style="flex:2;min-width:160px;">
+                                        <label style="font-size:0.75em;color:var(--khaki);display:block;margin-bottom:3px;">Name *</label>
+                                        <input type="text" name="name" value="<%= rule.name %>" required
+                                               style="width:100%;box-sizing:border-box;padding:6px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.88em;">
+                                    </div>
+                                    <div style="flex:0 0 120px;">
+                                        <label style="font-size:0.75em;color:var(--khaki);display:block;margin-bottom:3px;">After X</label>
+                                        <input type="number" name="threshold" min="1" value="<%= rule.threshold %>" required
+                                               style="width:100%;box-sizing:border-box;padding:6px 10px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(107,142,35,0.45);border-radius:5px;font-family:var(--body-font);font-size:0.88em;">
+                                    </div>
+                                    <div style="flex:1;min-width:180px;">
+                                        <label style="font-size:0.75em;color:#4caf6e;display:block;margin-bottom:3px;">Roles to ADD</label>
+                                        <select multiple name="add_role_ids" size="5"
+                                                style="width:100%;box-sizing:border-box;padding:5px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(46,160,67,0.4);border-radius:5px;font-family:var(--body-font);font-size:0.84em;">
+                                            <% guildRoles.forEach(role => { %>
+                                                <option value="<%= role.id %>" <%= addIds.includes(role.id) ? 'selected' : '' %>><%= role.name %></option>
+                                            <% }) %>
+                                        </select>
+                                    </div>
+                                    <div style="flex:1;min-width:180px;">
+                                        <label style="font-size:0.75em;color:#e86070;display:block;margin-bottom:3px;">Roles to REMOVE</label>
+                                        <select multiple name="remove_role_ids" size="5"
+                                                style="width:100%;box-sizing:border-box;padding:5px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid rgba(220,53,69,0.4);border-radius:5px;font-family:var(--body-font);font-size:0.84em;">
+                                            <% guildRoles.forEach(role => { %>
+                                                <option value="<%= role.id %>" <%= remIds.includes(role.id) ? 'selected' : '' %>><%= role.name %></option>
+                                            <% }) %>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:12px;margin-top:12px;">
+                                    <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.82em;color:var(--khaki);cursor:pointer;">
+                                        <input type="checkbox" name="is_active" <%= rule.is_active ? 'checked' : '' %> style="accent-color:var(--accent);">
+                                        Active
+                                    </label>
+                                    <button type="submit" class="btn btn-primary" style="padding:6px 14px;">Save</button>
+                                    <button type="button" onclick="toggleEdit(<%= rule.id %>)" class="btn" style="padding:6px 10px;">✕</button>
+                                    <span style="font-size:0.72em;color:var(--khaki);opacity:0.6;">Changing roles does not re-apply to members already rewarded — use Re-run all for new qualifiers.</span>
+                                </div>
+                            </form>
+                        </td>
+                    </tr>
+                <% }) %>
+                </tbody>
+            </table>
+        </div>
+        <% } %>
+
+        <div style="display:flex;gap:10px;margin-top:16px;align-items:center;">
+            <form method="POST" action="/admin/attendance-rewards/run" style="display:inline;"
+                  onsubmit="return confirm('Re-run all rules now? This grants/removes roles for every member who newly qualifies.');">
+                <button type="submit" class="btn btn-primary" style="padding:9px 18px;">⟳ Re-run all now</button>
+            </form>
+            <a href="/admin" class="btn" style="padding:9px 18px;">← Back to Dashboard</a>
+        </div>
+    </section>
+</div>
+
+<script>
+function toggleEdit(id) {
+    const row = document.getElementById('edit-row-' + id);
+    row.style.display = row.style.display === 'none' ? '' : 'none';
+}
+</script>
+
+<%- include('../partials/footer') %>

@@ -377,6 +377,19 @@
             </div>
             <% } %>
 
+            <% if (can('attendance.rewards.manage')) { %>
+            <div class="manage-card">
+                <div class="manage-card-top">
+                    <span class="manage-icon">🎖️</span>
+                </div>
+                <div class="manage-title">Attendance Rewards</div>
+                <div class="manage-desc">Automatically grant or remove Discord roles when members reach attendance milestones.</div>
+                <div class="manage-card-footer">
+                    <a href="/admin/attendance-rewards" class="manage-link primary">Manage</a>
+                </div>
+            </div>
+            <% } %>
+
             <div class="manage-card">
                 <div class="manage-card-top"><span class="manage-icon">🎯</span></div>
                 <div class="manage-title">Operations</div>
