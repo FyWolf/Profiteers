@@ -2,8 +2,9 @@
 // scope, and how far up/down the chain) from a fixed ORBAT template's slot
 // assignments.
 //
-// Leadership is the user assigned to an `is_editor` role (same definition the
-// rest of the app uses); squads nest via parent_squad_id.
+// Leadership is the user assigned to a role whose slot type carries the
+// `is_leader` flag (the same "Leader" definition attendance/getLeaderScope use —
+// NOT the `is_editor` ORBAT-edit permission); squads nest via parent_squad_id.
 //
 // Each pair carries a questionnaire `direction` (superior/peer/subordinate, from
 // the reviewer's perspective) and `is_indirect`:
@@ -25,7 +26,10 @@ async function loadOrbatStructure(templateId) {
 
     const squadIds = squads.map(s => s.id);
     const [roles] = await db.query(
-        'SELECT id, squad_id, is_editor FROM orbat_roles WHERE squad_id IN (?)',
+        `SELECT orr.id, orr.squad_id, COALESCE(st.is_leader, 0) AS is_leader
+           FROM orbat_roles orr
+           LEFT JOIN slot_types st ON orr.slot_type_id = st.id
+          WHERE orr.squad_id IN (?)`,
         [squadIds]
     );
     const roleById = {};
@@ -54,7 +58,7 @@ async function loadOrbatStructure(templateId) {
         if (!role) return;
         const si = squadInfo[role.squad_id];
         if (!si) return;
-        if (role.is_editor) si.leaders.add(a.user_id);
+        if (role.is_leader) si.leaders.add(a.user_id);
         else si.members.add(a.user_id);
     });
 
