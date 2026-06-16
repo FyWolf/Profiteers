@@ -172,11 +172,53 @@ router.get('/round/:id', async (req, res) => {
             title: `Round: ${cycle.title} - Admin`,
             cycle,
             reviewers,
-            subjects
+            subjects,
+            success: req.query.success,
+            error: req.query.error
         });
     } catch (error) {
         console.error('Error loading feedback round:', error);
         res.redirect('/admin/feedback?error=Failed to load round');
+    }
+});
+
+// Rebuild an open round's review pairs from the current ORBAT (e.g. after
+// correcting leader slot types). Submitted feedback and manually-added (ad-hoc)
+// pairs are preserved — only auto-generated, not-yet-submitted pairs are rebuilt.
+router.post('/round/:id/regenerate-pairs', async (req, res) => {
+    const roundId = parseInt(req.params.id, 10);
+    try {
+        const [[cycle]] = await db.query(
+            'SELECT id, status, orbat_template_id FROM feedback_cycles WHERE id = ?',
+            [roundId]
+        );
+        if (!cycle) return res.redirect('/admin/feedback?error=Round not found');
+        if (cycle.status !== 'open') {
+            return res.redirect(`/admin/feedback/round/${cycle.id}?error=Only open rounds can have their pairs regenerated`);
+        }
+        if (!cycle.orbat_template_id) {
+            return res.redirect(`/admin/feedback/round/${cycle.id}?error=This round has no ORBAT template to rebuild from`);
+        }
+
+        const pairs = await computeFeedbackPairs(cycle.orbat_template_id);
+        if (pairs.length === 0) {
+            return res.redirect(`/admin/feedback/round/${cycle.id}?error=No pairs computed — check the template's slot assignments and Leader flags`);
+        }
+
+        await db.query(
+            "DELETE FROM feedback_pairs WHERE cycle_id = ? AND status = 'pending' AND is_adhoc = 0",
+            [cycle.id]
+        );
+        const values = pairs.map(p => [cycle.id, p.reviewer_user_id, p.subject_user_id, p.direction, p.is_indirect]);
+        await db.query(
+            'INSERT IGNORE INTO feedback_pairs (cycle_id, reviewer_user_id, subject_user_id, direction, is_indirect) VALUES ?',
+            [values]
+        );
+
+        res.redirect(`/admin/feedback/round/${cycle.id}?success=Pairs regenerated from the current ORBAT — submitted feedback kept`);
+    } catch (error) {
+        console.error('Error regenerating feedback pairs:', error);
+        res.redirect(`/admin/feedback/round/${roundId}?error=Failed to regenerate pairs`);
     }
 });
 

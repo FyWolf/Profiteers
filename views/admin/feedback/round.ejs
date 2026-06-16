@@ -10,6 +10,22 @@
         </div>
     </header>
 
+    <% if (locals.success) { %><div class="alert alert-success"><%= success %></div><% } %>
+    <% if (locals.error)   { %><div class="alert alert-error"><%= error %></div><% } %>
+
+    <% if (cycle.status === 'open') { %>
+    <div class="panel" style="margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+        <div style="font-size:0.82em;color:var(--khaki);line-height:1.5;">
+            Rebuild this round's review pairs from the current ORBAT — use after fixing leader slot types or assignments.
+            Already-submitted feedback and manually-added reviews are kept; only pending pairs are rebuilt.
+        </div>
+        <form method="POST" action="/admin/feedback/round/<%= cycle.id %>/regenerate-pairs"
+              onsubmit="return confirm('Regenerate review pairs for this round from the current ORBAT? Submitted feedback is preserved; pending pairs are rebuilt.');">
+            <button type="submit" class="btn btn-primary" style="padding:8px 16px;white-space:nowrap;">⟳ Regenerate pairs</button>
+        </form>
+    </div>
+    <% } %>
+
     <section class="section">
         <div class="act-grid-2">
             <!-- ── Participation ────────────────────────────────────────────── -->
