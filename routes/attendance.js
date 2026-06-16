@@ -243,13 +243,18 @@ router.post('/', isAuthenticated, async (req, res) => {
         }
 
         // Apply attendance-based Discord role rewards for anyone marked present.
-        // Best-effort: never block or fail the attendance save on a Discord error.
-        for (const uid of presentUserIds) {
-            try {
-                await evaluateUser(uid);
-            } catch (rewardErr) {
-                console.error(`[REWARDS] evaluateUser(${uid}) failed after attendance save:`, rewardErr.message);
-            }
+        // Fire-and-forget in the background: the slow Discord API calls must never
+        // delay (or 504) the attendance save. Best-effort — errors are logged only.
+        if (presentUserIds.length > 0) {
+            (async () => {
+                for (const uid of presentUserIds) {
+                    try {
+                        await evaluateUser(uid);
+                    } catch (rewardErr) {
+                        console.error(`[REWARDS] evaluateUser(${uid}) failed after attendance save:`, rewardErr.message);
+                    }
+                }
+            })();
         }
 
         res.redirect(`/operations/${opId}/post-op?success=Attendance saved`);

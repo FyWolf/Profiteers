@@ -144,7 +144,8 @@ function ridList(v) {
                             <div style="display:inline-flex;gap:6px;justify-content:flex-end;">
                                 <button onclick="toggleEdit(<%= rule.id %>)" class="btn" style="padding:4px 10px;font-size:0.78em;">Edit</button>
                                 <form method="POST" action="/admin/attendance-rewards/delete/<%= rule.id %>" style="display:inline;"
-                                      onsubmit="return confirm('Delete rule &quot;<%= rule.name.replace(/'/g, "\\'") %>&quot;? Already-granted roles stay on members.');">
+                                      data-name="<%= rule.name %>"
+                                      onsubmit="return confirm('Delete rule &quot;' + this.dataset.name + '&quot;? Already-granted roles stay on members.');">
                                     <button type="submit" class="btn btn-danger" style="padding:4px 10px;font-size:0.78em;">Del</button>
                                 </form>
                             </div>

@@ -41,10 +41,12 @@ async function applyRuleToUser(rule, discordId, userId, { notify = false } = {})
     const removes = parseRoleIds(rule.remove_role_ids);
 
     // Roles the member already holds, to detect which adds are genuinely new.
-    // null = couldn't determine; treat all adds as candidates (failed PUTs below
-    // will then suppress the congrats via the error check).
+    // null = couldn't determine (member left the guild, not configured, or a
+    // transient error). Abort without recording so it retries later, and skip the
+    // role PUT/DELETE calls that would otherwise be guaranteed to fail.
     const current = await fetchMemberRoleIds(discordId);
-    const newlyAdded = current ? adds.filter(id => !current.includes(id)) : adds.slice();
+    if (current === null) return { applied: false, errors: 1, congratulated: false };
+    const newlyAdded = adds.filter(id => !current.includes(id));
 
     for (const roleId of adds) {
         const r = await addRole(discordId, roleId);
@@ -139,7 +141,7 @@ async function evaluateAll() {
                 AND NOT EXISTS (SELECT 1 FROM attendance_reward_applications a
                                  WHERE a.rule_id = ? AND a.user_id = u.id)
               GROUP BY u.id, u.discord_id
-             HAVING COUNT(oa.id) >= ?`,
+             HAVING COUNT(*) >= ?`,
             [rule.id, rule.threshold]
         );
 
