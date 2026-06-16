@@ -66,6 +66,7 @@ DISCORD_BOT_TOKEN=your_discord_bot_token
 # Discord Channel IDs
 DISCORD_OPERATIONS_FORUM_ID=your_forum_channel_id
 DISCORD_LOA_CHANNEL_ID=your_loa_channel_id
+DISCORD_REWARDS_CHANNEL_ID=your_attendance_rewards_channel_id   # congratulations posts for attendance milestones
 
 # Discord Role IDs for operation pings (optional, falls back to hardcoded defaults)
 DISCORD_MAIN_OPS_ROLE_ID=your_main_ops_role_id

@@ -23,5 +23,6 @@ router.use('/map-plans', hasPermission('map.plans.admin'), require('./admin/map-
 router.use('/logs',       hasPermission('logs.view'),      require('./admin/logs'));
 router.use('/feedback',   hasPermission('feedback.manage'), require('./admin/feedback'));
 router.use('/attendance', hasPermission('attendance.manage'), require('./admin/attendance'));
+router.use('/attendance-rewards', hasPermission('attendance.rewards.manage'), require('./admin/attendance-rewards'));
 
 module.exports = router;

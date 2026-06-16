@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router({ mergeParams: true });
 const db = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
+const { evaluateUser } = require('../helpers/attendanceRewards');
 
 // Build a set of squad IDs the current user may submit attendance for.
 // Returns { isLeader: bool, squadIds: Set<int> }
@@ -194,6 +195,7 @@ router.post('/', isAuthenticated, async (req, res) => {
         const roleByUserId = new Map(roles.map(r => [r.user_id, r]));
 
         const rows = [];
+        const presentUserIds = [];
         for (const [key, entry] of Object.entries(entries)) {
             const userId = parseInt(key.replace(/^u/, ''));
             if (isNaN(userId)) continue;
@@ -206,6 +208,8 @@ router.post('/', isAuthenticated, async (req, res) => {
             if (!VALID_STATUSES.has(status)) continue;
             const role = roleByUserId.get(userId);
             if (!role) continue;
+
+            if (status === 'present') presentUserIds.push(userId);
 
             rows.push([
                 opId,
@@ -236,6 +240,21 @@ router.post('/', isAuthenticated, async (req, res) => {
                     submitted_by = VALUES(submitted_by),
                     updated_at   = NOW()
             `, [rows]);
+        }
+
+        // Apply attendance-based Discord role rewards for anyone marked present.
+        // Fire-and-forget in the background: the slow Discord API calls must never
+        // delay (or 504) the attendance save. Best-effort — errors are logged only.
+        if (presentUserIds.length > 0) {
+            (async () => {
+                for (const uid of presentUserIds) {
+                    try {
+                        await evaluateUser(uid);
+                    } catch (rewardErr) {
+                        console.error(`[REWARDS] evaluateUser(${uid}) failed after attendance save:`, rewardErr.message);
+                    }
+                }
+            })();
         }
 
         res.redirect(`/operations/${opId}/post-op?success=Attendance saved`);
