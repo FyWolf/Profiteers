@@ -144,10 +144,10 @@ router.get('/:id', async (req, res) => {
             SELECT 
                 o.*,
                 u.username as created_by_username,
-                u.discord_global_name as created_by_display_name,
+                COALESCE(rmu.nickname, u.discord_global_name) as created_by_display_name,
                 h.id as host_id,
                 h.username as host_username,
-                h.discord_global_name as host_display_name,
+                COALESCE(rmh.nickname, h.discord_global_name) as host_display_name,
                 h.discord_avatar as host_avatar,
                 h.discord_id as host_discord_id,
                 mp.id as modpack_id, mp.name as modpack_name,
@@ -155,6 +155,8 @@ router.get('/:id', async (req, res) => {
             FROM operations o
             LEFT JOIN users u ON o.created_by = u.id
             LEFT JOIN users h ON o.host_id = h.id
+            LEFT JOIN roster_members rmu ON rmu.discord_id = u.discord_id
+            LEFT JOIN roster_members rmh ON rmh.discord_id = h.discord_id
             LEFT JOIN modpacks mp ON o.modpack_id = mp.id
             WHERE o.id = ? AND o.is_published = TRUE
         `, [req.params.id]);
@@ -191,15 +193,17 @@ router.get('/:id', async (req, res) => {
         let attendees = { present: [], tentative: [], absent: [] };
         if (req.session.userId) {
             const [allAttendees] = await db.query(`
-                SELECT 
+                SELECT
                     u.id,
                     u.username,
                     u.discord_global_name,
+                    rm.nickname AS roster_nickname,
                     u.discord_avatar,
                     u.discord_id,
                     oa.status
                 FROM operation_attendance oa
                 JOIN users u ON oa.user_id = u.id
+                LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
                 WHERE oa.operation_id = ?
                 ORDER BY u.username ASC
             `, [req.params.id]);
@@ -222,11 +226,12 @@ router.get('/:id', async (req, res) => {
             SELECT 
                 opn.*,
                 u.username as posted_by_username,
-                u.discord_global_name as posted_by_display_name,
+                COALESCE(rm.nickname, u.discord_global_name) as posted_by_display_name,
                 u.discord_avatar,
                 u.discord_id
             FROM operation_news opn
             LEFT JOIN users u ON opn.posted_by = u.id
+            LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
             WHERE opn.operation_id = ?
             ORDER BY opn.posted_at DESC
         `, [req.params.id]);
@@ -362,14 +367,16 @@ router.post('/:id/attendance', isAuthenticated, async (req, res) => {
 router.get('/manage/list', isZeus, async (req, res) => {
     try {
         const [operations] = await db.query(`
-            SELECT 
+            SELECT
                 o.*,
                 u.username as created_by_username,
+                COALESCE(rm.nickname, u.discord_global_name) as created_by_display_name,
                 COUNT(DISTINCT CASE WHEN oa.status = 'present' THEN oa.user_id END) as present_count,
                 COUNT(DISTINCT CASE WHEN oa.status = 'tentative' THEN oa.user_id END) as tentative_count,
                 COUNT(DISTINCT CASE WHEN oa.status = 'absent' THEN oa.user_id END) as absent_count
             FROM operations o
             LEFT JOIN users u ON o.created_by = u.id
+            LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
             LEFT JOIN operation_attendance oa ON o.id = oa.operation_id
             GROUP BY o.id
             ORDER BY o.start_time DESC
@@ -458,9 +465,10 @@ router.get('/manage/blocks', isZeus, async (req, res) => {
                    DATE_FORMAT(lp.end_date,   '%Y-%m-%d') AS end_date,
                    lp.created_at,
                    u.username AS created_by_username,
-                   u.discord_global_name AS created_by_global_name
+                   COALESCE(rm.nickname, u.discord_global_name) AS created_by_global_name
             FROM locked_periods lp
             LEFT JOIN users u ON lp.created_by = u.id
+            LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
             ORDER BY lp.start_date ASC, lp.id ASC
         `);
 
@@ -517,7 +525,8 @@ router.post('/manage/blocks/delete/:id', isZeus, async (req, res) => {
 router.get('/manage/create', isZeus, async (req, res) => {
     try {
         const [users] = await db.query(`
-            SELECT id, username, discord_global_name, discord_username
+            SELECT id, username, discord_global_name, discord_username,
+                   (SELECT rm.nickname FROM roster_members rm WHERE rm.discord_id = users.discord_id LIMIT 1) AS roster_nickname
             FROM users
             ORDER BY discord_global_name ASC, username ASC
         `);
@@ -622,7 +631,8 @@ router.get('/manage/edit/:id', isAuthenticated, async (req, res) => {
         }
 
         const [users] = await db.query(`
-            SELECT id, username, discord_global_name, discord_username
+            SELECT id, username, discord_global_name, discord_username,
+                   (SELECT rm.nickname FROM roster_members rm WHERE rm.discord_id = users.discord_id LIMIT 1) AS roster_nickname
             FROM users
             ORDER BY discord_global_name ASC, username ASC
         `);

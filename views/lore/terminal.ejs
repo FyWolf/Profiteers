@@ -665,7 +665,7 @@ const CMDS = {
         pb();
         if (USER) {
             print(`<span class="t-green">Authenticated session:</span>`);
-            print(`  <span class="t-cyan">Username  </span>  <span class="t-white">${esc(USER.username)}</span>`);
+            print(`  <span class="t-cyan">Username  </span>  <span class="t-white">${esc(USER.displayName || USER.username)}</span>`);
             if (USER.isAdmin) print(`  <span class="t-cyan">Clearance  </span>  <span class="t-orange">ADMINISTRATOR</span>`);
         } else {
             pl('  Guest — not authenticated.', 't-dim');

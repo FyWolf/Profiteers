@@ -1,7 +1,7 @@
 <%- include('../partials/header') %>
 
 <%
-const subjName = subject.discord_global_name || subject.username;
+const subjName = displayName(subject);
 const base = isOwn ? '/feedback/results' : '/feedback/results/' + subject.id;
 %>
 

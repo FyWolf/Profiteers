@@ -19,12 +19,14 @@ router.get('/', async (req, res) => {
                 oa.created_at,
                 op.title       AS operation_title,
                 u.username     AS player_username,
-                u.discord_global_name AS player_display,
-                su.username    AS submitted_by_username
+                COALESCE(rm.nickname, u.discord_global_name) AS player_display,
+                COALESCE(rms.nickname, su.discord_global_name, su.username) AS submitted_by_username
             FROM orbat_attendance oa
             JOIN operations op ON oa.operation_id = op.id
             JOIN users u       ON oa.user_id = u.id
             JOIN users su      ON oa.submitted_by = su.id
+            LEFT JOIN roster_members rm  ON rm.discord_id  = u.discord_id
+            LEFT JOIN roster_members rms ON rms.discord_id = su.discord_id
             WHERE 1=1
         `;
         const params = [];

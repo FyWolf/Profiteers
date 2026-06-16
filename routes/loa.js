@@ -11,7 +11,8 @@ router.get('/my-loas', (req, res) => res.redirect('/loa/all'));
 router.get('/submit', isAuthenticated, async (req, res) => {
     try {
         const [users] = await db.query(`
-            SELECT id, username, discord_global_name, discord_username
+            SELECT id, username, discord_global_name, discord_username,
+                   (SELECT rm.nickname FROM roster_members rm WHERE rm.discord_id = users.discord_id LIMIT 1) AS roster_nickname
             FROM users
             WHERE id != ?
             ORDER BY discord_global_name ASC, username ASC
@@ -90,7 +91,8 @@ router.get('/edit/:id', isAuthenticated, async (req, res) => {
         }
 
         const [users] = await db.query(`
-            SELECT id, username, discord_global_name, discord_username, is_admin
+            SELECT id, username, discord_global_name, discord_username, is_admin,
+                   (SELECT rm.nickname FROM roster_members rm WHERE rm.discord_id = users.discord_id LIMIT 1) AS roster_nickname
             FROM users
             WHERE id != ?
             ORDER BY discord_global_name ASC, username ASC
@@ -219,7 +221,7 @@ router.get('/all', async (req, res) => {
                 u.discord_id,
                 rm.nickname as roster_nickname,
                 sup.username as superior_username,
-                sup.discord_global_name as superior_display_name,
+                COALESCE(sup_rm.nickname, sup.discord_global_name) as superior_display_name,
                 rev.username as reviewer_username,
                 rev.discord_global_name as reviewer_display_name,
                 rev_rm.nickname as reviewer_roster_nickname
@@ -227,6 +229,7 @@ router.get('/all', async (req, res) => {
             JOIN users u ON loa.user_id = u.id
             LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
             LEFT JOIN users sup ON loa.superior_id = sup.id
+            LEFT JOIN roster_members sup_rm ON sup_rm.discord_id = sup.discord_id
             LEFT JOIN users rev ON loa.reviewed_by = rev.id
             LEFT JOIN roster_members rev_rm ON rev_rm.discord_id = rev.discord_id
             ORDER BY loa.start_date DESC
@@ -245,10 +248,11 @@ router.get('/all', async (req, res) => {
                 SELECT
                     loa.*,
                     sup.username as superior_username,
-                    sup.discord_global_name as superior_display_name,
+                    COALESCE(sup_rm.nickname, sup.discord_global_name) as superior_display_name,
                     rev.username as reviewer_username
                 FROM leave_of_absence loa
                 LEFT JOIN users sup ON loa.superior_id = sup.id
+                LEFT JOIN roster_members sup_rm ON sup_rm.discord_id = sup.discord_id
                 LEFT JOIN users rev ON loa.reviewed_by = rev.id
                 WHERE loa.user_id = ?
                 ORDER BY loa.start_date DESC

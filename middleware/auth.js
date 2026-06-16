@@ -1,4 +1,5 @@
 const { checkZeusStatus } = require('./zeus');
+const displayName = require('../helpers/displayName');
 
 function isAuthenticated(req, res, next) {
     if (req.isAuthenticated()) {
@@ -57,6 +58,7 @@ async function attachUser(req, res, next) {
         res.locals.user = {
             id: req.user.id,
             username: req.user.username,
+            displayName: displayName(req.user),
             isAdmin: isAdminFlag,
             isZeus: isZeus,
             permissions: permissions

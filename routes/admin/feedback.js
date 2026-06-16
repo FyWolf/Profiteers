@@ -9,12 +9,14 @@ const DIRECTIONS = ['superior', 'peer', 'subordinate'];
 router.get('/', async (req, res) => {
     try {
         const [cycles] = await db.query(`
-            SELECT c.*, t.name AS template_name, u.username AS created_by_username,
+            SELECT c.*, t.name AS template_name,
+                   COALESCE(rm.nickname, u.discord_global_name, u.username) AS created_by_username,
                    (SELECT COUNT(*) FROM feedback_pairs p WHERE p.cycle_id = c.id AND p.is_adhoc = 0) AS total_pairs,
                    (SELECT COUNT(*) FROM feedback_pairs p WHERE p.cycle_id = c.id AND p.is_adhoc = 0 AND p.status = 'submitted') AS submitted_pairs
             FROM feedback_cycles c
             LEFT JOIN orbat_templates t ON c.orbat_template_id = t.id
             LEFT JOIN users u ON c.created_by = u.id
+            LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
             ORDER BY c.opened_at DESC
         `);
         const [templates] = await db.query(
@@ -147,22 +149,24 @@ router.get('/round/:id', async (req, res) => {
         if (!cycle) return res.redirect('/admin/feedback?error=Round not found');
 
         const [reviewers] = await db.query(`
-            SELECT u.id, u.username, u.discord_global_name,
+            SELECT u.id, u.username, u.discord_global_name, rm.nickname AS roster_nickname,
                    COUNT(*) AS total,
                    SUM(p.status = 'submitted') AS done
             FROM feedback_pairs p
             JOIN users u ON p.reviewer_user_id = u.id
+            LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
             WHERE p.cycle_id = ? AND p.is_adhoc = 0
             GROUP BY u.id
             ORDER BY (SUM(p.status = 'submitted') = COUNT(*)) ASC, u.discord_global_name ASC
         `, [req.params.id]);
 
         const [subjects] = await db.query(`
-            SELECT u.id, u.username, u.discord_global_name,
+            SELECT u.id, u.username, u.discord_global_name, rm.nickname AS roster_nickname,
                    SUM(p.status = 'submitted') AS responses,
                    SUM(p.is_adhoc = 0)         AS expected
             FROM feedback_pairs p
             JOIN users u ON p.subject_user_id = u.id
+            LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
             WHERE p.cycle_id = ?
             GROUP BY u.id
             ORDER BY u.discord_global_name ASC

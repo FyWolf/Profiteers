@@ -127,13 +127,13 @@
                         <td>
                             <div class="user-cell">
                                 <% if (avatarUrl) { %>
-                                    <img src="<%= avatarUrl %>" alt="<%= u.username %>" class="user-avatar">
+                                    <img src="<%= avatarUrl %>" alt="<%= displayName(u) %>" class="user-avatar">
                                 <% } else { %>
-                                    <div class="avatar-placeholder"><%= u.username.charAt(0).toUpperCase() %></div>
+                                    <div class="avatar-placeholder"><%= displayName(u).charAt(0).toUpperCase() %></div>
                                 <% } %>
                                 <div>
                                     <div class="user-name">
-                                        <%= u.username %>
+                                        <%= displayName(u) %>
                                         <% if (isSelf) { %><span class="you-badge">YOU</span><% } %>
                                     </div>
                                     <% if (u.discord_username) { %>
@@ -189,7 +189,7 @@
                                 <a href="/admin/users/<%= u.id %>/roles" class="action-btn action-roles">🔐 Roles</a>
                                 <% if (!isSelf) { %>
                                 <form method="POST" action="/admin/users/delete/<%= u.id %>" style="display:inline"
-                                      onsubmit="return confirm('Delete <%= u.username %>? This cannot be undone.')">
+                                      onsubmit="return confirm('Delete <%= displayName(u) %>? This cannot be undone.')">
                                     <button type="submit" class="action-btn action-delete">Delete</button>
                                 </form>
                                 <% } %>

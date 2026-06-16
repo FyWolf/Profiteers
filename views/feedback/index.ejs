@@ -50,7 +50,7 @@
                             <select id="subject_id" name="subject_id" required>
                                 <option value="" disabled selected>Select a member…</option>
                                 <% (locals.reviewableUsers || []).forEach(u => { %>
-                                    <option value="<%= u.id %>"><%= u.discord_global_name || u.username %></option>
+                                    <option value="<%= u.id %>"><%= displayName(u) %></option>
                                 <% }) %>
                             </select>
                         </div>
@@ -81,7 +81,7 @@
                 <h2 class="fb-group-title"><%= group.label %> <span class="fb-count">(<%= list.length %>)</span></h2>
                 <div class="cards-grid">
                     <% list.forEach(p => {
-                        const name = p.discord_global_name || p.username;
+                        const name = displayName(p);
                         const submitted = p.status === 'submitted';
                     %>
                         <div class="item-card<%= submitted ? ' fb-done' : '' %>">

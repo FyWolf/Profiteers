@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
 const { closeIfAllSubmitted } = require('../helpers/feedbackRounds');
+const displayName = require('../helpers/displayName');
 
 // Minimum responses in a source group before its breakdown is shown to the
 // subject, so a thin group can't be de-anonymised.
@@ -103,9 +104,10 @@ router.get('/', isAuthenticated, async (req, res) => {
         if (cycle) {
             const [pairs] = await db.query(`
                 SELECT fp.id, fp.direction, fp.is_indirect, fp.status,
-                       u.username, u.discord_global_name, u.discord_avatar, u.discord_id
+                       u.username, u.discord_global_name, rm.nickname AS roster_nickname, u.discord_avatar, u.discord_id
                 FROM feedback_pairs fp
                 JOIN users u ON fp.subject_user_id = u.id
+                LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
                 WHERE fp.cycle_id = ? AND fp.reviewer_user_id = ? AND fp.is_adhoc = 0
                 ORDER BY u.discord_global_name ASC, u.username ASC
             `, [cycle.id, req.session.userId]);
@@ -130,7 +132,8 @@ router.get('/', isAuthenticated, async (req, res) => {
         let reviewableUsers = [];
         if (cycle && canReviewAny) {
             [reviewableUsers] = await db.query(`
-                SELECT id, username, discord_global_name
+                SELECT id, username, discord_global_name,
+                       (SELECT rm.nickname FROM roster_members rm WHERE rm.discord_id = users.discord_id LIMIT 1) AS roster_nickname
                 FROM users
                 WHERE id != ?
                 ORDER BY discord_global_name ASC, username ASC
@@ -177,7 +180,9 @@ router.get('/review', isAuthenticated, async (req, res) => {
             return res.redirect('/feedback?error=Pick a valid person and relationship');
         }
         const [[subject]] = await db.query(
-            'SELECT id, username, discord_global_name FROM users WHERE id = ?', [subjectId]
+            `SELECT u.id, u.username, u.discord_global_name, rm.nickname AS roster_nickname
+               FROM users u LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
+              WHERE u.id = ?`, [subjectId]
         );
         if (!subject) {
             return res.redirect('/feedback?error=That person was not found');
@@ -192,7 +197,7 @@ router.get('/review', isAuthenticated, async (req, res) => {
         res.render('feedback/form', {
             title: 'Give Feedback - Profiteers PMC',
             questions,
-            subjectName: subject.discord_global_name || subject.username,
+            subjectName: displayName(subject),
             directionVerb: DIRECTION_VERB[direction],
             formAction: '/feedback/review',
             hiddenFields: { subject_id: subjectId, direction },
@@ -265,10 +270,11 @@ router.get('/pair/:pairId', isAuthenticated, async (req, res) => {
     try {
         const [[pair]] = await db.query(`
             SELECT fp.*, c.status AS cycle_status, c.title AS cycle_title,
-                   u.username, u.discord_global_name, u.discord_avatar, u.discord_id
+                   u.username, u.discord_global_name, rm.nickname AS roster_nickname, u.discord_avatar, u.discord_id
             FROM feedback_pairs fp
             JOIN feedback_cycles c ON fp.cycle_id = c.id
             JOIN users u ON fp.subject_user_id = u.id
+            LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
             WHERE fp.id = ?
         `, [req.params.pairId]);
 
@@ -292,7 +298,7 @@ router.get('/pair/:pairId', isAuthenticated, async (req, res) => {
             title: 'Give Feedback - Profiteers PMC',
             pair,
             questions,
-            subjectName: pair.discord_global_name || pair.username,
+            subjectName: displayName(pair),
             directionVerb: (pair.is_indirect ? 'indirect ' : '') + DIRECTION_VERB[pair.direction],
             formAction: '/feedback/pair/' + pair.id,
             hiddenFields: {},
@@ -371,7 +377,9 @@ async function renderResults(req, res, subjectUserId) {
         }
 
         const [[subject]] = await db.query(
-            'SELECT id, username, discord_global_name, discord_avatar, discord_id FROM users WHERE id = ?',
+            `SELECT u.id, u.username, u.discord_global_name, rm.nickname AS roster_nickname, u.discord_avatar, u.discord_id
+               FROM users u LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
+              WHERE u.id = ?`,
             [subjectUserId]
         );
         if (!subject) return res.redirect('/feedback?error=User not found');

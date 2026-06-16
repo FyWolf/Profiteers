@@ -5,10 +5,12 @@ const db = require('../config/database');
 router.get('/', async (req, res) => {
     try {
         const [images] = await db.query(`
-            SELECT gi.*, gf.name as folder_name, gf.path as folder_path, u.username
+            SELECT gi.*, gf.name as folder_name, gf.path as folder_path,
+                   u.username, u.discord_global_name, rm.nickname AS roster_nickname
             FROM gallery_images gi
             JOIN gallery_folders gf ON gi.folder_id = gf.id
             LEFT JOIN users u ON gi.uploaded_by = u.id
+            LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
             ORDER BY gi.uploaded_at DESC
         `);
 
@@ -52,9 +54,10 @@ router.get('/folder/:id', async (req, res) => {
         );
 
         const [images] = await db.query(`
-            SELECT gi.*, u.username
+            SELECT gi.*, u.username, u.discord_global_name, rm.nickname AS roster_nickname
             FROM gallery_images gi
             LEFT JOIN users u ON gi.uploaded_by = u.id
+            LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
             WHERE gi.folder_id = ?
             ORDER BY gi.uploaded_at DESC
         `, [folderId]);

@@ -12,6 +12,7 @@
 // `getIO()` / `broadcast(...)` are used by routes to push changes to peers.
 
 const { Server } = require('socket.io');
+const displayName = require('../helpers/displayName');
 
 // Lazy-required to avoid a circular dep (routes/map-plans → this module).
 let _mapPlans = null;
@@ -76,8 +77,8 @@ function init(server, sessionMiddleware, passportInit, passportSession) {
         // Resolve a display name. For viewers reaching via share link without
         // a session we fall back to "Guest".
         let username = 'Guest';
-        if (req.session && req.session.username) username = req.session.username;
-        else if (req.user && req.user.username) username = req.user.username;
+        if (req.user) username = displayName(req.user, req.session?.username || 'Guest');
+        else if (req.session && req.session.username) username = req.session.username;
 
         socket.data.planId   = planId;
         socket.data.userId   = req.session?.userId || null;
@@ -169,8 +170,8 @@ function broadcast(req, event, payload) {
         ...payload,
         by: {
             userId:   req.session?.userId || null,
-            username: req.session?.username
-                      || (req.user && req.user.username)
+            username: (req.user && displayName(req.user))
+                      || req.session?.username
                       || 'Someone'
         }
     };

@@ -334,21 +334,25 @@ router.get('/:id/map/importable-plans', requireEdit, async (req, res) => {
 
         let sql, args;
         if (isPlansAdmin) {
-            sql = `SELECT p.id, p.name, p.map_world, u.username AS owner_username,
+            sql = `SELECT p.id, p.name, p.map_world,
+                          COALESCE(rm.nickname, u.discord_global_name, u.username) AS owner_username,
                           (SELECT COUNT(*) FROM map_plan_layers      WHERE plan_id = p.id) AS layer_count,
                           (SELECT COUNT(*) FROM map_plan_annotations WHERE plan_id = p.id) AS ann_count
                      FROM map_plans p
                      JOIN users u ON u.id = p.owner_id
+                     LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
                     ${q ? 'WHERE p.name LIKE ?' : ''}
                     ORDER BY p.updated_at DESC
                     LIMIT 30`;
             args = q ? [like] : [];
         } else {
-            sql = `SELECT p.id, p.name, p.map_world, u.username AS owner_username,
+            sql = `SELECT p.id, p.name, p.map_world,
+                          COALESCE(rm.nickname, u.discord_global_name, u.username) AS owner_username,
                           (SELECT COUNT(*) FROM map_plan_layers      WHERE plan_id = p.id) AS layer_count,
                           (SELECT COUNT(*) FROM map_plan_annotations WHERE plan_id = p.id) AS ann_count
                      FROM map_plans p
                      JOIN users u ON u.id = p.owner_id
+                     LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
                     WHERE (p.owner_id = ?
                            OR p.id IN (SELECT plan_id FROM map_plan_acl WHERE user_id = ?))
                           ${q ? 'AND p.name LIKE ?' : ''}

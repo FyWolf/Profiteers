@@ -15,10 +15,12 @@ router.get('/', async (req, res) => {
     try {
         const [folders] = await db.query('SELECT * FROM gallery_folders ORDER BY path ASC');
         const [recentImages] = await db.query(`
-            SELECT gi.*, gf.name as folder_name, u.username
+            SELECT gi.*, gf.name as folder_name,
+                   u.username, u.discord_global_name, rm.nickname AS roster_nickname
             FROM gallery_images gi
             JOIN gallery_folders gf ON gi.folder_id = gf.id
             LEFT JOIN users u ON gi.uploaded_by = u.id
+            LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
             ORDER BY gi.uploaded_at DESC
             LIMIT 20
         `);

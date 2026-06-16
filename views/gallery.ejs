@@ -77,7 +77,7 @@
                                     <% if (viewMode === 'all') { %>
                                         📁 <%= image.folder_name %><br>
                                     <% } %>
-                                    👤 <%= image.username || 'Unknown' %>
+                                    👤 <%= displayName(image) %>
                                 </p>
 
                                 <% if (user && user.isAdmin) { %>

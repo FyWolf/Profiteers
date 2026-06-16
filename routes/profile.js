@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
+const displayName = require('../helpers/displayName');
 
 // Returns true if the given user holds any leader slot in any orbat template.
 async function isLeaderAnywhere(userId, db) {
@@ -48,16 +49,18 @@ async function fetchAttendanceForProfile(profileUserId, viewerUserId, viewerPerm
 
 router.get('/', isAuthenticated, async (req, res) => {
     try {
-        const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
+        const [users] = await db.query('SELECT u.*, (SELECT rm.nickname FROM roster_members rm WHERE rm.discord_id = u.discord_id LIMIT 1) AS roster_nickname FROM users u WHERE u.id = ?', [req.session.userId]);
         if (users.length === 0) return res.redirect('/login');
         const user = users[0];
 
         const [medals, trainings, roleRows] = await Promise.all([
             db.query(`
-                SELECT m.*, um.awarded_at, um.notes, u.username as awarded_by_username
+                SELECT m.*, um.awarded_at, um.notes,
+                       COALESCE(rm.nickname, u.discord_global_name, u.username) as awarded_by_username
                 FROM user_medals um
                 JOIN medals m ON um.medal_id = m.id
                 JOIN users  u ON um.awarded_by = u.id
+                LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
                 WHERE um.user_id = ? ORDER BY um.awarded_at DESC
             `, [req.session.userId]),
             db.query(`
@@ -102,7 +105,7 @@ router.get('/', isAuthenticated, async (req, res) => {
 
 router.get('/:userId', async (req, res) => {
     try {
-        const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.params.userId]);
+        const [users] = await db.query('SELECT u.*, (SELECT rm.nickname FROM roster_members rm WHERE rm.discord_id = u.discord_id LIMIT 1) AS roster_nickname FROM users u WHERE u.id = ?', [req.params.userId]);
         if (users.length === 0) {
             return res.render('error', { title: 'User Not Found', message: 'User Not Found', description: 'This user profile does not exist.', user: res.locals.user });
         }
@@ -110,10 +113,12 @@ router.get('/:userId', async (req, res) => {
 
         const [medals, trainings, roleRows] = await Promise.all([
             db.query(`
-                SELECT m.*, um.awarded_at, um.notes, u.username as awarded_by_username
+                SELECT m.*, um.awarded_at, um.notes,
+                       COALESCE(rm.nickname, u.discord_global_name, u.username) as awarded_by_username
                 FROM user_medals um
                 JOIN medals m ON um.medal_id = m.id
                 JOIN users  u ON um.awarded_by = u.id
+                LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
                 WHERE um.user_id = ? ORDER BY um.awarded_at DESC
             `, [profileUser.id]),
             db.query(`
@@ -134,7 +139,7 @@ router.get('/:userId', async (req, res) => {
         );
 
         res.render('profile', {
-            title: `${profileUser.discord_global_name || profileUser.username}'s Profile - Profiteers PMC`,
+            title: `${displayName(profileUser)}'s Profile - Profiteers PMC`,
             profileUser,
             medals: medals[0],
             trainings: trainings[0],

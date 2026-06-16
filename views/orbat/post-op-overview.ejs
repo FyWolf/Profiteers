@@ -66,7 +66,7 @@
                 <% squad.records.forEach(r => { %>
                     <tr style="border-bottom:1px solid rgba(107,142,35,0.1);">
                         <td style="padding:9px 10px;font-size:0.88em;color:var(--sand);">
-                            <%= r.discord_global_name || r.username || '—' %>
+                            <%= displayName(r, '—') %>
                         </td>
                         <td style="padding:9px 10px;font-size:0.82em;color:var(--khaki);">
                             <% if (r.slot_type_abbr) { %><span class="badge" style="background:rgba(107,142,35,0.2);"><%= r.slot_type_abbr %></span> <% } %><%= r.slot_type_name %>

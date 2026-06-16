@@ -278,7 +278,7 @@
         }
         aclSuggest.innerHTML = users.map((u, i) => `
             <div class="acl-suggest-item${i === 0 ? ' active' : ''}" data-username="${escapeHtml(u.username)}" data-idx="${i}">
-                ${escapeHtml(u.username)}
+                ${escapeHtml(u.name || u.username)}${u.name && u.name !== u.username ? ` <span style="opacity:0.5;font-size:0.85em;">@${escapeHtml(u.username)}</span>` : ''}
             </div>
         `).join('');
         aclSuggest.style.display = 'block';

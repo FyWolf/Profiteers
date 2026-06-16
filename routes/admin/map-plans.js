@@ -15,12 +15,13 @@ router.get('/', async (req, res) => {
     try {
         const [plans] = await db.query(
             `SELECT p.id, p.name, p.map_world, p.link_access, p.created_at, p.updated_at,
-                    u.username AS owner_username,
+                    COALESCE(rm.nickname, u.discord_global_name, u.username) AS owner_username,
                     (SELECT COUNT(*) FROM map_plan_layers      WHERE plan_id = p.id) AS layer_count,
                     (SELECT COUNT(*) FROM map_plan_annotations WHERE plan_id = p.id) AS ann_count,
                     (SELECT COUNT(*) FROM map_plan_acl         WHERE plan_id = p.id) AS member_count
                FROM map_plans p
                JOIN users u ON u.id = p.owner_id
+               LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
               ORDER BY p.updated_at DESC`
         );
 

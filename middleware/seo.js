@@ -7,6 +7,10 @@ const DEFAULT_DESCRIPTION =
     'Profiteers PMC — LGBTQ+ inclusive Arma 3 tactical unit. Operations, ORBAT, modpacks and tooling.';
 const DEFAULT_IMAGE = '/images/og-image.png';
 
+// Shared display-name resolver (guild nickname → global name → account username),
+// exposed to every template so views never repeat the fallback chain.
+const displayName = require('../helpers/displayName');
+
 // Paths that should never be indexed (admin tools, account pages, auth flows).
 // We match prefixes on req.path so /admin and /admin/foo/bar are both noindex.
 const PRIVATE_PREFIXES = [
@@ -35,6 +39,7 @@ function attachSeoDefaults(req, res, next) {
     };
     res.locals.currentPath = req.originalUrl ? req.originalUrl.split('?')[0] : req.path;
     res.locals.noIndex     = isPrivatePath(req.path);
+    res.locals.displayName = displayName;
     next();
 }
 

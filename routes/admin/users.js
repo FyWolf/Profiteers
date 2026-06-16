@@ -54,7 +54,8 @@ router.get('/', async (req, res) => {
                 discord_avatar,
                 discord_id,
                 created_at,
-                last_login
+                last_login,
+                (SELECT rm.nickname FROM roster_members rm WHERE rm.discord_id = users.discord_id LIMIT 1) AS roster_nickname
             FROM users
             ${whereClause}
             ORDER BY ${sortCol} ${order}
@@ -130,7 +131,7 @@ router.post('/delete/:id', hasPermission('users.manage'), async (req, res) => {
 
 router.get('/:userId/medals', hasPermission('users.medals'), async (req, res) => {
     try {
-        const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.params.userId]);
+        const [users] = await db.query('SELECT u.*, (SELECT rm.nickname FROM roster_members rm WHERE rm.discord_id = u.discord_id LIMIT 1) AS roster_nickname FROM users u WHERE u.id = ?', [req.params.userId]);
 
         if (users.length === 0) {
             return res.redirect('/admin/users?error=User not found');
@@ -146,10 +147,11 @@ router.get('/:userId/medals', hasPermission('users.medals'), async (req, res) =>
                 um.id as award_id,
                 um.awarded_at,
                 um.notes,
-                u.username as awarded_by_username
+                COALESCE(rm.nickname, u.discord_global_name, u.username) as awarded_by_username
             FROM user_medals um
             JOIN medals m ON um.medal_id = m.id
             JOIN users u ON um.awarded_by = u.id
+            LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
             WHERE um.user_id = ?
             ORDER BY um.awarded_at DESC
         `, [req.params.userId]);
@@ -261,7 +263,7 @@ router.post('/:userId/sync-trainings', hasPermission('users.trainings'), async (
 
 router.get('/:userId/trainings', hasPermission('users.trainings'), async (req, res) => {
     try {
-        const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.params.userId]);
+        const [users] = await db.query('SELECT u.*, (SELECT rm.nickname FROM roster_members rm WHERE rm.discord_id = u.discord_id LIMIT 1) AS roster_nickname FROM users u WHERE u.id = ?', [req.params.userId]);
 
         if (users.length === 0) {
             return res.redirect('/admin/users?error=User not found');
@@ -298,7 +300,7 @@ router.get('/:userId/trainings', hasPermission('users.trainings'), async (req, r
 
 router.get('/:userId/roles', hasPermission('users.manage'), async (req, res) => {
     try {
-        const [users] = await db.query('SELECT * FROM users WHERE id = ?', [req.params.userId]);
+        const [users] = await db.query('SELECT u.*, (SELECT rm.nickname FROM roster_members rm WHERE rm.discord_id = u.discord_id LIMIT 1) AS roster_nickname FROM users u WHERE u.id = ?', [req.params.userId]);
 
         if (users.length === 0) {
             return res.redirect('/admin/users?error=User not found');

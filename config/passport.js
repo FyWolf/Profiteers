@@ -30,6 +30,14 @@ passport.deserializeUser(async (id, done) => {
                 WHERE ur.user_id = ?
             `, [user.id]);
             user.permissions = perms.map(p => p.name);
+            // Guild nickname for display (nav, etc.); falls back at render time.
+            if (user.discord_id) {
+                const [[rm]] = await db.query(
+                    'SELECT nickname FROM roster_members WHERE discord_id = ? LIMIT 1',
+                    [user.discord_id]
+                );
+                user.roster_nickname = rm ? rm.nickname : null;
+            }
             done(null, user);
         } else {
             done(null, false);

@@ -68,12 +68,14 @@ function buildRolesQuery(templateId, squadIds) {
             st.abbreviation   AS slot_type_abbr,
             os.name           AS squad_name,
             u.username,
-            u.discord_global_name
+            u.discord_global_name,
+            rm.nickname       AS roster_nickname
         FROM orbat_roles orr
         JOIN orbat_squads    os ON orr.squad_id     = os.id
         JOIN orbat_assignments oa ON orr.id          = oa.role_id
         LEFT JOIN slot_types st  ON orr.slot_type_id = st.id
         LEFT JOIN users      u   ON oa.user_id       = u.id
+        LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
         WHERE os.orbat_id = ?
     `;
     const params = [templateId];
@@ -292,10 +294,13 @@ router.get('/overview', isAuthenticated, async (req, res) => {
                 oa.notes,
                 u.username,
                 u.discord_global_name,
-                su.username AS submitted_by_username
+                rm.nickname AS roster_nickname,
+                COALESCE(rms.nickname, su.discord_global_name, su.username) AS submitted_by_username
             FROM orbat_attendance oa
             LEFT JOIN users u  ON oa.user_id      = u.id
             LEFT JOIN users su ON oa.submitted_by = su.id
+            LEFT JOIN roster_members rm  ON rm.discord_id  = u.discord_id
+            LEFT JOIN roster_members rms ON rms.discord_id = su.discord_id
             WHERE oa.operation_id = ?
         `;
         const params = [opId];

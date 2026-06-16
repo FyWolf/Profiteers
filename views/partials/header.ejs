@@ -128,7 +128,7 @@ const __articleMod   = locals.articleModified  || null;
 
                 <% if (user) { %>
                     <li class="dropdown">
-                        <a href="#" class="dropbtn" data-dropdown><%= user.username %> <span class="chevron">▾</span></a>
+                        <a href="#" class="dropbtn" data-dropdown><%= user.displayName || user.username %> <span class="chevron">▾</span></a>
                         <div class="dropdown-content dropdown-right">
                             <a href="/profile">My Profile</a>
                             <a href="/loa/all">Leave of Absence</a>

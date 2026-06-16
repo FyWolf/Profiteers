@@ -95,10 +95,12 @@ router.get('/', isAuthenticated, async (req, res) => {
 
         const [shared] = await db.query(
             `SELECT p.id, p.name, p.description, p.map_world, p.orbat_template_id, p.link_access,
-                    p.created_at, p.updated_at, a.role, u.username AS owner_username
+                    p.created_at, p.updated_at, a.role,
+                    COALESCE(rm.nickname, u.discord_global_name, u.username) AS owner_username
                FROM map_plan_acl a
                JOIN map_plans  p ON p.id = a.plan_id
                JOIN users      u ON u.id = p.owner_id
+               LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
               WHERE a.user_id = ?
               ORDER BY p.updated_at DESC`,
             [req.session.userId]
@@ -315,7 +317,12 @@ router.get('/:id', async (req, res, next) => {
 
         const squads = await resolveSquads(plan.orbat_template_id);
 
-        const [[ownerRow]] = await db.query('SELECT username FROM users WHERE id = ?', [plan.owner_id]);
+        const [[ownerRow]] = await db.query(
+            `SELECT COALESCE(rm.nickname, u.discord_global_name, u.username) AS username
+               FROM users u LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
+              WHERE u.id = ?`,
+            [plan.owner_id]
+        );
 
         // If the viewer reached this page via a share token (no session ACL match), propagate
         // the token so subsequent API calls also pass requireRead. We detect this by checking
@@ -540,8 +547,10 @@ router.get('/:id/acl/search', requireManage, async (req, res) => {
         if (q.length < 1) return res.json({ success: true, users: [] });
         const like = '%' + q.replace(/[%_\\]/g, ch => '\\' + ch) + '%';
         const [rows] = await db.query(
-            `SELECT u.id, u.username
+            `SELECT u.id, u.username,
+                    COALESCE(rm.nickname, u.discord_global_name, u.username) AS name
                FROM users u
+               LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
               WHERE u.username LIKE ?
                 AND u.id <> ?
                 AND u.id NOT IN (SELECT user_id FROM map_plan_acl WHERE plan_id = ?)
@@ -559,8 +568,10 @@ router.get('/:id/acl/search', requireManage, async (req, res) => {
 router.get('/:id/acl', requireManage, async (req, res) => {
     try {
         const [rows] = await db.query(
-            `SELECT a.user_id, a.role, u.username
+            `SELECT a.user_id, a.role,
+                    COALESCE(rm.nickname, u.discord_global_name, u.username) AS username
                FROM map_plan_acl a JOIN users u ON u.id = a.user_id
+               LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
               WHERE a.plan_id = ?
               ORDER BY a.role, u.username`,
             [req.params.id]
@@ -597,7 +608,12 @@ router.post('/:id/acl', requireManage, async (req, res) => {
              ON DUPLICATE KEY UPDATE role = VALUES(role)`,
             [req.params.id, uid, role]
         );
-        const [[u]] = await db.query('SELECT id, username FROM users WHERE id = ?', [uid]);
+        const [[u]] = await db.query(
+            `SELECT u.id, COALESCE(rm.nickname, u.discord_global_name, u.username) AS username
+               FROM users u LEFT JOIN roster_members rm ON rm.discord_id = u.discord_id
+              WHERE u.id = ?`,
+            [uid]
+        );
         res.json({ success: true, member: { user_id: u.id, username: u.username, role } });
     } catch (err) {
         console.error('ACL add error:', err);

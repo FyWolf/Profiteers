@@ -41,7 +41,7 @@
                                 const complete = Number(rv.done) === Number(rv.total);
                             %>
                                 <tr>
-                                    <td><%= rv.discord_global_name || rv.username %></td>
+                                    <td><%= displayName(rv) %></td>
                                     <td class="r" style="color:<%= complete ? '#52c85a' : 'var(--accent)' %>;font-weight:700;">
                                         <%= rv.done %>/<%= rv.total %>
                                     </td>
@@ -63,7 +63,7 @@
                         <tbody>
                             <% subjects.forEach(s => { %>
                                 <tr>
-                                    <td><%= s.discord_global_name || s.username %></td>
+                                    <td><%= displayName(s) %></td>
                                     <td class="r"><%= s.responses %>/<%= s.expected %></td>
                                     <td class="r">
                                         <% if (Number(s.responses) > 0) { %>

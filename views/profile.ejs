@@ -18,17 +18,17 @@
         <div class="card" style="padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px;">
             <% if (profileUser.discord_avatar && profileUser.discord_id) { %>
                 <img src="https://cdn.discordapp.com/avatars/<%= profileUser.discord_id %>/<%= profileUser.discord_avatar %>.png?size=128"
-                     alt="<%= profileUser.username %>"
+                     alt="<%= displayName(profileUser) %>"
                      style="width: 72px; height: 72px; border-radius: 50%; border: 2px solid var(--accent);">
             <% } else { %>
                 <div style="width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, var(--olive) 0%, var(--olive-light) 100%); display: flex; align-items: center; justify-content: center; font-size: 1.6em; color: white; font-weight: 900; border: 2px solid var(--accent);">
-                    <%= profileUser.username.charAt(0).toUpperCase() %>
+                    <%= displayName(profileUser).charAt(0).toUpperCase() %>
                 </div>
             <% } %>
 
             <div>
                 <div style="color: var(--accent); font-weight: 700; font-size: 1em; margin-bottom: 2px;">
-                    <%= profileUser.discord_global_name || profileUser.username %>
+                    <%= displayName(profileUser) %>
                 </div>
                 <% if (isLoggedIn && profileUser.discord_username) { %>
                     <div style="color: var(--khaki); font-size: 0.8em;">@<%= profileUser.discord_username %></div>

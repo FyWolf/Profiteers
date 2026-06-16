@@ -66,7 +66,7 @@
                         }
 
                         const filtered = users.filter(user => {
-                            const name = (user.discord_global_name || user.username).toLowerCase();
+                            const name = (user.roster_nickname || user.discord_global_name || user.username).toLowerCase();
                             const username = (user.discord_username || '').toLowerCase();
                             return name.includes(query) || username.includes(query);
                         }).slice(0, 20); // Limit to 20 results
@@ -78,11 +78,11 @@
                         }
 
                         resultsDiv.innerHTML = filtered.map(user => `
-                            <div onclick="selectSuperior(${user.id}, '${(user.discord_global_name || user.username).replace(/'/g, "\\'")}')" 
+                            <div onclick="selectSuperior(${user.id}, '${(user.roster_nickname || user.discord_global_name || user.username).replace(/'/g, "\\'")}')"
                                  style="padding: 10px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.1); transition: background 0.2s;"
                                  onmouseover="this.style.background='rgba(107,142,35,0.3)'"
                                  onmouseout="this.style.background='transparent'">
-                                <strong>${user.discord_global_name || user.username}</strong>
+                                <strong>${user.roster_nickname || user.discord_global_name || user.username}</strong>
                             </div>
                         `).join('');
                         

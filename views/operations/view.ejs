@@ -286,7 +286,7 @@ function timestampToUTC(timestamp) {
                         <div class="att-list-col">
                             <h4 style="color:#2ecc71;">✅ Present (<%= attendees.present.length %>)</h4>
                             <% attendees.present.forEach(a => { %>
-                                <div class="att-name"><%= a.discord_global_name || a.username %></div>
+                                <div class="att-name"><%= displayName(a) %></div>
                             <% }); %>
                         </div>
                         <% } %>
@@ -294,7 +294,7 @@ function timestampToUTC(timestamp) {
                         <div class="att-list-col">
                             <h4 style="color:#f39c12;">⏸️ Tentative (<%= attendees.tentative.length %>)</h4>
                             <% attendees.tentative.forEach(a => { %>
-                                <div class="att-name"><%= a.discord_global_name || a.username %></div>
+                                <div class="att-name"><%= displayName(a) %></div>
                             <% }); %>
                         </div>
                         <% } %>

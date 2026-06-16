@@ -5,9 +5,7 @@
 </style>
 
 <%
-    const displayName = (user.discord_global_name && user.discord_global_name !== user.discord_username)
-        ? user.discord_global_name
-        : user.username;
+    const memberName = user.roster_nickname || user.discord_global_name || user.username;
     const avatarUrl = user.discord_avatar
         ? `https://cdn.discordapp.com/avatars/${user.discord_id}/${user.discord_avatar}.png?size=64`
         : null;
@@ -21,7 +19,7 @@
             <% if (avatarUrl) { %>
                 <img src="<%= avatarUrl %>" style="width:28px; height:28px; border-radius:50%; border:2px solid var(--olive);">
             <% } %>
-            <%= displayName %>
+            <%= memberName %>
             <% if (user.discord_username) { %>
                 <span style="font-size:0.7em; opacity:.6;">@<%= user.discord_username %></span>
             <% } %>
