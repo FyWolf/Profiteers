@@ -193,5 +193,12 @@ const __articleMod   = locals.articleModified  || null;
         });
     })();
     </script>
+
+    <%# ── Admin shell: persistent sidebar wraps all /admin pages ───────── %>
+    <% if (typeof currentPath !== 'undefined' && currentPath && currentPath.startsWith('/admin')) { %>
+    <div class="admin-layout">
+        <%- include('admin-sidebar') %>
+        <main class="admin-main">
+    <% } %>
 </body>
 <!-- body closed in footer -->

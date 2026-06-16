@@ -1,0 +1,119 @@
+<%
+// Persistent admin navigation sidebar. Rendered by header.ejs on /admin pages.
+// Permission gating mirrors the cards that used to live on the dashboard.
+const perms = (locals.user && locals.user.permissions) ? locals.user.permissions : [];
+const can   = p => locals.user && perms.includes(p);
+const cp    = (typeof currentPath !== 'undefined' && currentPath) ? currentPath : '';
+// Active if the path matches the link's base (exact for the dashboard root).
+const isActive = (base) => base === '/admin' ? cp === '/admin' : (cp === base || cp.startsWith(base + '/'));
+
+// Group visibility — hide a group's label when none of its items are permitted.
+const gAttendance = can('attendance.manage') || can('attendance.rewards.manage') || can('feedback.manage');
+const gContent    = can('tools.manage') || can('gallery.manage') || can('info.manage') || can('lore.manage');
+const gSystem     = can('logs.view');
+%>
+<button class="admin-sidebar-toggle" id="admin-sidebar-toggle" aria-label="Toggle admin menu" aria-expanded="false">
+    <span class="ai">☰</span> Admin Menu
+</button>
+<aside class="admin-sidebar" id="admin-sidebar">
+    <div class="admin-sidebar-head">Admin</div>
+    <nav class="admin-nav">
+
+        <a href="/admin" class="admin-nav-link <%= isActive('/admin') ? 'active' : '' %>">
+            <span class="ai">🏠</span> Dashboard
+        </a>
+
+        <div class="admin-nav-group">
+            <div class="admin-nav-label">Community</div>
+            <% if (can('users.view')) { %>
+            <a href="/admin/users" class="admin-nav-link <%= isActive('/admin/users') ? 'active' : '' %>"><span class="ai">👥</span> Users</a>
+            <% } %>
+            <% if (can('roles.manage')) { %>
+            <a href="/admin/roles" class="admin-nav-link <%= isActive('/admin/roles') ? 'active' : '' %>"><span class="ai">🔐</span> Roles &amp; Permissions</a>
+            <% } %>
+            <% if (can('medals.manage')) { %>
+            <a href="/admin/medals" class="admin-nav-link <%= isActive('/admin/medals') ? 'active' : '' %>"><span class="ai">🏅</span> Medals</a>
+            <% } %>
+            <% if (can('trainings.manage')) { %>
+            <a href="/admin/trainings" class="admin-nav-link <%= isActive('/admin/trainings') ? 'active' : '' %>"><span class="ai">🎓</span> Trainings</a>
+            <% } %>
+            <a href="/admin/presence" class="admin-nav-link <%= isActive('/admin/presence') ? 'active' : '' %>"><span class="ai">📊</span> Member Activity</a>
+            <a href="/loa/all" class="admin-nav-link"><span class="ai">🛑</span> Leave of Absence <span class="admin-nav-ext" title="Opens outside the admin panel">↗</span></a>
+        </div>
+
+        <% if (gAttendance) { %>
+        <div class="admin-nav-group">
+            <div class="admin-nav-label">Attendance</div>
+            <% if (can('attendance.manage')) { %>
+            <a href="/admin/attendance" class="admin-nav-link <%= isActive('/admin/attendance') ? 'active' : '' %>"><span class="ai">📋</span> Attendance Report</a>
+            <% } %>
+            <% if (can('attendance.rewards.manage')) { %>
+            <a href="/admin/attendance-rewards" class="admin-nav-link <%= isActive('/admin/attendance-rewards') ? 'active' : '' %>"><span class="ai">🎖️</span> Attendance Rewards</a>
+            <% } %>
+            <% if (can('feedback.manage')) { %>
+            <a href="/admin/feedback" class="admin-nav-link <%= isActive('/admin/feedback') ? 'active' : '' %>"><span class="ai">🗣️</span> Leadership Feedback</a>
+            <% } %>
+        </div>
+        <% } %>
+
+        <div class="admin-nav-group">
+            <div class="admin-nav-label">Operations</div>
+            <a href="/operations/manage/list" class="admin-nav-link"><span class="ai">🎯</span> Operations <span class="admin-nav-ext" title="Opens outside the admin panel">↗</span></a>
+            <a href="/orbat/templates" class="admin-nav-link"><span class="ai">📋</span> ORBAT Templates <span class="admin-nav-ext" title="Opens outside the admin panel">↗</span></a>
+            <% if (can('orbat.manage')) { %>
+            <a href="/admin/slot-types" class="admin-nav-link <%= isActive('/admin/slot-types') ? 'active' : '' %>"><span class="ai">🎯</span> Slot Types</a>
+            <% } %>
+            <% if (can('map.plans.admin')) { %>
+            <a href="/admin/map-plans" class="admin-nav-link <%= isActive('/admin/map-plans') ? 'active' : '' %>"><span class="ai">🗺️</span> Map Plans &amp; Terrains</a>
+            <% } %>
+            <a href="/modpacks" class="admin-nav-link"><span class="ai">🎒</span> Modpacks <span class="admin-nav-ext" title="Opens outside the admin panel">↗</span></a>
+        </div>
+
+        <% if (gContent) { %>
+        <div class="admin-nav-group">
+            <div class="admin-nav-label">Content</div>
+            <% if (can('tools.manage')) { %>
+            <a href="/admin/tools" class="admin-nav-link <%= isActive('/admin/tools') ? 'active' : '' %>"><span class="ai">🔧</span> Tools</a>
+            <% } %>
+            <% if (can('gallery.manage')) { %>
+            <a href="/admin/gallery" class="admin-nav-link <%= isActive('/admin/gallery') ? 'active' : '' %>"><span class="ai">🖼️</span> Gallery</a>
+            <% } %>
+            <% if (can('info.manage')) { %>
+            <a href="/admin/info/servers" class="admin-nav-link <%= isActive('/admin/info') ? 'active' : '' %>"><span class="ai">ℹ️</span> Information</a>
+            <% } %>
+            <% if (can('lore.manage')) { %>
+            <a href="/lore/admin" class="admin-nav-link"><span class="ai">📡</span> Lore Terminal <span class="admin-nav-ext" title="Opens outside the admin panel">↗</span></a>
+            <% } %>
+        </div>
+        <% } %>
+
+        <% if (gSystem) { %>
+        <div class="admin-nav-group">
+            <div class="admin-nav-label">System</div>
+            <% if (can('logs.view')) { %>
+            <a href="/admin/logs" class="admin-nav-link <%= isActive('/admin/logs') ? 'active' : '' %>"><span class="ai">📜</span> Action Log</a>
+            <% } %>
+        </div>
+        <% } %>
+
+    </nav>
+</aside>
+
+<script>
+(function () {
+    var toggle  = document.getElementById('admin-sidebar-toggle');
+    var sidebar = document.getElementById('admin-sidebar');
+    if (!toggle || !sidebar) return;
+    toggle.addEventListener('click', function () {
+        var open = sidebar.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    // Close the drawer after navigating on mobile.
+    sidebar.addEventListener('click', function (e) {
+        if (e.target.closest('a') && window.matchMedia('(max-width: 900px)').matches) {
+            sidebar.classList.remove('open');
+            toggle.setAttribute('aria-expanded', 'false');
+        }
+    });
+})();
+</script>

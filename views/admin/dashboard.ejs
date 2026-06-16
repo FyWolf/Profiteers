@@ -33,6 +33,25 @@
         </div>
     </section>
 
+    <%# ── Quick actions ───────────────────────────────────────── %>
+    <%
+    const perms = (locals.user && locals.user.permissions) ? locals.user.permissions : [];
+    const can = p => locals.user && perms.includes(p);
+    %>
+    <section class="section">
+        <h2>⚡ Quick Actions</h2>
+        <div class="admin-quick">
+            <a href="/operations/manage/list"><span>🎯</span> Manage Operations</a>
+            <a href="/loa/all"><span>🛑</span> Review LOA</a>
+            <% if (can('users.view')) { %><a href="/admin/users"><span>👥</span> Users</a><% } %>
+            <% if (can('attendance.manage')) { %><a href="/admin/attendance"><span>📋</span> Attendance</a><% } %>
+            <% if (can('logs.view')) { %><a href="/admin/logs"><span>📜</span> Action Log</a><% } %>
+        </div>
+        <p style="font-size:0.78em;color:var(--khaki);opacity:0.6;margin-top:12px;">
+            Use the sidebar on the left to reach every management area.
+        </p>
+    </section>
+
     <%# ── Traffic ─────────────────────────────────────────────── %>
     <section class="section">
         <h2>📈 Website Traffic</h2>
@@ -199,246 +218,6 @@
         </div>
         <% } %>
 
-    </section>
-
-    <%# ── Management ──────────────────────────────────────────── %>
-    <section class="section">
-        <h2>⚙️ Management</h2>
-        <%
-        const perms = (locals.user && locals.user.permissions) ? locals.user.permissions : [];
-        const can = p => locals.user && perms.includes(p);
-        %>
-        <div class="manage-grid">
-
-            <% if (can('tools.manage')) { %>
-            <div class="manage-card">
-                <div class="manage-card-top">
-                    <span class="manage-icon">🔧</span>
-                    <div class="manage-badge"><%= stats.tools %><span class="manage-badge-sub">tools</span></div>
-                </div>
-                <div class="manage-title">Tools</div>
-                <div class="manage-desc">Manage internal tool listings available to members.</div>
-                <div class="manage-card-footer">
-                    <a href="/admin/tools" class="manage-link primary">Manage</a>
-                    <a href="/admin/tools/add" class="manage-link secondary">+ New</a>
-                </div>
-            </div>
-            <% } %>
-
-            <% if (can('gallery.manage')) { %>
-            <div class="manage-card">
-                <div class="manage-card-top">
-                    <span class="manage-icon">🖼️</span>
-                    <div class="manage-badge"><%= stats.images %><span class="manage-badge-sub"><%= stats.folders %> folders</span></div>
-                </div>
-                <div class="manage-title">Gallery</div>
-                <div class="manage-desc">Manage image folders and upload new screenshots.</div>
-                <div class="manage-card-footer">
-                    <a href="/admin/gallery" class="manage-link primary">Manage</a>
-                    <a href="/admin/gallery/upload" class="manage-link secondary">+ Upload</a>
-                </div>
-            </div>
-            <% } %>
-
-            <% if (can('users.view')) { %>
-            <div class="manage-card">
-                <div class="manage-card-top">
-                    <span class="manage-icon">👥</span>
-                    <div class="manage-badge"><%= stats.users %><span class="manage-badge-sub">members</span></div>
-                </div>
-                <div class="manage-title">Users</div>
-                <div class="manage-desc">View and manage member accounts and permissions.</div>
-                <div class="manage-card-footer">
-                    <a href="/admin/users" class="manage-link primary">Manage</a>
-                </div>
-            </div>
-            <% } %>
-
-            <% if (can('medals.manage')) { %>
-            <div class="manage-card">
-                <div class="manage-card-top">
-                    <span class="manage-icon">🏅</span>
-                    <div class="manage-badge"><%= stats.medals || 0 %><span class="manage-badge-sub">medals</span></div>
-                </div>
-                <div class="manage-title">Medals</div>
-                <div class="manage-desc">Create medals and award them to members for achievements.</div>
-                <div class="manage-card-footer">
-                    <a href="/admin/medals" class="manage-link primary">Manage</a>
-                </div>
-            </div>
-            <% } %>
-
-            <% if (can('feedback.manage')) { %>
-            <div class="manage-card">
-                <div class="manage-card-top"><span class="manage-icon">📋</span></div>
-                <div class="manage-title">Leadership Feedback</div>
-                <div class="manage-desc">Open ORBAT-driven 360° feedback rounds, edit the question bank, and review participation.</div>
-                <div class="manage-card-footer">
-                    <a href="/admin/feedback" class="manage-link primary">Manage</a>
-                </div>
-            </div>
-            <% } %>
-
-            <% if (can('trainings.manage')) { %>
-            <div class="manage-card">
-                <div class="manage-card-top">
-                    <span class="manage-icon">🎓</span>
-                    <div class="manage-badge"><%= stats.trainings || 0 %><span class="manage-badge-sub">trainings</span></div>
-                </div>
-                <div class="manage-title">Trainings</div>
-                <div class="manage-desc">Manage training certifications available to members.</div>
-                <div class="manage-card-footer">
-                    <a href="/admin/trainings" class="manage-link primary">Manage</a>
-                </div>
-            </div>
-            <% } %>
-
-            <% if (can('roles.manage')) { %>
-            <div class="manage-card">
-                <div class="manage-card-top"><span class="manage-icon">🔐</span></div>
-                <div class="manage-title">Roles & Permissions</div>
-                <div class="manage-desc">Create roles, assign permissions, and manage user access.</div>
-                <div class="manage-card-footer">
-                    <a href="/admin/roles" class="manage-link primary">Manage</a>
-                    <a href="/admin/roles/create" class="manage-link secondary">+ New Role</a>
-                </div>
-            </div>
-            <% } %>
-
-            <% if (can('info.manage')) { %>
-            <div class="manage-card">
-                <div class="manage-card-top"><span class="manage-icon">ℹ️</span></div>
-                <div class="manage-title">Information Page</div>
-                <div class="manage-desc">Configure servers, staff directory, kit regulations and TFAR guide content.</div>
-                <div class="manage-card-footer">
-                    <a href="/admin/info/servers" class="manage-link primary">Servers</a>
-                    <a href="/admin/info/kit" class="manage-link secondary">Kit Regs</a>
-                </div>
-            </div>
-            <% } %>
-
-            <% if (can('lore.manage')) { %>
-            <div class="manage-card">
-                <div class="manage-card-top"><span class="manage-icon">📡</span></div>
-                <div class="manage-title">Lore Terminal</div>
-                <div class="manage-desc">Edit lore terminal nodes, files, and hidden content.</div>
-                <div class="manage-card-footer">
-                    <a href="/lore/admin" class="manage-link primary">Manage</a>
-                    <a href="/lore" class="manage-link secondary">View Terminal</a>
-                </div>
-            </div>
-            <% } %>
-
-            <% if (can('map.plans.admin')) { %>
-            <div class="manage-card">
-                <div class="manage-card-top"><span class="manage-icon">🗺</span></div>
-                <div class="manage-title">Map Plans &amp; Terrains</div>
-                <div class="manage-desc">Manage user-created map plans, transfer ownership, and import terrain zips.</div>
-                <div class="manage-card-footer">
-                    <a href="/admin/map-plans" class="manage-link primary">Manage</a>
-                </div>
-            </div>
-            <% } %>
-
-            <div class="manage-card">
-                <div class="manage-card-top"><span class="manage-icon">📋</span></div>
-                <div class="manage-title">ORBATs</div>
-                <div class="manage-desc">Create and manage order of battle templates for operations.</div>
-                <div class="manage-card-footer">
-                    <a href="/orbat/templates" class="manage-link primary">Manage</a>
-                </div>
-            </div>
-
-            <% if (can('orbat.manage')) { %>
-            <div class="manage-card">
-                <div class="manage-card-top">
-                    <span class="manage-icon">🎯</span>
-                    <div class="manage-badge"><%= stats.slot_types || 0 %><span class="manage-badge-sub">types</span></div>
-                </div>
-                <div class="manage-title">Slot Types</div>
-                <div class="manage-desc">Define predefined position types used in fixed orbat templates, and set chain of command hierarchy.</div>
-                <div class="manage-card-footer">
-                    <a href="/admin/slot-types" class="manage-link primary">Manage</a>
-                </div>
-            </div>
-            <% } %>
-
-            <% if (can('attendance.manage')) { %>
-            <div class="manage-card">
-                <div class="manage-card-top">
-                    <span class="manage-icon">📋</span>
-                    <div class="manage-badge"><%= stats.attendance_records || 0 %><span class="manage-badge-sub">records</span></div>
-                </div>
-                <div class="manage-title">Attendance</div>
-                <div class="manage-desc">View post-operation attendance records submitted by squad and platoon leaders.</div>
-                <div class="manage-card-footer">
-                    <a href="/admin/attendance" class="manage-link primary">View Report</a>
-                </div>
-            </div>
-            <% } %>
-
-            <% if (can('attendance.rewards.manage')) { %>
-            <div class="manage-card">
-                <div class="manage-card-top">
-                    <span class="manage-icon">🎖️</span>
-                </div>
-                <div class="manage-title">Attendance Rewards</div>
-                <div class="manage-desc">Automatically grant or remove Discord roles when members reach attendance milestones.</div>
-                <div class="manage-card-footer">
-                    <a href="/admin/attendance-rewards" class="manage-link primary">Manage</a>
-                </div>
-            </div>
-            <% } %>
-
-            <div class="manage-card">
-                <div class="manage-card-top"><span class="manage-icon">🎯</span></div>
-                <div class="manage-title">Operations</div>
-                <div class="manage-desc">Schedule and manage operations, missions, and side ops.</div>
-                <div class="manage-card-footer">
-                    <a href="/operations/manage/list" class="manage-link primary">Manage</a>
-                </div>
-            </div>
-
-            <div class="manage-card">
-                <div class="manage-card-top"><span class="manage-icon">🛑</span></div>
-                <div class="manage-title">Leave of Absence</div>
-                <div class="manage-desc">Review and manage pending LOA requests from members.</div>
-                <div class="manage-card-footer">
-                    <a href="/loa/all" class="manage-link primary">View All</a>
-                </div>
-            </div>
-
-            <div class="manage-card">
-                <div class="manage-card-top"><span class="manage-icon">🎒</span></div>
-                <div class="manage-title">Modpacks</div>
-                <div class="manage-desc">Upload and manage mission modpacks for players.</div>
-                <div class="manage-card-footer">
-                    <a href="/modpacks" class="manage-link primary">Manage</a>
-                    <a href="/modpacks/upload/new" class="manage-link secondary">+ Upload</a>
-                </div>
-            </div>
-
-            <div class="manage-card">
-                <div class="manage-card-top"><span class="manage-icon">📊</span></div>
-                <div class="manage-title">Member Activity</div>
-                <div class="manage-desc">Server join/leave trends, message-based DAU/WAU/MAU, retention cohorts, and new member engagement stats.</div>
-                <div class="manage-card-footer">
-                    <a href="/admin/presence" class="manage-link primary">View Stats</a>
-                </div>
-            </div>
-
-            <% if (can('logs.view')) { %>
-            <div class="manage-card">
-                <div class="manage-card-top"><span class="manage-icon">📜</span></div>
-                <div class="manage-title">Action Log</div>
-                <div class="manage-desc">Full audit trail of every action taken on the site — who did what, where and when.</div>
-                <div class="manage-card-footer">
-                    <a href="/admin/logs" class="manage-link primary">View Log</a>
-                </div>
-            </div>
-            <% } %>
-
-        </div>
     </section>
 </div>
 
