@@ -26,6 +26,11 @@ const members   = node.members || [];
                         <% } %>
                         <span class="orgchart-name"><%= personName %></span>
                     <% if (m.user_id) { %></a><% } %>
+                    <% if (m.loa) {
+                        const fmtLoa = ts => new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    %>
+                        <span class="orgchart-loa" title="On leave: <%= fmtLoa(m.loa.start_date) %> – <%= fmtLoa(m.loa.end_date) %>">LOA</span>
+                    <% } %>
                 </div>
             <% }) } %>
         </div>

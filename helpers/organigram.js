@@ -61,6 +61,24 @@ async function loadNodesWithMembers(db) {
             WHERE rm.discord_id IN (?)
         `, [unique]);
         rows.forEach(r => { memberMap[r.discord_id] = r; });
+
+        // Attach any currently-active approved LOA to the (registered) members.
+        const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
+        if (userIds.length > 0) {
+            const [loaRows] = await db.query(`
+                SELECT user_id, start_date, end_date
+                FROM leave_of_absence
+                WHERE status = 'approved'
+                  AND start_date <= UNIX_TIMESTAMP()
+                  AND end_date   >= UNIX_TIMESTAMP()
+                  AND user_id IN (?)
+            `, [userIds]);
+            const loaByUser = {};
+            loaRows.forEach(l => { loaByUser[l.user_id] = l; });
+            Object.values(memberMap).forEach(m => {
+                if (m.user_id && loaByUser[m.user_id]) m.loa = loaByUser[m.user_id];
+            });
+        }
     }
 
     nodes.forEach(n => {

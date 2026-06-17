@@ -748,6 +748,18 @@ footer {
     opacity: 0.45;
     font-style: italic;
 }
+.orgchart-loa {
+    font-size: 0.62em;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #5dade2;
+    background: rgba(52,152,219,0.18);
+    border: 1px solid rgba(52,152,219,0.45);
+    border-radius: 3px;
+    padding: 1px 5px;
+    flex-shrink: 0;
+    cursor: default;
+}
 
 .orbat-squad-card {
     min-width: 180px;
