@@ -38,6 +38,9 @@ const gSystem     = can('logs.view');
             <a href="/admin/trainings" class="admin-nav-link <%= isActive('/admin/trainings') ? 'active' : '' %>"><span class="ai">🎓</span> Trainings</a>
             <% } %>
             <a href="/admin/presence" class="admin-nav-link <%= isActive('/admin/presence') ? 'active' : '' %>"><span class="ai">📊</span> Member Activity</a>
+            <% if (can('organigram.manage')) { %>
+            <a href="/admin/organigram" class="admin-nav-link <%= isActive('/admin/organigram') ? 'active' : '' %>"><span class="ai">🏛️</span> Organigram</a>
+            <% } %>
             <a href="/loa/all" class="admin-nav-link"><span class="ai">🛑</span> Leave of Absence <span class="admin-nav-ext" title="Opens outside the admin panel">↗</span></a>
         </div>
 

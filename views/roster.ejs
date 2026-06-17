@@ -16,64 +16,19 @@
     </div>
     <% } %>
 
-    <!-- ── Staff by Department ──────────────────────────────────────────── -->
-    <%
-    // Check if any dept has any members at all
-    const hasAnyStaff = departments.some(d => {
-        const data = staffByDept[d.label];
-        if (!data) return false;
-        if (data.members.length > 0) return true;
-        return Object.values(data.subcats).some(arr => arr.length > 0);
-    });
-    %>
-    <% if (hasAnyStaff) { %>
+    <!-- ── Organigram (admin-curated org chart) ──────────────────────────── -->
+    <% if (organigramTree && organigramTree.length > 0) { %>
     <section class="section staff-section">
-        <h2 class="staff-section-title">Staff</h2>
-        <p style="color:var(--khaki);font-size:0.88em;margin:0 0 24px;">Leadership and department heads</p>
+        <h2 class="staff-section-title">Chain of Command</h2>
+        <p style="color:var(--khaki);font-size:0.88em;margin:0 0 24px;">Unit leadership &amp; structure</p>
 
-        <% departments.forEach(dept => { %>
-        <%
-            const deptData = staffByDept[dept.label];
-            if (!deptData) return;
-            const hasSubcats = dept.subcategories && dept.subcategories.length > 0;
-            const totalInDept = deptData.members.length + Object.values(deptData.subcats).reduce((s, a) => s + a.length, 0);
-            if (totalInDept === 0) return;
-        %>
-        <div class="dept-block">
-            <div class="dept-label"><%= dept.label %></div>
-
-            <% if (hasSubcats) { %>
-                <!-- Sub-categorised department -->
-                <% dept.subcategories.forEach(sc => { %>
-                <% const scMembers = deptData.subcats[sc.label] || []; %>
-                <% if (scMembers.length > 0) { %>
-                <div class="subcat-label"><%= sc.label %></div>
-                <div class="dept-grid">
-                    <% scMembers.forEach(member => { %>
-                    <%- include('partials/staff-card', { member }) %>
-                    <% }) %>
-                </div>
-                <% } %>
+        <div class="org-tree-scroll" style="overflow-x:auto;padding-bottom:10px;">
+            <div class="org-row" style="align-items:flex-start;gap:24px;width:max-content;margin:0 auto;">
+                <% organigramTree.forEach(root => { %>
+                    <%- include('partials/organigram-node', { node: root, isRoot: true, displayName }) %>
                 <% }) %>
-                <!-- Members in dept but no sub-cat -->
-                <% if (deptData.members.length > 0) { %>
-                <div class="subcat-label">General</div>
-                <div class="dept-grid">
-                    <% deptData.members.forEach(member => { %>
-                    <%- include('partials/staff-card', { member }) %>
-                    <% }) %>
-                </div>
-                <% } %>
-            <% } else { %>
-                <!-- Flat department -->
-                <div class="dept-grid">
-                    <% deptData.members.forEach(member => { %>
-                    <%- include('partials/staff-card', { member }) %>
-                    <% }) %>
-                </div>
-            <% } %>
+            </div>
         </div>
-        <% }) %>
     </section>
     <% } %>
 

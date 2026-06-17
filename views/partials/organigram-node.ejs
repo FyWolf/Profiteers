@@ -1,0 +1,38 @@
+<%
+// Recursive organigram node renderer.
+// Params: node (with .children[]), isRoot (bool). Reuses the .org-* tree CSS.
+const _isRoot   = (typeof isRoot !== 'undefined') ? isRoot : true;
+const wrapClass = _isRoot ? 'org-node' : 'org-col';
+const assigned  = !!node.discord_id;
+const personName = assigned ? displayName(node) : null;
+const avatarUrl  = (assigned && node.discord_avatar)
+    ? `https://cdn.discordapp.com/avatars/${node.discord_id}/${node.discord_avatar}.png?size=64`
+    : null;
+%>
+<div class="<%= wrapClass %>">
+    <div class="orgchart-card" style="border-top:3px solid <%= node.color %>;">
+        <div class="orgchart-title"><%= node.title %></div>
+        <div class="orgchart-person">
+            <% if (assigned) { %>
+                <% if (node.user_id) { %><a href="/profile/<%= node.user_id %>"><% } %>
+                    <% if (avatarUrl) { %>
+                        <img class="orgchart-avatar" src="<%= avatarUrl %>" alt="<%= personName %>" style="border:2px solid <%= node.color %>;">
+                    <% } else { %>
+                        <div class="orgchart-avatar orgchart-avatar-fallback" style="background:<%= node.color %>;"><%= personName.charAt(0).toUpperCase() %></div>
+                    <% } %>
+                    <span class="orgchart-name"><%= personName %></span>
+                <% if (node.user_id) { %></a><% } %>
+            <% } else { %>
+                <span class="orgchart-vacant">Vacant</span>
+            <% } %>
+        </div>
+    </div>
+    <% if (node.children && node.children.length > 0) { %>
+        <div class="org-v-bar"></div>
+        <div class="org-row">
+            <% node.children.forEach(child => { %>
+                <%- include('organigram-node', { node: child, isRoot: false, displayName }) %>
+            <% }) %>
+        </div>
+    <% } %>
+</div>
