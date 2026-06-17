@@ -14,7 +14,7 @@ const fileUpload = require('express-fileupload');
 const path = require('path');
 require('dotenv').config({ quiet: true });
 
-const requiredEnvVars = ['DISCORD_GUILD_ID', 'DISCORD_ZEUS_ROLE_ID'];
+const requiredEnvVars = ['DISCORD_GUILD_ID'];
 const missing = requiredEnvVars.filter(v => !process.env[v]);
 if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);

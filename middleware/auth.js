@@ -1,4 +1,3 @@
-const { checkZeusStatus } = require('./zeus');
 const displayName = require('../helpers/displayName');
 
 function isAuthenticated(req, res, next) {
@@ -53,7 +52,10 @@ async function attachUser(req, res, next) {
         req.session.username = req.user.username;
         req.session.isAdmin  = isAdminFlag;
 
-        const isZeus = await checkZeusStatus(req.user.id);
+        // "Zeus" (operations staff) = can create or edit operations, derived
+        // straight from the permissions already loaded in passport deserialize.
+        const isZeus = permissions.includes('operations.create')
+            || permissions.includes('operations.edit');
 
         res.locals.user = {
             id: req.user.id,

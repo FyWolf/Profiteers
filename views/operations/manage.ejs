@@ -10,8 +10,10 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
             <h2 style="margin: 0;">All Operations</h2>
             <div style="display: flex; gap: 10px;">
-                <a href="/operations/manage/blocks" class="btn">🔒 Locked Periods</a>
-                <a href="/operations/manage/create" class="btn btn-primary">➕ Create New Operation</a>
+                <% if (canCreate) { %>
+                    <a href="/operations/manage/blocks" class="btn">🔒 Locked Periods</a>
+                    <a href="/operations/manage/create" class="btn btn-primary">➕ Create New Operation</a>
+                <% } %>
             </div>
         </div>
 
@@ -103,14 +105,18 @@
                                         <a href="/operations/<%= op.id %>" class="btn" style="padding: 6px 12px; font-size: 0.85em;">
                                             👁️ View
                                         </a>
+                                        <% if (canEdit) { %>
                                         <a href="/operations/manage/edit/<%= op.id %>" class="btn" style="padding: 6px 12px; font-size: 0.85em;">
                                             ✏️ Edit
                                         </a>
+                                        <% } %>
+                                        <% if (canDelete) { %>
                                         <form method="POST" action="/operations/manage/delete/<%= op.id %>" style="display: inline;" onsubmit="return confirm('Delete this operation? This will remove all attendance data and news.')">
                                             <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.85em;">
                                                 🗑️ Delete
                                             </button>
                                         </form>
+                                        <% } %>
                                     </div>
                                 </td>
                             </tr>

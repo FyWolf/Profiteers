@@ -1,131 +1,69 @@
 const db = require('../config/database');
-const axios = require('axios');
 
-const ZEUS_ROLE_ID = process.env.DISCORD_ZEUS_ROLE_ID;
-const GUILD_ID = process.env.DISCORD_GUILD_ID;
+// Operation management ("Zeus") access is governed entirely by RBAC permissions:
+//   operations.create  - create new operations (+ scheduling: locked periods, overlaps)
+//   operations.edit    - edit existing operations (details, ORBAT, news updates)
+//   operations.delete  - delete operations
+// "Zeus" is the Arma term for the operation gamemaster/host; here it simply means
+// a user who can manage operations. (The previous Discord Zeus-role check has been
+// removed — access is now driven purely by the web permissions above.)
 
-async function isZeus(req, res, next) {
-    if (!req.isAuthenticated()) {
-        return res.redirect('/login');
-    }
-
+// True if the user holds ANY of the given permissions (looked up via their roles).
+async function hasOpsPermission(userId, permNames) {
+    if (!userId || permNames.length === 0) return false;
     try {
-        if (Array.isArray(req.user.permissions) && req.user.permissions.includes('operations.create')) {
-            return next();
-        }
-
-        const [users] = await db.query('SELECT discord_id FROM users WHERE id = ?', [req.user.id]);
-        
-        if (users.length === 0 || !users[0].discord_id) {
-            return res.status(403).render('error', {
-                title: 'Access Denied',
-                message: 'Zeus Permissions Required',
-                description: 'You need Zeus permissions to access this page. Only Zeus role holders and admins can manage operations.',
-                user: res.locals.user
-            });
-        }
-
-        const discordId = users[0].discord_id;
-
-        const [cachedPerms] = await db.query(
-            'SELECT has_zeus_role, last_synced FROM zeus_permissions WHERE user_id = ?',
-            [req.user.id]
-        );
-
-        if (cachedPerms.length > 0) {
-            const cacheAge = Date.now() - new Date(cachedPerms[0].last_synced).getTime();
-            if (cacheAge < 3600000 && cachedPerms[0].has_zeus_role) {
-                return next();
-            }
-        }
-
-        const botToken = process.env.DISCORD_BOT_TOKEN;
-        if (!botToken) {
-            console.error('DISCORD_BOT_TOKEN not set');
-            return res.status(500).render('error', {
-                title: 'Configuration Error',
-                message: 'Bot Token Not Configured',
-                description: 'Discord bot token is not configured. Please contact an administrator.',
-                user: res.locals.user
-            });
-        }
-
-        const response = await axios.get(
-            `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${discordId}`,
-            {
-                headers: {
-                    Authorization: `Bot ${botToken}`
-                }
-            }
-        );
-
-        const userRoles = response.data.roles || [];
-        const hasZeusRole = userRoles.includes(ZEUS_ROLE_ID);
-
-        await db.query(`
-            INSERT INTO zeus_permissions (user_id, has_zeus_role)
-            VALUES (?, ?)
-            ON DUPLICATE KEY UPDATE has_zeus_role = ?, last_synced = NOW()
-        `, [req.user.id, hasZeusRole, hasZeusRole]);
-
-        if (hasZeusRole) {
-            return next();
-        }
-
-        return res.status(403).render('error', {
-            title: 'Access Denied',
-            message: 'Zeus Permissions Required',
-            description: 'You need the Zeus role in Discord or admin permissions to access this page.',
-            user: res.locals.user
-        });
-
-    } catch (error) {
-        console.error('Error checking Zeus permissions:', error);
-        return res.status(500).render('error', {
-            title: 'Error',
-            message: 'Permission Check Failed',
-            description: 'Could not verify your permissions. Please try again.',
-            user: res.locals.user
-        });
-    }
-}
-
-async function checkZeusStatus(userId) {
-    try {
-        const [users] = await db.query('SELECT discord_id FROM users WHERE id = ?', [userId]);
-
-        if (users.length === 0) return false;
-
-        const [perms] = await db.query(`
+        const placeholders = permNames.map(() => '?').join(', ');
+        const [rows] = await db.query(`
             SELECT 1
             FROM user_roles ur
             JOIN role_permissions rp ON ur.role_id = rp.role_id
             JOIN permissions p ON rp.permission_id = p.id
-            WHERE ur.user_id = ? AND p.name = 'operations.create'
+            WHERE ur.user_id = ? AND p.name IN (${placeholders})
             LIMIT 1
-        `, [userId]);
-        if (perms.length > 0) return true;
-
-        if (!users[0].discord_id) return false;
-
-        const [cachedPerms] = await db.query(
-            'SELECT has_zeus_role FROM zeus_permissions WHERE user_id = ?',
-            [userId]
-        );
-
-        if (cachedPerms.length > 0) {
-            return cachedPerms[0].has_zeus_role;
-        }
-
-        return false;
+        `, [userId, ...permNames]);
+        return rows.length > 0;
     } catch (error) {
-        console.error('Error checking Zeus status:', error);
+        console.error('Error checking operations permission:', error);
         return false;
     }
 }
 
+// Broad "operations staff": can create OR edit operations.
+const checkZeusStatus   = (userId) => hasOpsPermission(userId, ['operations.create', 'operations.edit']);
+// Can create new operations.
+const checkCreateStatus = (userId) => hasOpsPermission(userId, ['operations.create']);
+// Can edit existing operations (separate from creating them).
+const checkEditStatus   = (userId) => hasOpsPermission(userId, ['operations.edit']);
+
+// Route middleware gating on operations permissions already loaded onto req.user
+// (set in passport deserialize), so no extra query is needed per request.
+function requireOpsPermission(...permNames) {
+    return function (req, res, next) {
+        if (!req.isAuthenticated()) {
+            return res.redirect('/login?redirect=' + encodeURIComponent(req.originalUrl));
+        }
+        const perms = Array.isArray(req.user.permissions) ? req.user.permissions : [];
+        if (permNames.some(p => perms.includes(p))) {
+            return next();
+        }
+        return res.status(403).render('error', {
+            title: 'Access Denied',
+            message: 'Operations Permission Required',
+            description: 'You need operation management permissions to access this page.',
+            user: res.locals.user
+        });
+    };
+}
+
+// Create new operations (and scheduling pages).
+const isZeus = requireOpsPermission('operations.create');
+// View the operations management list: create OR edit capability.
+const canManageOps = requireOpsPermission('operations.create', 'operations.edit');
+
 module.exports = {
     isZeus,
+    canManageOps,
     checkZeusStatus,
-    ZEUS_ROLE_ID
+    checkCreateStatus,
+    checkEditStatus
 };

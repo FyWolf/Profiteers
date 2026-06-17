@@ -4,7 +4,7 @@ const path = require('path');
 const sanitizeHtml = require('sanitize-html');
 const db = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
-const { isZeus, checkZeusStatus } = require('../middleware/zeus');
+const { isZeus, canManageOps, checkCreateStatus, checkEditStatus } = require('../middleware/zeus');
 const { getLeaderScope } = require('./attendance');
 
 function canDeleteOp(req, res, next) {
@@ -238,7 +238,7 @@ router.get('/:id', async (req, res) => {
         
         let canManage = false;
         if (req.session.userId) {
-            canManage = await checkZeusStatus(req.session.userId)
+            canManage = await checkEditStatus(req.session.userId)
                 || (operation && parseInt(operation.host_id) === parseInt(req.session.userId));
         }
         
@@ -364,8 +364,13 @@ router.post('/:id/attendance', isAuthenticated, async (req, res) => {
     }
 });
 
-router.get('/manage/list', isZeus, async (req, res) => {
+router.get('/manage/list', canManageOps, async (req, res) => {
     try {
+        const perms = Array.isArray(req.user.permissions) ? req.user.permissions : [];
+        const canCreate = await checkCreateStatus(req.session.userId);
+        const canEdit   = await checkEditStatus(req.session.userId);
+        const canDelete = perms.includes('operations.delete') || canCreate;
+
         const [operations] = await db.query(`
             SELECT
                 o.*,
@@ -385,6 +390,9 @@ router.get('/manage/list', isZeus, async (req, res) => {
         res.render('operations/manage', {
             title: 'Manage Operations - Profiteers PMC',
             operations: operations,
+            canCreate,
+            canEdit,
+            canDelete,
             success: req.query.success || null,
             error: req.query.error || null
         });
@@ -624,7 +632,7 @@ router.get('/manage/edit/:id', isAuthenticated, async (req, res) => {
             return res.redirect('/operations/manage/list?error=Operation not found');
         }
 
-        const isZeusUser = await checkZeusStatus(req.session.userId);
+        const isZeusUser = await checkEditStatus(req.session.userId);
         const isHost = parseInt(operations[0].host_id) === parseInt(req.session.userId);
         if (!isZeusUser && !isHost) {
             return res.redirect('/operations/' + req.params.id + '?error=Access denied');
@@ -655,7 +663,7 @@ router.get('/manage/edit/:id', isAuthenticated, async (req, res) => {
 router.post('/manage/edit/:id', isAuthenticated, async (req, res) => {
     try {
         const [opCheck] = await db.query('SELECT host_id FROM operations WHERE id = ?', [req.params.id]);
-        const isZeusUser = await checkZeusStatus(req.session.userId);
+        const isZeusUser = await checkEditStatus(req.session.userId);
         const isHost = opCheck.length > 0 && parseInt(opCheck[0].host_id) === parseInt(req.session.userId);
         if (!isZeusUser && !isHost) {
             return res.redirect('/operations/' + req.params.id + '?error=Access denied');
@@ -733,7 +741,7 @@ router.post('/:id/news/file', isAuthenticated, async (req, res) => {
         const [opCheck] = await db.query('SELECT host_id FROM operations WHERE id = ?', [req.params.id]);
         if (!opCheck.length) return res.json({ success: false, error: 'Operation not found' });
 
-        const isZeusUser = await checkZeusStatus(req.session.userId);
+        const isZeusUser = await checkEditStatus(req.session.userId);
         const isHost = parseInt(opCheck[0].host_id) === parseInt(req.session.userId);
         if (!isZeusUser && !isHost) return res.status(403).json({ success: false, error: 'Access denied' });
 
@@ -761,7 +769,7 @@ router.post('/:id/news/image', isAuthenticated, async (req, res) => {
         const [opCheck] = await db.query('SELECT host_id FROM operations WHERE id = ?', [req.params.id]);
         if (!opCheck.length) return res.json({ success: false, error: 'Operation not found' });
 
-        const isZeusUser = await checkZeusStatus(req.session.userId);
+        const isZeusUser = await checkEditStatus(req.session.userId);
         const isHost = parseInt(opCheck[0].host_id) === parseInt(req.session.userId);
         if (!isZeusUser && !isHost) return res.status(403).json({ success: false, error: 'Access denied' });
 
@@ -786,7 +794,7 @@ router.post('/:id/news/image', isAuthenticated, async (req, res) => {
 router.post('/:id/news', isAuthenticated, async (req, res) => {
     try {
         const [opCheck] = await db.query('SELECT host_id FROM operations WHERE id = ?', [req.params.id]);
-        const isZeusUser = await checkZeusStatus(req.session.userId);
+        const isZeusUser = await checkEditStatus(req.session.userId);
         const isHost = opCheck.length > 0 && parseInt(opCheck[0].host_id) === parseInt(req.session.userId);
         if (!isZeusUser && !isHost) {
             return res.json({ success: false, error: 'Access denied' });
@@ -834,7 +842,7 @@ router.post('/news/delete/:newsId', isAuthenticated, async (req, res) => {
             JOIN operations o ON o.id = opn.operation_id
             WHERE opn.id = ?
         `, [req.params.newsId]);
-        const isZeusUser = await checkZeusStatus(req.session.userId);
+        const isZeusUser = await checkEditStatus(req.session.userId);
         const isHost = newsCheck.length > 0 && parseInt(newsCheck[0].host_id) === parseInt(req.session.userId);
         if (!isZeusUser && !isHost) {
             return res.json({ success: false, error: 'Access denied' });
