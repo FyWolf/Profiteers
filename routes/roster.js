@@ -2,21 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 const axios = require('axios');
-
-// Build a parent→children tree from a flat node list (roots = parent_id NULL).
-function buildOrganigramTree(nodes) {
-    const byId = new Map();
-    nodes.forEach(n => byId.set(n.id, { ...n, children: [] }));
-    const roots = [];
-    byId.forEach(node => {
-        if (node.parent_id && byId.has(node.parent_id)) {
-            byId.get(node.parent_id).children.push(node);
-        } else {
-            roots.push(node);
-        }
-    });
-    return roots;
-}
+const { loadNodesWithMembers, buildTree } = require('../helpers/organigram');
 
 router.get('/', async (req, res) => {
     try {
@@ -55,22 +41,9 @@ router.get('/', async (req, res) => {
         }
 
         // Organigram — admin-curated org chart shown above the roster. Each node
-        // optionally holds a roster member (by discord_id); LEFT JOINs resolve the
-        // current name/avatar and a profile link only when the member is registered.
-        const [organigramNodes] = await db.query(`
-            SELECT
-                n.id, n.parent_id, n.title, n.color, n.display_order,
-                rm.nickname AS roster_nickname,
-                rm.discord_global_name,
-                rm.discord_username AS username,
-                rm.discord_avatar,
-                rm.discord_id,
-                u.id AS user_id
-            FROM organigram_nodes n
-            LEFT JOIN roster_members rm ON rm.discord_id = n.member_discord_id
-            LEFT JOIN users u ON u.discord_id = n.member_discord_id
-            ORDER BY n.display_order ASC, n.id ASC
-        `);
+        // may hold any number of roster members (by discord_id); the helper resolves
+        // current name/avatar and a profile link only for those who are registered.
+        const organigramNodes = await loadNodesWithMembers(db);
 
         const [syncInfo] = await db.query('SELECT MAX(last_synced) as last_sync FROM roster_members');
 
@@ -78,7 +51,7 @@ router.get('/', async (req, res) => {
             title: 'Roster - Profiteers PMC',
             roles,
             membersByRole,
-            organigramTree: buildOrganigramTree(organigramNodes),
+            organigramTree: buildTree(organigramNodes),
             lastSync: syncInfo[0]?.last_sync || null,
             user: res.locals.user
         });

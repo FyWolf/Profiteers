@@ -1,11 +1,13 @@
 <%
-// Reusable roster-member autocomplete for the organigram editor.
-// Param: prefix (string) — namespaces the element ids ("add" / "edit").
-// Submits the chosen roster member's discord_id in the hidden `member_discord_id` field.
+// Reusable multi-member roster autocomplete for the organigram editor.
+// Param: prefix (string) — namespaces the element ids.
+// Each chosen member adds a chip containing a hidden `member_discord_ids` input,
+// so the form submits an array of the selected roster members' discord ids.
 %>
-<input type="hidden" id="<%= prefix %>_discord_id" name="member_discord_id" value="">
-<div class="org-pick-selected" id="<%= prefix %>_selected"></div>
-<div class="org-pick-results">
-    <input type="text" id="<%= prefix %>_search" class="org-input" placeholder="Search roster members…" autocomplete="off">
-    <div class="org-pick-list" id="<%= prefix %>_results" style="display:none;"></div>
+<div class="org-pick">
+    <div class="org-pick-chips" id="<%= prefix %>_chips"></div>
+    <div class="org-pick-results">
+        <input type="text" id="<%= prefix %>_search" class="org-input" placeholder="Search roster members to add…" autocomplete="off">
+        <div class="org-pick-list" id="<%= prefix %>_results" style="display:none;"></div>
+    </div>
 </div>

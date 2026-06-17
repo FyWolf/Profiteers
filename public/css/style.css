@@ -700,6 +700,11 @@ footer {
     margin-bottom: 8px;
     letter-spacing: 0.02em;
 }
+.orgchart-people {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
 .orgchart-person {
     display: flex;
     align-items: center;

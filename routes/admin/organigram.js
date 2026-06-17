@@ -1,23 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/database');
+const { loadNodesWithMembers, buildTree } = require('../../helpers/organigram');
 
 const DEFAULT_COLOR = '#6b8e23';
 const isHexColor = c => typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c.trim());
 
-// Build a parent→children tree from a flat node list (roots = parent_id NULL).
-function buildTree(nodes) {
-    const byId = new Map();
-    nodes.forEach(n => byId.set(n.id, { ...n, children: [] }));
-    const roots = [];
-    byId.forEach(node => {
-        if (node.parent_id && byId.has(node.parent_id)) {
-            byId.get(node.parent_id).children.push(node);
-        } else {
-            roots.push(node);
-        }
-    });
-    return roots;
+// Normalise submitted member ids (may be undefined / single string / array) into
+// a clean, de-duplicated array of trimmed id strings.
+function normalizeMemberIds(raw) {
+    return [...new Set(
+        [].concat(raw || [])
+          .map(v => String(v).trim())
+          .filter(Boolean)
+    )];
 }
 
 // Collect the ids of a node and all its descendants (cycle guard for re-parenting).
@@ -37,26 +33,9 @@ function collectSubtreeIds(nodes, rootId) {
     return ids;
 }
 
-// Load all nodes with the assigned member resolved for display.
-async function loadNodes() {
-    const [nodes] = await db.query(`
-        SELECT
-            n.id, n.parent_id, n.title, n.member_discord_id, n.color, n.display_order,
-            rm.nickname AS roster_nickname,
-            rm.discord_global_name,
-            rm.discord_username AS username,
-            rm.discord_avatar,
-            rm.discord_id
-        FROM organigram_nodes n
-        LEFT JOIN roster_members rm ON rm.discord_id = n.member_discord_id
-        ORDER BY n.display_order ASC, n.id ASC
-    `);
-    return nodes;
-}
-
 router.get('/', async (req, res) => {
     try {
-        const nodes = await loadNodes();
+        const nodes = await loadNodesWithMembers(db);
         res.render('admin/organigram', {
             title: 'Organigram - Admin',
             nodes,
@@ -77,7 +56,7 @@ router.get('/', async (req, res) => {
 
 router.post('/nodes', async (req, res) => {
     try {
-        const { title, parent_id, member_discord_id, color } = req.body;
+        const { title, parent_id, color } = req.body;
         if (!title || !title.trim()) {
             return res.redirect('/admin/organigram?error=Position title is required');
         }
@@ -89,6 +68,8 @@ router.post('/nodes', async (req, res) => {
             if (!parent) parentId = null;
         }
 
+        const memberIds = normalizeMemberIds(req.body.member_discord_ids);
+
         const [[{ maxOrder }]] = await db.query(
             'SELECT MAX(display_order) AS maxOrder FROM organigram_nodes WHERE parent_id <=> ?',
             [parentId]
@@ -96,11 +77,11 @@ router.post('/nodes', async (req, res) => {
         const nextOrder = (maxOrder ?? -1) + 1;
 
         await db.query(
-            'INSERT INTO organigram_nodes (parent_id, title, member_discord_id, color, display_order) VALUES (?, ?, ?, ?, ?)',
+            'INSERT INTO organigram_nodes (parent_id, title, member_discord_ids, color, display_order) VALUES (?, ?, ?, ?, ?)',
             [
                 parentId,
                 title.trim(),
-                (member_discord_id && member_discord_id.trim()) || null,
+                memberIds.length ? JSON.stringify(memberIds) : null,
                 isHexColor(color) ? color.trim() : DEFAULT_COLOR,
                 nextOrder
             ]
@@ -121,7 +102,7 @@ router.post('/nodes/:id', async (req, res) => {
             return res.redirect('/admin/organigram?error=Position not found');
         }
 
-        const { title, parent_id, member_discord_id, color, display_order } = req.body;
+        const { title, parent_id, color, display_order } = req.body;
         if (!title || !title.trim()) {
             return res.redirect('/admin/organigram?error=Position title is required');
         }
@@ -131,7 +112,7 @@ router.post('/nodes/:id', async (req, res) => {
 
         // Cycle guard: a node cannot be parented to itself or any of its descendants.
         if (parentId) {
-            const nodes = await loadNodes();
+            const nodes = await loadNodesWithMembers(db);
             const subtree = collectSubtreeIds(nodes, id);
             if (subtree.has(parentId)) {
                 return res.redirect('/admin/organigram?error=A position cannot report to itself or one of its subordinates');
@@ -140,14 +121,15 @@ router.post('/nodes/:id', async (req, res) => {
             if (!parent) parentId = null;
         }
 
+        const memberIds = normalizeMemberIds(req.body.member_discord_ids);
         const order = display_order != null && display_order !== '' ? parseInt(display_order) : 0;
 
         await db.query(
-            'UPDATE organigram_nodes SET title = ?, parent_id = ?, member_discord_id = ?, color = ?, display_order = ? WHERE id = ?',
+            'UPDATE organigram_nodes SET title = ?, parent_id = ?, member_discord_ids = ?, color = ?, display_order = ? WHERE id = ?',
             [
                 title.trim(),
                 parentId,
-                (member_discord_id && member_discord_id.trim()) || null,
+                memberIds.length ? JSON.stringify(memberIds) : null,
                 isHexColor(color) ? color.trim() : DEFAULT_COLOR,
                 isNaN(order) ? 0 : order,
                 id

@@ -2,23 +2,25 @@
 <%
 function esc(s){return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-// Parent <select> options shared by the add + edit forms.
+// Parent <select> options shared by the form.
 function parentOptions() {
     return nodes.map(n => `<option value="${n.id}">${esc(n.title)}</option>`).join('');
 }
 
 // Recursive editor tree row.
 function renderEditRow(node, depth) {
-    const assigned = !!node.discord_id;
-    const memberLabel = assigned ? displayName(node) : (node.member_discord_id ? '⚠ left guild' : 'Vacant');
+    const members = node.members || [];
+    const memberLabel = members.length
+        ? members.map(m => esc(displayName(m))).join(', ')
+        : (node.memberIds && node.memberIds.length ? '⚠ left guild' : 'Vacant');
     let html = `<div class="org-edit-row" style="padding-left:${depth * 22 + 4}px;">`;
     html += `<span class="org-edit-dot" style="background:${esc(node.color)};"></span>`;
     html += `<span class="org-edit-title">${esc(node.title)}</span>`;
-    html += assigned
-        ? `<span class="org-edit-member">${esc(memberLabel)}</span>`
-        : `<span class="org-edit-member muted">${esc(memberLabel)}</span>`;
+    html += members.length
+        ? `<span class="org-edit-member">${memberLabel}</span>`
+        : `<span class="org-edit-member muted">${memberLabel}</span>`;
     html += `<span class="org-edit-actions">`;
-    html += `<button type="button" class="org-btn" onclick="editNode(${node.id})">Edit</button>`;
+    html += `<button type="button" class="org-btn" onclick="enterEditMode(${node.id})">Edit</button>`;
     html += `<button type="button" class="org-btn" onclick="addChild(${node.id})">+ Sub</button>`;
     html += `<form method="POST" action="/admin/organigram/nodes/${node.id}/delete" style="display:inline" onsubmit="return confirm('Delete this position? Its sub-positions move up to its parent.')"><button type="submit" class="org-btn org-btn-danger">Delete</button></form>`;
     html += `</span></div>`;
@@ -26,17 +28,23 @@ function renderEditRow(node, depth) {
     return html;
 }
 
-// Flat node data for the client (edit-panel population).
-const nodesForJs = nodes.map(n => ({
-    id: n.id,
-    title: n.title,
-    parent_id: n.parent_id,
-    member_discord_id: n.member_discord_id,
-    color: n.color,
-    display_order: n.display_order,
-    member_name: n.discord_id ? displayName(n) : (n.member_discord_id ? '(left guild)' : null),
-    member_avatar: n.discord_id ? (n.discord_avatar || '') : ''
-}));
+// Flat node data for the client (form population in edit mode).
+const nodesForJs = nodes.map(n => {
+    const resolved = {};
+    (n.members || []).forEach(m => { resolved[m.discord_id] = { name: displayName(m), avatar: m.discord_avatar || '' }; });
+    return {
+        id: n.id,
+        title: n.title,
+        parent_id: n.parent_id,
+        color: n.color,
+        display_order: n.display_order,
+        members: (n.memberIds || []).map(id => ({
+            id,
+            name:   resolved[id] ? resolved[id].name   : '(left guild)',
+            avatar: resolved[id] ? resolved[id].avatar : ''
+        }))
+    };
+});
 %>
 
 <div class="container">
@@ -49,7 +57,7 @@ const nodesForJs = nodes.map(n => ({
                 <span class="stat-lbl">Positions</span>
             </div>
             <div class="stat-chip">
-                <span class="stat-val"><%= nodes.filter(n => n.discord_id).length %></span>
+                <span class="stat-val"><%= nodes.filter(n => n.members && n.members.length).length %></span>
                 <span class="stat-lbl">Filled</span>
             </div>
         </div>
@@ -59,69 +67,57 @@ const nodesForJs = nodes.map(n => ({
         <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
         <% if (error)   { %><div class="alert alert-error"><%= error %></div><% } %>
 
-        <!-- Add position -->
-        <div class="panel" id="add_panel" style="margin-bottom:18px;">
-            <h3 style="margin:0 0 12px;">ADD POSITION</h3>
-            <form method="POST" action="/admin/organigram/nodes">
-                <div class="org-form-grid">
-                    <div style="flex:2;min-width:160px;">
-                        <label class="org-lbl">Title *</label>
-                        <input type="text" id="add_title" name="title" required placeholder="e.g. Commander" class="org-input">
-                    </div>
-                    <div style="flex:1;min-width:140px;">
-                        <label class="org-lbl">Reports to</label>
-                        <select id="add_parent" name="parent_id" class="org-input">
-                            <option value="">— Top level —</option>
-                            <%- parentOptions() %>
-                        </select>
-                    </div>
-                    <div style="min-width:70px;">
-                        <label class="org-lbl">Colour</label>
-                        <input type="color" name="color" value="#6b8e23" class="org-input" style="padding:2px;height:38px;">
+        <!-- Live preview of the chart as it appears on the roster -->
+        <div class="panel" style="margin-bottom:18px;">
+            <h3 style="margin:0 0 12px;">PREVIEW</h3>
+            <% if (tree.length === 0) { %>
+                <div style="color:var(--khaki);opacity:0.7;">Nothing yet — add a position below to start the chart.</div>
+            <% } else { %>
+                <div class="org-tree-scroll" style="overflow-x:auto;padding-bottom:10px;">
+                    <div class="org-row" style="align-items:flex-start;gap:24px;width:max-content;margin:0 auto;">
+                        <% tree.forEach(root => { %>
+                            <%- include('../partials/organigram-node', { node: root, isRoot: true, displayName }) %>
+                        <% }) %>
                     </div>
                 </div>
-                <div style="margin-top:10px;">
-                    <label class="org-lbl">Member (optional)</label>
-                    <%- include('../partials/organigram-member-picker', { prefix: 'add' }) %>
-                </div>
-                <div style="margin-top:12px;">
-                    <button type="submit" class="btn btn-primary">Add Position</button>
-                </div>
-            </form>
+            <% } %>
         </div>
 
-        <!-- Edit position (populated via JS) -->
-        <div class="panel" id="edit_panel" style="margin-bottom:18px;display:none;border:1px solid var(--accent);">
-            <h3 style="margin:0 0 12px;">EDIT POSITION</h3>
-            <form method="POST" action="#" id="edit_form">
+        <!-- Add / edit position (one form, switches mode) -->
+        <div class="panel" id="form_panel" style="margin-bottom:18px;">
+            <h3 style="margin:0 0 4px;" id="form_heading">ADD POSITION</h3>
+            <p style="margin:0 0 12px;font-size:0.82em;color:var(--khaki);opacity:0.75;" id="form_hint">
+                Create a box for the chart. Choose who it reports to, and add one or more members.
+            </p>
+            <form method="POST" action="/admin/organigram/nodes" id="node_form">
                 <div class="org-form-grid">
                     <div style="flex:2;min-width:160px;">
                         <label class="org-lbl">Title *</label>
-                        <input type="text" id="edit_title" name="title" required class="org-input">
+                        <input type="text" id="f_title" name="title" required placeholder="e.g. Commander" class="org-input">
                     </div>
                     <div style="flex:1;min-width:140px;">
                         <label class="org-lbl">Reports to</label>
-                        <select id="edit_parent" name="parent_id" class="org-input">
+                        <select id="f_parent" name="parent_id" class="org-input">
                             <option value="">— Top level —</option>
                             <%- parentOptions() %>
                         </select>
                     </div>
                     <div style="min-width:70px;">
                         <label class="org-lbl">Colour</label>
-                        <input type="color" id="edit_color" name="color" value="#6b8e23" class="org-input" style="padding:2px;height:38px;">
+                        <input type="color" id="f_color" name="color" value="#6b8e23" class="org-input" style="padding:2px;height:38px;">
                     </div>
-                    <div style="min-width:80px;">
+                    <div style="min-width:80px;display:none;" id="order_wrap">
                         <label class="org-lbl">Order</label>
-                        <input type="number" id="edit_order" name="display_order" value="0" class="org-input">
+                        <input type="number" id="f_order" name="display_order" value="0" class="org-input">
                     </div>
                 </div>
                 <div style="margin-top:10px;">
-                    <label class="org-lbl">Member (optional)</label>
-                    <%- include('../partials/organigram-member-picker', { prefix: 'edit' }) %>
+                    <label class="org-lbl">Members (optional — add as many as you like)</label>
+                    <%- include('../partials/organigram-member-picker', { prefix: 'm' }) %>
                 </div>
                 <div style="margin-top:12px;display:flex;gap:8px;">
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                    <button type="button" class="btn" onclick="document.getElementById('edit_panel').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="f_submit">Add Position</button>
+                    <button type="button" class="btn" id="f_cancel" style="display:none;" onclick="enterCreateMode()">Cancel</button>
                 </div>
             </form>
         </div>
@@ -130,7 +126,7 @@ const nodesForJs = nodes.map(n => ({
         <div class="panel">
             <h3 style="margin:0 0 12px;">STRUCTURE</h3>
             <% if (tree.length === 0) { %>
-                <div class="empty-msg" style="color:var(--khaki);opacity:0.7;">No positions yet. Add one above to build the organigram.</div>
+                <div style="color:var(--khaki);opacity:0.7;">No positions yet.</div>
             <% } else { %>
                 <div class="org-edit-tree">
                     <% tree.forEach(root => { %><%- renderEditRow(root, 0) %><% }) %>
@@ -144,22 +140,26 @@ const nodesForJs = nodes.map(n => ({
 .org-form-grid { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; }
 .org-lbl { font-size:0.78em; color:var(--khaki); display:block; margin-bottom:4px; }
 .org-input { width:100%; box-sizing:border-box; padding:8px 10px; background:rgba(40,40,40,0.9); color:var(--sand); border:1px solid var(--olive); border-radius:4px; font-family:var(--body-font); font-size:0.9em; }
+#form_panel.editing { border:1px solid var(--accent); }
 .org-edit-tree { display:flex; flex-direction:column; gap:2px; }
 .org-edit-row { display:flex; align-items:center; gap:10px; padding:7px 8px; border-bottom:1px solid rgba(107,142,35,0.12); }
 .org-edit-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-.org-edit-title { font-weight:700; color:var(--sand); font-size:0.9em; }
+.org-edit-title { font-weight:700; color:var(--sand); font-size:0.9em; flex-shrink:0; }
 .org-edit-member { font-size:0.84em; color:var(--khaki); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .org-edit-member.muted { opacity:0.45; font-style:italic; }
 .org-edit-actions { display:flex; gap:6px; flex-shrink:0; }
 .org-btn { padding:4px 10px; font-size:0.8em; background:rgba(107,142,35,0.2); color:var(--sand); border:1px solid var(--olive); border-radius:4px; cursor:pointer; }
 .org-btn:hover { background:rgba(107,142,35,0.35); }
 .org-btn-danger { background:rgba(220,53,69,0.18); border-color:#dc3545; color:#e86070; }
+.org-pick-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
+.org-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 6px 3px 4px; background:rgba(107,142,35,0.22); border:1px solid var(--olive); border-radius:14px; font-size:0.82em; color:var(--sand); }
+.org-chip-x { background:none; border:none; color:var(--khaki); cursor:pointer; font-size:1em; line-height:1; padding:0 2px; }
+.org-chip-x:hover { color:#e86070; }
 .org-pick-results { position:relative; }
-.org-pick-list { position:absolute; z-index:30; left:0; right:0; background:var(--camo-dark,#2a2a22); border:1px solid var(--olive); border-radius:4px; max-height:240px; overflow-y:auto; margin-top:2px; }
+.org-pick-list { position:absolute; z-index:30; left:0; right:0; background:#2a2a22; border:1px solid var(--olive); border-radius:4px; max-height:240px; overflow-y:auto; margin-top:2px; }
 .org-pick-item { display:flex; align-items:center; gap:8px; padding:7px 10px; cursor:pointer; font-size:0.86em; color:var(--sand); }
 .org-pick-item:hover { background:rgba(107,142,35,0.25); }
 .org-pick-empty { padding:8px 10px; font-size:0.84em; color:var(--khaki); opacity:0.7; }
-.org-pick-selected { display:none; align-items:center; gap:8px; padding:7px 10px; background:rgba(107,142,35,0.2); border-radius:4px; font-size:0.86em; color:var(--sand); }
 .org-pick-avatar { width:24px; height:24px; border-radius:50%; object-fit:cover; flex-shrink:0; }
 </style>
 
@@ -173,13 +173,26 @@ function orgAvatarHtml(id, hash) {
     return `<div class="org-pick-avatar" style="background:var(--olive);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:0.7em;">?</div>`;
 }
 
-function setupMemberPicker(prefix) {
-    const search   = document.getElementById(prefix + '_search');
-    const hidden   = document.getElementById(prefix + '_discord_id');
-    const results  = document.getElementById(prefix + '_results');
-    if (!search) return;
-    let timer;
+function addChip(id, name, hash) {
+    const chips = document.getElementById('m_chips');
+    if (chips.querySelector(`[data-id="${id}"]`)) return; // already added
+    const chip = document.createElement('span');
+    chip.className = 'org-chip';
+    chip.dataset.id = id;
+    chip.innerHTML = orgAvatarHtml(id, hash)
+        + `<span>${name}</span>`
+        + `<button type="button" class="org-chip-x" aria-label="Remove">✕</button>`
+        + `<input type="hidden" name="member_discord_ids" value="${id}">`;
+    chip.querySelector('.org-chip-x').addEventListener('click', () => chip.remove());
+    chips.appendChild(chip);
+}
 
+function clearChips() { document.getElementById('m_chips').innerHTML = ''; }
+
+function setupMemberPicker() {
+    const search  = document.getElementById('m_search');
+    const results = document.getElementById('m_results');
+    let timer;
     search.addEventListener('input', () => {
         clearTimeout(timer);
         const q = search.value.trim();
@@ -203,62 +216,65 @@ function setupMemberPicker(prefix) {
                 }).join('');
                 results.style.display = 'block';
                 results.querySelectorAll('.org-pick-item').forEach(el => {
-                    el.addEventListener('click', () =>
-                        pickMember(prefix, el.dataset.id, el.dataset.name, el.dataset.avatar));
+                    el.addEventListener('click', () => {
+                        addChip(el.dataset.id, el.dataset.name, el.dataset.avatar);
+                        search.value = '';
+                        results.style.display = 'none';
+                        search.focus();
+                    });
                 });
             } catch (e) { results.style.display = 'none'; }
         }, 250);
     });
-
     document.addEventListener('click', (e) => {
         if (!search.contains(e.target) && !results.contains(e.target)) results.style.display = 'none';
     });
 }
 
-function pickMember(prefix, id, name, hash) {
-    document.getElementById(prefix + '_discord_id').value = id;
-    const sel = document.getElementById(prefix + '_selected');
-    sel.innerHTML = orgAvatarHtml(id, hash)
-        + `<span style="flex:1;">${name}</span>`
-        + `<button type="button" class="org-btn" onclick="clearMember('${prefix}')">Remove</button>`;
-    sel.style.display = 'flex';
-    document.getElementById(prefix + '_results').style.display = 'none';
-    document.getElementById(prefix + '_search').value = '';
+function enterCreateMode() {
+    const form = document.getElementById('node_form');
+    form.action = '/admin/organigram/nodes';
+    document.getElementById('form_panel').classList.remove('editing');
+    document.getElementById('form_heading').textContent = 'ADD POSITION';
+    document.getElementById('form_hint').textContent = 'Create a box for the chart. Choose who it reports to, and add one or more members.';
+    document.getElementById('f_submit').textContent = 'Add Position';
+    document.getElementById('f_cancel').style.display = 'none';
+    document.getElementById('order_wrap').style.display = 'none';
+    document.getElementById('f_title').value = '';
+    document.getElementById('f_parent').value = '';
+    document.getElementById('f_color').value = '#6b8e23';
+    document.getElementById('f_order').value = '0';
+    clearChips();
 }
 
-function clearMember(prefix) {
-    document.getElementById(prefix + '_discord_id').value = '';
-    const sel = document.getElementById(prefix + '_selected');
-    sel.style.display = 'none';
-    sel.innerHTML = '';
-}
-
-function editNode(id) {
+function enterEditMode(id) {
     const n = ORG_NODES.find(x => x.id === id);
     if (!n) return;
-    document.getElementById('edit_form').action = '/admin/organigram/nodes/' + id;
-    document.getElementById('edit_title').value = n.title;
-    document.getElementById('edit_color').value = n.color || '#6b8e23';
-    document.getElementById('edit_order').value = n.display_order;
-    document.getElementById('edit_parent').value = n.parent_id ? String(n.parent_id) : '';
-    if (n.member_discord_id) {
-        pickMember('edit', n.member_discord_id, n.member_name || '(left guild)', n.member_avatar || '');
-    } else {
-        clearMember('edit');
-    }
-    const panel = document.getElementById('edit_panel');
-    panel.style.display = 'block';
-    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const form = document.getElementById('node_form');
+    form.action = '/admin/organigram/nodes/' + id;
+    document.getElementById('form_panel').classList.add('editing');
+    document.getElementById('form_heading').textContent = 'EDITING: ' + n.title;
+    document.getElementById('form_hint').textContent = 'Update this position, change who it reports to, or adjust its members.';
+    document.getElementById('f_submit').textContent = 'Save Changes';
+    document.getElementById('f_cancel').style.display = '';
+    document.getElementById('order_wrap').style.display = '';
+    document.getElementById('f_title').value = n.title;
+    document.getElementById('f_parent').value = n.parent_id ? String(n.parent_id) : '';
+    document.getElementById('f_color').value = n.color || '#6b8e23';
+    document.getElementById('f_order').value = n.display_order;
+    clearChips();
+    n.members.forEach(m => addChip(m.id, m.name, m.avatar));
+    document.getElementById('form_panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-function addChild(id) {
-    document.getElementById('add_parent').value = String(id);
-    document.getElementById('add_panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    document.getElementById('add_title').focus();
+function addChild(parentId) {
+    enterCreateMode();
+    document.getElementById('f_parent').value = String(parentId);
+    document.getElementById('form_panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('f_title').focus();
 }
 
-setupMemberPicker('add');
-setupMemberPicker('edit');
+setupMemberPicker();
 </script>
 
 <%- include('../partials/footer') %>

@@ -1,30 +1,33 @@
 <%
 // Recursive organigram node renderer.
-// Params: node (with .children[]), isRoot (bool). Reuses the .org-* tree CSS.
+// Params: node (with .members[] resolved + .children[]), isRoot (bool). Reuses .org-* tree CSS.
 const _isRoot   = (typeof isRoot !== 'undefined') ? isRoot : true;
 const wrapClass = _isRoot ? 'org-node' : 'org-col';
-const assigned  = !!node.discord_id;
-const personName = assigned ? displayName(node) : null;
-const avatarUrl  = (assigned && node.discord_avatar)
-    ? `https://cdn.discordapp.com/avatars/${node.discord_id}/${node.discord_avatar}.png?size=64`
-    : null;
+const members   = node.members || [];
 %>
 <div class="<%= wrapClass %>">
     <div class="orgchart-card" style="border-top:3px solid <%= node.color %>;">
         <div class="orgchart-title"><%= node.title %></div>
-        <div class="orgchart-person">
-            <% if (assigned) { %>
-                <% if (node.user_id) { %><a href="/profile/<%= node.user_id %>"><% } %>
-                    <% if (avatarUrl) { %>
-                        <img class="orgchart-avatar" src="<%= avatarUrl %>" alt="<%= personName %>" style="border:2px solid <%= node.color %>;">
-                    <% } else { %>
-                        <div class="orgchart-avatar orgchart-avatar-fallback" style="background:<%= node.color %>;"><%= personName.charAt(0).toUpperCase() %></div>
-                    <% } %>
-                    <span class="orgchart-name"><%= personName %></span>
-                <% if (node.user_id) { %></a><% } %>
-            <% } else { %>
+        <div class="orgchart-people">
+            <% if (members.length === 0) { %>
                 <span class="orgchart-vacant">Vacant</span>
-            <% } %>
+            <% } else { members.forEach(m => {
+                const personName = displayName(m);
+                const avatarUrl  = m.discord_avatar
+                    ? `https://cdn.discordapp.com/avatars/${m.discord_id}/${m.discord_avatar}.png?size=64`
+                    : null;
+            %>
+                <div class="orgchart-person">
+                    <% if (m.user_id) { %><a href="/profile/<%= m.user_id %>"><% } %>
+                        <% if (avatarUrl) { %>
+                            <img class="orgchart-avatar" src="<%= avatarUrl %>" alt="<%= personName %>" style="border:2px solid <%= node.color %>;">
+                        <% } else { %>
+                            <div class="orgchart-avatar orgchart-avatar-fallback" style="background:<%= node.color %>;"><%= personName.charAt(0).toUpperCase() %></div>
+                        <% } %>
+                        <span class="orgchart-name"><%= personName %></span>
+                    <% if (m.user_id) { %></a><% } %>
+                </div>
+            <% }) } %>
         </div>
     </div>
     <% if (node.children && node.children.length > 0) { %>
