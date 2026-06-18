@@ -13,6 +13,21 @@
 
         <div class="card">
             <form method="POST" action="/loa/submit">
+                <% if (typeof isStaff !== 'undefined' && isStaff) { %>
+                <div class="form-group">
+                    <label>LOA Type</label>
+                    <div style="display:flex;gap:20px;align-items:center;margin-top:4px;">
+                        <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;">
+                            <input type="radio" name="type" value="player" checked> Player LOA
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;">
+                            <input type="radio" name="type" value="staff"> Staff LOA
+                        </label>
+                    </div>
+                    <small style="color: var(--khaki);">A Staff LOA appears on the organigram and grants the staff-LOA Discord role for the period.</small>
+                </div>
+                <% } %>
+
                 <div class="form-group">
                     <label for="start_date">Start Date & Time</label>
                     <input type="datetime-local" 

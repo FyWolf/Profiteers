@@ -213,4 +213,15 @@ cron.schedule('* * * * *', async () => {
     }
 });
 
+// Grant/revoke the staff-LOA Discord role as staff LOAs start and end — every hour
+const { reconcileAll: reconcileStaffLoaRoles } = require('./helpers/staffLoa');
+cron.schedule('0 * * * *', async () => {
+    try {
+        const n = await reconcileStaffLoaRoles();
+        if (n > 0) console.log(`[CRON] Reconciled staff-LOA roles for ${n} user(s)`);
+    } catch (error) {
+        console.error('[CRON] Staff LOA role reconcile failed:', error.message);
+    }
+});
+
 module.exports = app;

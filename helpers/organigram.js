@@ -69,6 +69,7 @@ async function loadNodesWithMembers(db) {
                 SELECT user_id, start_date, end_date
                 FROM leave_of_absence
                 WHERE status = 'approved'
+                  AND type = 'staff'
                   AND start_date <= UNIX_TIMESTAMP()
                   AND end_date   >= UNIX_TIMESTAMP()
                   AND user_id IN (?)

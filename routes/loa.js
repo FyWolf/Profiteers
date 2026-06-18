@@ -5,6 +5,7 @@ const { isAuthenticated, hasPermission } = require('../middleware/auth');
 const { checkZeusStatus } = require('../middleware/zeus');
 const { sendLOANotification } = require('../discord/loa');
 const { discordClient } = require('../discord');
+const { isStaffMember, syncUser } = require('../helpers/staffLoa');
 
 router.get('/my-loas', (req, res) => res.redirect('/loa/all'));
 
@@ -20,7 +21,8 @@ router.get('/submit', isAuthenticated, async (req, res) => {
 
         res.render('loa/submit', {
             title: 'Submit Leave of Absence - Profiteers PMC',
-            users: users
+            users: users,
+            isStaff: await isStaffMember(req.user.discord_id)
         });
     } catch (error) {
         console.error('Error loading LOA form:', error);
@@ -47,11 +49,20 @@ router.post('/submit', isAuthenticated, async (req, res) => {
         const startTs = Math.floor(startDate.getTime() / 1000);
         const endTs = Math.floor(endDate.getTime() / 1000);
 
+        // "staff" only honoured if the submitter actually holds the staff role.
+        const type = (req.body.type === 'staff' && await isStaffMember(req.user.discord_id))
+            ? 'staff' : 'player';
+
         const [result] = await db.query(`
             INSERT INTO leave_of_absence
-            (user_id, start_date, end_date, reason, superior_id, status, submitted_at)
-            VALUES (?, ?, ?, ?, ?, 'approved', UNIX_TIMESTAMP())
-        `, [req.session.userId, startTs, endTs, reason, superior_id || null]);
+            (user_id, type, start_date, end_date, reason, superior_id, status, submitted_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'approved', UNIX_TIMESTAMP())
+        `, [req.session.userId, type, startTs, endTs, reason, superior_id || null]);
+
+        if (type === 'staff') {
+            try { await syncUser(req.session.userId); }
+            catch (e) { console.error('Staff LOA role sync failed:', e.message); }
+        }
 
         if (process.env.DISCORD_BOT_TOKEN) {
             try {
@@ -101,7 +112,8 @@ router.get('/edit/:id', isAuthenticated, async (req, res) => {
         res.render('loa/edit', {
             title: 'Edit Leave of Absence - Profiteers PMC',
             loa: loas[0],
-            users: users
+            users: users,
+            isStaff: await isStaffMember(req.user.discord_id)
         });
     } catch (error) {
         console.error('Error loading LOA:', error);
@@ -123,14 +135,29 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
         const startTs = Math.floor(startDate.getTime() / 1000);
         const endTs = Math.floor(endDate.getTime() / 1000);
 
+        const [[existing]] = await db.query(
+            'SELECT type FROM leave_of_absence WHERE id = ? AND user_id = ?',
+            [req.params.id, req.session.userId]
+        );
+
+        // "staff" only honoured if the submitter actually holds the staff role.
+        const type = (req.body.type === 'staff' && await isStaffMember(req.user.discord_id))
+            ? 'staff' : 'player';
+
         const [result] = await db.query(`
             UPDATE leave_of_absence
-            SET start_date = ?, end_date = ?, reason = ?, superior_id = ?
+            SET type = ?, start_date = ?, end_date = ?, reason = ?, superior_id = ?
             WHERE id = ? AND user_id = ?
-        `, [startTs, endTs, reason, superior_id || null, req.params.id, req.session.userId]);
+        `, [type, startTs, endTs, reason, superior_id || null, req.params.id, req.session.userId]);
 
         if (result.affectedRows === 0) {
             return res.redirect('/loa/my-loas?error=LOA not found');
+        }
+
+        // Re-sync if this LOA is (or just stopped being) a staff LOA, or its dates moved.
+        if (type === 'staff' || existing?.type === 'staff') {
+            try { await syncUser(req.session.userId); }
+            catch (e) { console.error('Staff LOA role sync failed:', e.message); }
         }
 
         if (process.env.DISCORD_BOT_TOKEN) {
@@ -184,10 +211,22 @@ router.post('/delete/:id', isAuthenticated, async (req, res) => {
             }
         }
         
+        const [[delRow]] = await db.query(
+            'SELECT type FROM leave_of_absence WHERE id = ? AND user_id = ?',
+            [req.params.id, req.session.userId]
+        );
+
         await db.query(
             'DELETE FROM leave_of_absence WHERE id = ? AND user_id = ?',
             [req.params.id, req.session.userId]
         );
+
+        // If this was a staff LOA, re-sync so the Discord role is revoked unless
+        // the user still has another active staff LOA.
+        if (delRow?.type === 'staff') {
+            try { await syncUser(req.session.userId); }
+            catch (e) { console.error('Staff LOA role sync failed:', e.message); }
+        }
 
         if (process.env.DISCORD_BOT_TOKEN && loaData && userData) {
             try {
