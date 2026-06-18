@@ -107,9 +107,21 @@ router.post('/:id/transfer', async (req, res) => {
 // Per-route fileUpload middleware overrides the global 10MB cap because
 // terrains are typically hundreds of MB. useTempFiles streams to disk instead
 // of buffering in memory.
+//
+// The temp dir MUST live on the same (large) partition as the terrains, NOT the
+// OS temp dir: on many servers /tmp is a small or RAM-backed (tmpfs) mount, so a
+// multi-hundred-MB upload overflows it and fails with ENOSPC even though the data
+// partition has plenty of free space. Override with TERRAIN_TMP_DIR if needed.
+const TERRAIN_TMP_DIR = process.env.TERRAIN_TMP_DIR || path.join(MAPS_DIR, '..', '.uploads-tmp');
+try {
+    fs.mkdirSync(TERRAIN_TMP_DIR, { recursive: true });
+} catch (e) {
+    console.error('Could not create terrain temp dir', TERRAIN_TMP_DIR, '-', e.message);
+}
+
 const terrainUpload = fileUpload({
     useTempFiles: true,
-    tempFileDir:  path.join(require('os').tmpdir(), 'profiteers-terrain'),
+    tempFileDir:  TERRAIN_TMP_DIR,
     abortOnLimit: false,
     createParentPath: true,
 });
