@@ -1,0 +1,59 @@
+<%
+const STATUS_LABELS = {
+    planning: 'Planning', in_progress: 'In Progress', blocked: 'Blocked',
+    review: 'Review', completed: 'Completed', cancelled: 'Cancelled'
+};
+function ymd(d) {
+    if (!d) return '—';
+    const x = new Date(d);
+    if (isNaN(x)) return '—';
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+}
+%>
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>MISSION ARCHIVE</h1>
+        <div class="subtitle">Missions whose due date passed more than <%= afterDays %> days ago</div>
+    </header>
+
+    <section class="section">
+        <div style="margin-bottom:18px;">
+            <a href="/missions" class="btn ms-btn-sm">← Back to board</a>
+        </div>
+
+        <% if (projects.length === 0) { %>
+            <div class="card text-center">
+                <h3>Nothing archived</h3>
+                <p>Missions move here automatically once their due date is more than <%= afterDays %> days in the past.</p>
+            </div>
+        <% } else { %>
+            <div style="overflow-x:auto;">
+                <table class="mission-table">
+                    <thead>
+                        <tr><th>Mission</th><th>Campaign</th><th>Status</th><th>Due</th><th>Lead</th><th>Files</th></tr>
+                    </thead>
+                    <tbody>
+                        <% projects.forEach(p => { %>
+                            <tr>
+                                <td><a href="/missions/<%= p.id %>" class="mission-dl"><%= p.title %></a></td>
+                                <td>
+                                    <% if (p.campaign_name) { %>
+                                        <span class="mission-campaign-tag"><span class="mission-campaign-dot" style="background:<%= p.campaign_color || '#fcb00d' %>"></span><%= p.campaign_name %></span>
+                                    <% } else { %><span style="color:var(--khaki);">—</span><% } %>
+                                </td>
+                                <td><span class="mission-status-badge status-<%= p.status %>"><%= STATUS_LABELS[p.status] %></span></td>
+                                <td style="color:var(--khaki);"><%= ymd(p.due_date) %></td>
+                                <td style="color:var(--sand);"><%= p.lead_display_name || '—' %></td>
+                                <td style="color:var(--khaki);"><%= p.version_count %></td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        <% } %>
+    </section>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,357 @@
+<%
+function ymd(d) {
+    if (!d) return '';
+    const x = new Date(d);
+    if (isNaN(x)) return '';
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+}
+const STATUS_LABELS = {
+    planning: 'Planning', in_progress: 'In Progress', blocked: 'Blocked',
+    review: 'Review', completed: 'Completed', cancelled: 'Cancelled'
+};
+const uname = u => u.roster_nickname || u.discord_global_name || u.username;
+const avatar = u => (u && u.discord_id && u.discord_avatar)
+    ? `https://cdn.discordapp.com/avatars/${u.discord_id}/${u.discord_avatar}.png?size=64`
+    : '/logo.png';
+const isEdit = action === 'edit';
+const formAction = isEdit ? `/missions/${project.id}/edit` : '/missions/manage/create';
+const usersById = {};
+users.forEach(u => { usersById[u.id] = u; });
+const leadUser = project && project.lead_user_id ? usersById[project.lead_user_id] : null;
+%>
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1><%= isEdit ? 'EDIT MISSION PROJECT' : 'NEW MISSION PROJECT' %></h1>
+        <div class="subtitle">Mission production tracking</div>
+    </header>
+
+    <section class="section" style="max-width:820px;margin:0 auto;">
+        <form method="POST" action="<%= formAction %>">
+            <div class="form-group">
+                <label for="title">Title *</label>
+                <input type="text" id="title" name="title" maxlength="200" required
+                       value="<%= project ? project.title : '' %>" placeholder="e.g. Operation Iron Tide — main mission">
+            </div>
+
+            <div class="form-group">
+                <label for="description">Briefing / details</label>
+                <textarea id="description" name="description" rows="6" placeholder="Objectives, situation, notes, links…"><%= project ? project.description : '' %></textarea>
+                <small style="color:var(--khaki);display:block;margin-top:5px;">Basic formatting (bold, italics, lists, links) is allowed.</small>
+            </div>
+
+            <div class="mission-form-row">
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <% statuses.forEach(s => { %>
+                            <option value="<%= s %>" <%= project && project.status === s ? 'selected' : '' %>><%= STATUS_LABELS[s] %></option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="priority">Priority</label>
+                    <select id="priority" name="priority">
+                        <% priorities.forEach(p => { %>
+                            <option value="<%= p %>" <%= project && project.priority === p ? 'selected' : (!project && p === 'normal' ? 'selected' : '') %>><%= p.charAt(0).toUpperCase() + p.slice(1) %></option>
+                        <% }) %>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="progress">Progress: <span id="progress-out"><%= project ? (project.progress || 0) : 0 %></span>%</label>
+                <input type="range" id="progress" name="progress" min="0" max="100" step="5"
+                       value="<%= project ? (project.progress || 0) : 0 %>"
+                       oninput="document.getElementById('progress-out').textContent = this.value">
+            </div>
+
+            <div class="mission-form-row">
+                <div class="form-group">
+                    <label for="start_date">Start date</label>
+                    <input type="date" id="start_date" name="start_date" value="<%= project ? ymd(project.start_date) : '' %>">
+                </div>
+                <div class="form-group">
+                    <label for="due_date">Due date</label>
+                    <input type="date" id="due_date" name="due_date" value="<%= project ? ymd(project.due_date) : '' %>">
+                </div>
+            </div>
+            <small style="color:var(--khaki);display:block;margin:-10px 0 18px;">Both dates are required for the project to appear on the Gantt timeline.</small>
+
+            <%# ── Lead (modal picker) ──────────────────────────────────── %>
+            <div class="form-group">
+                <label>Lead</label>
+                <input type="hidden" id="lead_user_id" name="lead_user_id" value="<%= leadUser ? leadUser.id : '' %>">
+                <div class="ms-picker-display" id="lead-display">
+                    <img class="ms-member-avatar" id="lead-avatar" src="<%= leadUser ? avatar(leadUser) : '/logo.png' %>"
+                         onerror="this.src='/logo.png'" style="<%= leadUser ? '' : 'display:none;' %>" alt="">
+                    <div class="ms-picker-name" id="lead-name"><%= leadUser ? uname(leadUser) : 'No lead selected' %></div>
+                    <div class="ms-picker-actions">
+                        <button type="button" class="btn ms-btn-sm" data-open-member="lead">Choose Lead</button>
+                        <button type="button" class="btn ms-btn-sm ms-btn-clear" id="lead-clear" style="<%= leadUser ? '' : 'display:none;' %>">✕</button>
+                    </div>
+                </div>
+            </div>
+
+            <%# ── Team (modal picker, repeatable) ──────────────────────── %>
+            <div class="form-group">
+                <label>Team — who does what</label>
+                <div id="assignee-rows">
+                    <% assignees.forEach(a => { const u = usersById[a.user_id]; if (!u) return; %>
+                        <div class="mission-assignee-row" data-user-id="<%= u.id %>">
+                            <img class="ms-member-avatar" src="<%= avatar(u) %>" onerror="this.src='/logo.png'" alt="">
+                            <span class="ms-assignee-name"><%= uname(u) %></span>
+                            <input type="hidden" name="assignee_user_id[]" value="<%= u.id %>">
+                            <input type="text" name="assignee_role[]" maxlength="60" placeholder="Role (e.g. Mission Maker)" value="<%= a.role || '' %>">
+                            <button type="button" class="btn btn-danger mission-assignee-remove">✕</button>
+                        </div>
+                    <% }) %>
+                </div>
+                <button type="button" class="btn" data-open-member="assignee" style="margin-top:8px;">➕ Add member</button>
+            </div>
+
+            <div class="form-group">
+                <label for="campaign_id">Campaign (optional)</label>
+                <select id="campaign_id" name="campaign_id">
+                    <option value="">— none —</option>
+                    <% campaigns.forEach(c => { %>
+                        <option value="<%= c.id %>" <%= project && project.campaign_id === c.id ? 'selected' : '' %>><%= c.name %></option>
+                    <% }) %>
+                </select>
+                <small style="color:var(--khaki);display:block;margin-top:5px;">Group this mission under a campaign. <a href="/missions/campaigns" target="_blank" style="color:var(--accent);">Manage campaigns</a>.</small>
+            </div>
+
+            <div class="mission-form-row">
+                <div class="form-group">
+                    <label for="operation_id">Linked operation (optional)</label>
+                    <select id="operation_id" name="operation_id">
+                        <option value="">— none —</option>
+                        <% operations.forEach(o => { %>
+                            <option value="<%= o.id %>" <%= project && project.operation_id === o.id ? 'selected' : '' %>><%= o.title %></option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="modpack_id">Modpack (optional)</label>
+                    <select id="modpack_id" name="modpack_id">
+                        <option value="">— none —</option>
+                        <% modpacks.forEach(m => { %>
+                            <option value="<%= m.id %>" <%= project && project.modpack_id === m.id ? 'selected' : '' %>><%= m.name %></option>
+                        <% }) %>
+                    </select>
+                </div>
+            </div>
+
+            <%# ── Terrain (reuses the operations terrain picker modal) ──── %>
+            <div class="mission-form-row">
+                <div class="form-group">
+                    <label>Terrain (optional)</label>
+                    <input type="hidden" id="map_world" name="map_world" value="<%= project ? (project.map_world || '') : '' %>">
+                    <div class="ms-picker-display" id="map-selector-display">
+                        <div class="ms-map-thumb" id="selected-map-thumb">
+                            <% if (project && project.map_world) { %>
+                                <img src="/images/maps/<%= project.map_world %>/preview_512.png" onerror="this.style.display='none'" alt="">
+                            <% } else { %><span>🗺</span><% } %>
+                        </div>
+                        <div class="ms-picker-name" id="selected-map-name"><%= (project && project.map_world) ? project.map_world : 'No terrain selected' %></div>
+                        <div class="ms-picker-actions">
+                            <button type="button" class="btn ms-btn-sm" id="btn-browse-maps">Browse Terrains</button>
+                            <button type="button" class="btn ms-btn-sm ms-btn-clear" id="btn-clear-map" style="<%= (project && project.map_world) ? '' : 'display:none;' %>">✕</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="color">Bar colour</label>
+                    <input type="color" id="color" name="color" value="<%= project && project.color ? project.color : '#6b8e23' %>" style="height:44px;padding:4px;">
+                </div>
+            </div>
+
+            <div style="display:flex;gap:15px;margin-top:25px;">
+                <button type="submit" class="btn btn-primary" style="flex:1;"><%= isEdit ? '💾 Save Changes' : '➕ Create Project' %></button>
+                <a href="<%= isEdit ? '/missions/' + project.id : '/missions' %>" class="btn" style="flex:1;text-align:center;">Cancel</a>
+            </div>
+        </form>
+    </section>
+</div>
+
+<%# ── Member picker modal ─────────────────────────────────────────────── %>
+<div id="member-picker-modal" class="ms-modal">
+    <div class="ms-modal-box">
+        <div class="ms-modal-head">
+            <h3 id="member-modal-title">SELECT MEMBER</h3>
+            <button type="button" class="ms-modal-close" id="member-modal-close">✕</button>
+        </div>
+        <div class="ms-modal-search">
+            <input type="text" id="member-search" placeholder="Search members…" autocomplete="off">
+        </div>
+        <div class="ms-modal-body">
+            <div class="ms-member-list" id="member-list"></div>
+            <div class="ms-modal-empty" id="member-empty" style="display:none;">No members found</div>
+        </div>
+    </div>
+</div>
+
+<%# ── Terrain picker modal ────────────────────────────────────────────── %>
+<div id="map-picker-modal" class="ms-modal">
+    <div class="ms-modal-box">
+        <div class="ms-modal-head">
+            <h3>SELECT TERRAIN</h3>
+            <button type="button" class="ms-modal-close" id="map-picker-close">✕</button>
+        </div>
+        <div class="ms-modal-body">
+            <div id="map-picker-loading" class="ms-modal-empty">Loading terrains…</div>
+            <div id="map-picker-grid" class="ms-terrain-grid" style="display:none;"></div>
+            <div id="map-picker-empty" class="ms-modal-empty" style="display:none;">No terrains found in <code>public/images/maps/</code></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const MEMBERS = <%- JSON.stringify(users.map(u => ({ id: u.id, name: uname(u), avatar: avatar(u) }))).replace(/</g, '\\u003c') %>;
+
+/* ─── Member picker modal (lead + assignees) ───────────────────────────── */
+(function () {
+    const modal   = document.getElementById('member-picker-modal');
+    const list    = document.getElementById('member-list');
+    const empty   = document.getElementById('member-empty');
+    const search  = document.getElementById('member-search');
+    const title   = document.getElementById('member-modal-title');
+    const rows    = document.getElementById('assignee-rows');
+    let mode = null; // 'lead' | 'assignee'
+
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+    function chosenAssigneeIds() {
+        return new Set(Array.from(rows.querySelectorAll('[data-user-id]')).map(el => parseInt(el.dataset.userId, 10)));
+    }
+
+    function render() {
+        const q = search.value.toLowerCase().trim();
+        const taken = mode === 'assignee' ? chosenAssigneeIds() : new Set();
+        const items = MEMBERS.filter(m => !taken.has(m.id) && m.name.toLowerCase().includes(q));
+        empty.style.display = items.length ? 'none' : 'block';
+        list.innerHTML = items.map(m =>
+            `<div class="ms-member-item" data-id="${m.id}" data-name="${esc(m.name)}" data-avatar="${esc(m.avatar)}">
+                <img class="ms-member-avatar" src="${esc(m.avatar)}" onerror="this.src='/logo.png'" alt="">
+                <span>${esc(m.name)}</span>
+             </div>`).join('');
+    }
+
+    function open(which) {
+        mode = which;
+        title.textContent = which === 'lead' ? 'SELECT LEAD' : 'ADD TEAM MEMBER';
+        search.value = '';
+        render();
+        modal.classList.add('open');
+        search.focus();
+    }
+    function close() { modal.classList.remove('open'); }
+
+    document.querySelectorAll('[data-open-member]').forEach(btn => {
+        btn.addEventListener('click', () => open(btn.dataset.openMember));
+    });
+    document.getElementById('member-modal-close').addEventListener('click', close);
+    modal.addEventListener('click', e => { if (e.target === modal) close(); });
+    search.addEventListener('input', render);
+
+    list.addEventListener('click', e => {
+        const item = e.target.closest('.ms-member-item');
+        if (!item) return;
+        const id = parseInt(item.dataset.id, 10);
+        const name = item.dataset.name;
+        const av = item.dataset.avatar;
+        if (mode === 'lead') {
+            document.getElementById('lead_user_id').value = id;
+            document.getElementById('lead-name').textContent = name;
+            const img = document.getElementById('lead-avatar');
+            img.src = av; img.style.display = '';
+            document.getElementById('lead-clear').style.display = '';
+        } else {
+            const row = document.createElement('div');
+            row.className = 'mission-assignee-row';
+            row.dataset.userId = id;
+            row.innerHTML =
+                `<img class="ms-member-avatar" src="${av}" onerror="this.src='/logo.png'" alt="">
+                 <span class="ms-assignee-name">${name}</span>
+                 <input type="hidden" name="assignee_user_id[]" value="${id}">
+                 <input type="text" name="assignee_role[]" maxlength="60" placeholder="Role (e.g. Mission Maker)">
+                 <button type="button" class="btn btn-danger mission-assignee-remove">✕</button>`;
+            rows.appendChild(row);
+        }
+        close();
+    });
+
+    document.getElementById('lead-clear').addEventListener('click', () => {
+        document.getElementById('lead_user_id').value = '';
+        document.getElementById('lead-name').textContent = 'No lead selected';
+        document.getElementById('lead-avatar').style.display = 'none';
+        document.getElementById('lead-clear').style.display = 'none';
+    });
+
+    rows.addEventListener('click', e => {
+        if (e.target.classList.contains('mission-assignee-remove')) e.target.closest('.mission-assignee-row').remove();
+    });
+})();
+
+/* ─── Terrain picker modal (same data source as the operations form) ────── */
+(function () {
+    const modal   = document.getElementById('map-picker-modal');
+    const grid    = document.getElementById('map-picker-grid');
+    const loading = document.getElementById('map-picker-loading');
+    const empty   = document.getElementById('map-picker-empty');
+    const hidden  = document.getElementById('map_world');
+    const nameLbl = document.getElementById('selected-map-name');
+    const thumb   = document.getElementById('selected-map-thumb');
+    const clearBtn = document.getElementById('btn-clear-map');
+    let fetched = false;
+
+    function open() { modal.classList.add('open'); if (!fetched) load(); }
+    function close() { modal.classList.remove('open'); }
+
+    function setMap(world, display, preview) {
+        hidden.value = world;
+        nameLbl.textContent = display || 'No terrain selected';
+        clearBtn.style.display = world ? '' : 'none';
+        thumb.innerHTML = world
+            ? `<img src="${preview}" onerror="this.style.display='none'" alt="">`
+            : '<span>🗺</span>';
+        close();
+    }
+
+    async function load() {
+        try {
+            const res  = await fetch('/operations/maps');
+            const data = await res.json();
+            loading.style.display = 'none';
+            fetched = true;
+            if (!data.success || !data.maps.length) { empty.style.display = 'block'; return; }
+            grid.style.display = 'grid';
+            grid.innerHTML = data.maps.map(m => `
+                <div class="ms-terrain-card" data-world="${m.worldName}" data-display="${m.displayName}" data-preview="${m.previewUrl || ''}">
+                    <div class="ms-terrain-thumb">
+                        ${m.previewUrl ? `<img src="${m.previewUrl}" onerror="this.parentElement.innerHTML='<span>🗺</span>'" alt="">` : '<span>🗺</span>'}
+                    </div>
+                    <div class="ms-terrain-meta">
+                        <div class="ms-terrain-name">${m.displayName}</div>
+                        ${m.worldSize ? `<div class="ms-terrain-sub">${(m.worldSize/1000).toFixed(1)} km × ${(m.worldSize/1000).toFixed(1)} km</div>` : ''}
+                        ${m.author ? `<div class="ms-terrain-sub">${m.author}</div>` : ''}
+                    </div>
+                </div>`).join('');
+            grid.querySelectorAll('.ms-terrain-card').forEach(card => {
+                card.addEventListener('click', () => setMap(card.dataset.world, card.dataset.display, card.dataset.preview));
+            });
+        } catch (err) {
+            loading.textContent = 'Failed to load terrains.';
+            console.error(err);
+        }
+    }
+
+    document.getElementById('btn-browse-maps').addEventListener('click', open);
+    document.getElementById('map-picker-close').addEventListener('click', close);
+    clearBtn.addEventListener('click', () => setMap('', 'No terrain selected', ''));
+    modal.addEventListener('click', e => { if (e.target === modal) close(); });
+})();
+</script>
+
+<%- include('../partials/footer') %>

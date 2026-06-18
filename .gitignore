@@ -2,6 +2,7 @@
 /migrations
 /public/images
 /public/uploads
+/storage
 /node_modules
 readme.md
 .claude

@@ -62,6 +62,9 @@ const gSystem     = can('logs.view') || can('admin.access');
         <div class="admin-nav-group">
             <div class="admin-nav-label">Operations</div>
             <a href="/operations/manage/list" class="admin-nav-link"><span class="ai">🎯</span> Operations <span class="admin-nav-ext" title="Opens outside the admin panel">↗</span></a>
+            <% if (can('missions.view')) { %>
+            <a href="/missions" class="admin-nav-link"><span class="ai">🗂️</span> Mission Board <span class="admin-nav-ext" title="Opens outside the admin panel">↗</span></a>
+            <% } %>
             <a href="/orbat/templates" class="admin-nav-link"><span class="ai">📋</span> ORBAT Templates <span class="admin-nav-ext" title="Opens outside the admin panel">↗</span></a>
             <% if (can('orbat.manage')) { %>
             <a href="/admin/slot-types" class="admin-nav-link <%= isActive('/admin/slot-types') ? 'active' : '' %>"><span class="ai">🎯</span> Slot Types</a>

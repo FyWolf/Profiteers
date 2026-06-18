@@ -1,0 +1,153 @@
+<%
+// DATE columns come back from mysql2 as JS Date objects at local midnight —
+// format from local components so the calendar day never shifts via UTC.
+function ymd(d) {
+    if (!d) return null;
+    const x = new Date(d);
+    if (isNaN(x)) return null;
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+}
+const STATUS_LABELS = {
+    planning: 'Planning', in_progress: 'In Progress', blocked: 'Blocked',
+    review: 'Review', completed: 'Completed', cancelled: 'Cancelled'
+};
+// A project is chartable only if it has both a start and a due date.
+const scheduled = [];
+const unscheduled = [];
+projects.forEach(p => {
+    const start = ymd(p.start_date), end = ymd(p.due_date);
+    (start && end ? scheduled : unscheduled).push(p);
+});
+const tasks = scheduled.map(p => ({
+    id: String(p.id),
+    name: (p.campaign_name ? `[${p.campaign_name}] ` : '') + p.title,
+    start: ymd(p.start_date),
+    end: ymd(p.due_date),
+    progress: p.progress || 0,
+    custom_class: 'status-' + p.status,
+    _status: STATUS_LABELS[p.status] || p.status,
+    _lead: p.lead_display_name || null,
+    _priority: p.priority,
+    _campaign: p.campaign_name || null,
+    _campaignColor: p.campaign_color || null
+}));
+%>
+<%- include('../partials/header') %>
+<link rel="stylesheet" href="/vendor/frappe-gantt/frappe-gantt.css">
+
+<div class="container">
+    <header>
+        <h1>MISSION BOARD</h1>
+        <div class="subtitle">Mission production — who's building what, when</div>
+    </header>
+
+    <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+    <section class="section">
+        <div class="mission-toolbar">
+            <div class="mission-legend">
+                <% statuses.forEach(s => { %>
+                    <span class="mission-legend-item"><span class="mission-swatch status-<%= s %>"></span><%= STATUS_LABELS[s] %></span>
+                <% }) %>
+            </div>
+            <div class="mission-controls">
+                <% if (campaigns && campaigns.length) { %>
+                    <select class="mission-filter" onchange="window.location = this.value">
+                        <option value="/missions" <%= !selectedCampaign ? 'selected' : '' %>>All campaigns</option>
+                        <option value="/missions?campaign=none" <%= selectedCampaign === 'none' ? 'selected' : '' %>>— Uncategorised —</option>
+                        <% campaigns.forEach(c => { %>
+                            <option value="/missions?campaign=<%= c.id %>" <%= String(selectedCampaign) === String(c.id) ? 'selected' : '' %>><%= c.name %></option>
+                        <% }) %>
+                    </select>
+                <% } %>
+                <a href="/missions/archive" class="btn ms-btn-sm">🗄️ Archive<%= archivedCount ? ' (' + archivedCount + ')' : '' %></a>
+                <% if (canManage) { %>
+                    <a href="/missions/campaigns" class="btn ms-btn-sm">🎬 Campaigns</a>
+                    <a href="/missions/manage/create" class="btn btn-primary">➕ New Mission Project</a>
+                <% } %>
+            </div>
+        </div>
+
+        <% if (scheduled.length === 0) { %>
+            <div class="card text-center" style="margin-top:20px;">
+                <h3>Nothing on the timeline yet</h3>
+                <p>Projects appear on the Gantt once they have both a <strong>start</strong> and a <strong>due date</strong>.</p>
+                <% if (canManage) { %><a href="/missions/manage/create" class="btn btn-primary mt-2">Create the first one</a><% } %>
+            </div>
+        <% } else { %>
+            <div id="gantt-wrap">
+                <div id="gantt"></div>
+            </div>
+        <% } %>
+    </section>
+
+    <% if (unscheduled.length) { %>
+        <section class="section">
+            <h2 style="margin-top:0;">Unscheduled <span style="color:var(--khaki);font-weight:400;font-size:0.6em;">(missing start or due date)</span></h2>
+            <div class="mission-card-grid">
+                <% unscheduled.forEach(p => { %>
+                    <a href="/missions/<%= p.id %>" class="mission-card">
+                        <span class="mission-status-badge status-<%= p.status %>"><%= STATUS_LABELS[p.status] %></span>
+                        <% if (p.campaign_name) { %><span class="mission-campaign-tag"><span class="mission-campaign-dot" style="background:<%= p.campaign_color || '#fcb00d' %>"></span><%= p.campaign_name %></span><% } %>
+                        <h3><%= p.title %></h3>
+                        <div class="mission-card-meta">
+                            <% if (p.lead_display_name) { %><span>👤 <%= p.lead_display_name %></span><% } %>
+                            <span>📦 <%= p.version_count %> ver.</span>
+                            <span>👥 <%= p.assignee_count %></span>
+                        </div>
+                        <div class="mission-progress"><div class="mission-progress-fill" style="width:<%= p.progress || 0 %>%"></div></div>
+                    </a>
+                <% }) %>
+            </div>
+        </section>
+    <% } %>
+</div>
+
+<script src="/vendor/frappe-gantt/frappe-gantt.umd.js"></script>
+<script>
+(function () {
+    const tasks = <%- JSON.stringify(tasks).replace(/</g, '\\u003c') %>;
+    const canManage = <%= canManage ? 'true' : 'false' %>;
+    if (!tasks.length || typeof Gantt === 'undefined') return;
+
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+    const gantt = new Gantt('#gantt', tasks, {
+        view_mode: 'Week',
+        view_mode_select: true,
+        today_button: true,
+        readonly_progress: true,
+        readonly_dates: !canManage,
+        infinite_padding: false,
+        container_height: 'auto',
+        popup_on: 'hover',
+        popup: ({ task }) => `
+            <div class="mission-popup">
+                <div class="title">${esc(task.name)}</div>
+                <div class="subtitle">${esc(task._status)}${task._priority ? ' · ' + esc(task._priority) : ''}</div>
+                <div class="details">
+                    ${task._campaign ? '🎬 ' + esc(task._campaign) + '<br>' : ''}
+                    ${task._lead ? '👤 ' + esc(task._lead) + '<br>' : ''}
+                    🗓 ${esc(task.start)} → ${esc(task.end)}<br>
+                    ▸ ${task.progress || 0}% complete
+                </div>
+            </div>`,
+        on_click: (task) => { window.location = '/missions/' + task.id; },
+        on_date_change: (task, start, end) => {
+            if (!canManage) return;
+            const toYmd = d => {
+                const x = new Date(d);
+                return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+            };
+            fetch('/missions/' + task.id + '/dates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ start: toYmd(start), end: toYmd(end) })
+            }).catch(err => console.error('Reschedule failed', err));
+        }
+    });
+})();
+</script>
+
+<%- include('../partials/footer') %>

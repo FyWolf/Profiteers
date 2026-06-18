@@ -38,6 +38,7 @@ const rosterRoutes = require('./routes/roster');
 const orbatRoutes = require('./routes/orbat');
 const loaRoutes = require('./routes/loa');
 const operationsRoutes = require('./routes/operations');
+const missionsRoutes = require('./routes/missions');
 const operationsMapRoutes = require('./routes/operations-map');
 const mapPlansRoutes = require('./routes/map-plans');
 const { router: attendanceRoutes } = require('./routes/attendance');
@@ -69,6 +70,12 @@ app.use(express.json());
 const FILE_UPLOAD_EXCEPTIONS = [
     '/admin/map-plans/terrains/import',
 ];
+// Dynamic-path exceptions (route params can't be matched by the static list above).
+// Mission file/attachment uploads mount their own large-upload middleware.
+const FILE_UPLOAD_EXCEPTION_PATTERNS = [
+    /^\/missions\/\d+\/files$/,
+    /^\/missions\/\d+\/attachments$/,
+];
 const defaultFileUpload = fileUpload({
     limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024 },
     abortOnLimit: true,
@@ -76,6 +83,7 @@ const defaultFileUpload = fileUpload({
 });
 app.use((req, res, next) => {
     if (FILE_UPLOAD_EXCEPTIONS.includes(req.path)) return next();
+    if (FILE_UPLOAD_EXCEPTION_PATTERNS.some(re => re.test(req.path))) return next();
     return defaultFileUpload(req, res, next);
 });
 
@@ -129,6 +137,7 @@ app.use('/admin', adminRoutes);
 app.use('/operations', operationsMapRoutes);
 app.use('/operations/:id/post-op', attendanceRoutes);
 app.use('/operations', operationsRoutes);
+app.use('/missions', missionsRoutes);
 app.use('/plans', mapPlansRoutes);
 app.use('/orbat', orbatRoutes);
 app.use('/loa', loaRoutes);

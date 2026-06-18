@@ -1912,3 +1912,225 @@ th[onclick]:hover { color: var(--accent) !important; }
     }
     .admin-sidebar.open { transform: translateX(0); }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Mission Board (Gantt) + mission-file version control
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Status palette — reused by legend swatches, badges, cards and Gantt bars. */
+:root {
+    --ms-planning:    #7f8c8d;
+    --ms-in_progress: #3498db;
+    --ms-blocked:     #e74c3c;
+    --ms-review:      #9b59b6;
+    --ms-completed:   #2ecc71;
+    --ms-cancelled:   #555f55;
+}
+
+.mission-toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 15px; margin-bottom: 20px;
+}
+.mission-legend { display: flex; flex-wrap: wrap; gap: 14px; }
+.mission-legend-item {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--khaki); font-size: 0.85em;
+}
+.mission-swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; background: var(--ms-planning); }
+.mission-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mission-filter { padding: 8px 12px; background: rgba(40,40,40,0.9); border: 2px solid var(--khaki); border-radius: 8px; color: var(--sand); font-family: var(--body-font); font-size: 0.85em; cursor: pointer; }
+.mission-filter:focus { outline: none; border-color: var(--accent); }
+.mission-campaign-tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 0.78em; font-weight: 700; background: rgba(0,0,0,0.3); border: 1px solid var(--khaki); color: var(--sand); }
+.mission-campaign-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+
+/* Status colour mapping (swatches, badges, cards). */
+.mission-swatch.status-planning,    .mission-status-badge.status-planning    { background: var(--ms-planning); }
+.mission-swatch.status-in_progress, .mission-status-badge.status-in_progress { background: var(--ms-in_progress); }
+.mission-swatch.status-blocked,     .mission-status-badge.status-blocked     { background: var(--ms-blocked); }
+.mission-swatch.status-review,      .mission-status-badge.status-review      { background: var(--ms-review); }
+.mission-swatch.status-completed,   .mission-status-badge.status-completed   { background: var(--ms-completed); }
+.mission-swatch.status-cancelled,   .mission-status-badge.status-cancelled   { background: var(--ms-cancelled); }
+
+.mission-status-badge {
+    display: inline-block; padding: 3px 12px; border-radius: 999px;
+    font-size: 0.78em; font-weight: 700; color: #fff;
+    font-family: var(--heading-font); letter-spacing: 0.5px;
+}
+.mission-priority {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 0.78em; font-weight: 700; text-transform: capitalize;
+    border: 1px solid var(--khaki); color: var(--khaki);
+}
+.mission-priority.priority-high   { border-color: var(--accent); color: var(--accent); }
+.mission-priority.priority-urgent { border-color: #e74c3c; color: #ff7b7b; }
+
+/* ── Gantt theming: scope the frappe variables to the container so the whole
+      chart adopts the camo/gold palette without touching anything else. ── */
+.gantt-container {
+    --g-header-background: var(--camo-mid);
+    --g-row-color: rgba(0,0,0,0.18);
+    --g-row-border-color: rgba(178,178,125,0.35);
+    --g-border-color: rgba(178,178,125,0.25);
+    --g-tick-color: rgba(178,178,125,0.15);
+    --g-tick-color-thick: rgba(178,178,125,0.35);
+    --g-text-dark: var(--sand);
+    --g-text-light: #fff;
+    --g-text-muted: var(--khaki);
+    --g-bar-color: var(--olive);
+    --g-bar-border: var(--olive-light);
+    --g-progress-color: var(--accent);
+    --g-handle-color: var(--accent);
+    --g-today-highlight: var(--accent);
+    --g-actions-background: rgba(0,0,0,0.35);
+    --g-weekend-highlight-color: rgba(0,0,0,0.22);
+    --g-popup-actions: var(--olive);
+    background: rgba(0,0,0,0.2);
+    border: 2px solid var(--khaki);
+    border-radius: 12px;
+    margin-top: 10px;
+    /* Firefox: thin, themed scrollbars instead of the bright OS default. */
+    scrollbar-width: thin;
+    scrollbar-color: var(--olive) rgba(0,0,0,0.25);
+}
+/* WebKit/Blink: subtle dark scrollbars that match the chart. */
+.gantt-container::-webkit-scrollbar { width: 10px; height: 10px; }
+.gantt-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.25); border-radius: 0 0 10px 10px; }
+.gantt-container::-webkit-scrollbar-thumb {
+    background: var(--olive); border-radius: 8px;
+    border: 2px solid transparent; background-clip: content-box;
+}
+.gantt-container::-webkit-scrollbar-thumb:hover { background: var(--olive-light); background-clip: content-box; }
+.gantt-container::-webkit-scrollbar-corner { background: transparent; }
+/* Floor + ceiling on the chart height (higher specificity than frappe's own
+   `.gantt-container{overflow:auto}`, loaded after this file):
+   - min-height keeps a sparse board from collapsing to almost nothing;
+   - max-height stops it growing forever as missions stack up — past it the
+     chart scrolls internally on the themed scrollbar (sticky header stays put). */
+#gantt .gantt-container { min-height: 240px; max-height: 600px; overflow-y: auto; }
+.gantt-container .gantt text,
+.gantt-container .upper-text,
+.gantt-container .lower-text { font-family: var(--body-font); }
+.gantt-container .side-header * { font-family: var(--body-font); }
+
+/* Per-status bar fills (custom_class="status-x" on each task). */
+.gantt .bar-wrapper.status-planning    .bar { fill: var(--ms-planning); }
+.gantt .bar-wrapper.status-in_progress .bar { fill: var(--ms-in_progress); }
+.gantt .bar-wrapper.status-blocked     .bar { fill: var(--ms-blocked); }
+.gantt .bar-wrapper.status-review      .bar { fill: var(--ms-review); }
+.gantt .bar-wrapper.status-completed   .bar { fill: var(--ms-completed); }
+.gantt .bar-wrapper.status-cancelled   .bar { fill: var(--ms-cancelled); }
+.gantt .bar-wrapper .bar-progress { fill: rgba(252,176,13,0.55); }
+.gantt .bar-label { fill: #fff; font-weight: 700; }
+
+/* Custom hover popup. */
+.mission-popup .title { font-family: var(--heading-font); }
+.mission-popup .details { line-height: 1.5; }
+
+/* ── Unscheduled cards ── */
+.mission-card-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;
+}
+.mission-card {
+    display: block; text-decoration: none; padding: 18px;
+    background: linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(10,20,10,0.5) 100%);
+    border: 2px solid var(--olive); border-radius: 12px; transition: all 0.2s;
+}
+.mission-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 20px var(--shadow); }
+.mission-card h3 { color: var(--sand); margin: 10px 0; font-size: 1.05em; }
+.mission-card-meta { display: flex; flex-wrap: wrap; gap: 12px; color: var(--khaki); font-size: 0.8em; margin-bottom: 12px; }
+
+.mission-progress { height: 8px; background: rgba(0,0,0,0.4); border-radius: 999px; overflow: hidden; }
+.mission-progress-fill { height: 100%; background: linear-gradient(90deg, var(--olive) 0%, var(--accent) 100%); }
+
+/* ── Detail page ── */
+.mission-back { color: var(--khaki); text-decoration: none; font-size: 0.85em; }
+.mission-back:hover { color: var(--accent); }
+.mission-detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; margin: 20px 0; }
+.mission-detail-actions { display: flex; gap: 10px; align-items: center; }
+.mission-detail-actions form { display: inline; }
+.mission-tags { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+.mission-grid { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+.mission-main { min-width: 0; }
+.mission-description { color: var(--sand); line-height: 1.6; }
+.mission-description a { color: var(--accent); }
+.mission-description ul, .mission-description ol { margin-left: 1.4em; }
+
+.mission-dl-list { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; margin: 0; }
+.mission-dl-list dt { color: var(--khaki); font-size: 0.82em; }
+.mission-dl-list dd { color: var(--sand); margin: 0; font-size: 0.9em; word-break: break-word; }
+
+.mission-team { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+.mission-team li { display: flex; gap: 10px; align-items: center; }
+.mission-team img { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--olive); object-fit: cover; flex-shrink: 0; }
+.mission-team-name { color: var(--sand); font-weight: 700; font-size: 0.9em; }
+.mission-team-role { color: var(--khaki); font-size: 0.78em; }
+
+.mission-table { width: 100%; border-collapse: collapse; }
+.mission-table th { text-align: left; padding: 10px; border-bottom: 2px solid var(--olive); color: var(--olive-light); font-family: var(--heading-font); font-size: 0.85em; }
+.mission-table td { padding: 10px; border-bottom: 1px solid rgba(178,178,125,0.2); vertical-align: top; color: var(--sand); }
+.mission-table form { display: inline; }
+.mission-current { background: rgba(252,176,13,0.2); color: var(--accent); border-radius: 4px; padding: 1px 7px; font-size: 0.72em; font-weight: 700; margin-left: 6px; }
+.mission-dl { color: var(--accent); text-decoration: none; font-weight: 700; white-space: nowrap; }
+.mission-dl:hover { text-decoration: underline; }
+
+.mission-attach-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.mission-attach-list li { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.mission-attach-list form { display: inline; }
+
+.mission-upload { margin-top: 18px; border-top: 1px dashed rgba(178,178,125,0.35); padding-top: 14px; }
+.mission-upload summary { cursor: pointer; color: var(--accent); font-weight: 700; margin-bottom: 12px; }
+.mission-upload input[type="file"] { padding: 8px; background: rgba(40,40,40,0.9); color: var(--sand); border: 2px solid var(--khaki); border-radius: 8px; width: 100%; }
+
+/* ── Form ── */
+.mission-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.mission-assignee-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+.mission-assignee-row input[type="text"] { flex: 1; }
+.mission-assignee-row .ms-assignee-name { flex: 1; color: var(--sand); font-weight: 700; font-size: 0.9em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mission-assignee-row .mission-assignee-remove { flex-shrink: 0; padding: 10px 14px; }
+
+/* ── Shared picker display boxes (lead / terrain) ── */
+.ms-picker-display {
+    display: flex; align-items: center; gap: 12px;
+    border: 2px solid var(--khaki); border-radius: 8px;
+    background: rgba(40,40,40,0.9); padding: 10px 12px; min-height: 64px;
+}
+.ms-picker-name { flex: 1; min-width: 0; color: var(--sand); font-weight: 700; font-size: 0.95em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-picker-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.ms-btn-sm { padding: 8px 14px; font-size: 0.85em; }
+.ms-btn-clear { background: linear-gradient(135deg, #555 0%, #333 100%); }
+.ms-member-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid var(--olive); flex-shrink: 0; }
+.ms-map-thumb { width: 80px; height: 50px; border-radius: 4px; background: #111; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.4em; color: #444; }
+.ms-map-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ── Shared modal (member + terrain pickers) ── */
+.ms-modal { display: none; position: fixed; inset: 0; z-index: 9000; background: rgba(0,0,0,0.75); backdrop-filter: blur(3px); align-items: center; justify-content: center; }
+.ms-modal.open { display: flex; }
+.ms-modal-box { background: var(--camo-dark); border: 1px solid var(--olive); border-radius: 8px; width: 780px; max-width: 95vw; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0,0,0,0.7); }
+.ms-modal-head { padding: 14px 18px; border-bottom: 1px solid var(--olive); display: flex; align-items: center; }
+.ms-modal-head h3 { flex: 1; color: var(--accent); margin: 0; font-size: 1em; letter-spacing: 0.06em; font-family: var(--heading-font); }
+.ms-modal-close { background: none; border: none; color: #888; font-size: 1.2em; cursor: pointer; padding: 2px 6px; }
+.ms-modal-close:hover { color: var(--accent); }
+.ms-modal-search { padding: 12px 16px 0; }
+.ms-modal-search input { width: 100%; padding: 10px 12px; background: rgba(40,40,40,0.9); border: 2px solid var(--khaki); border-radius: 8px; color: var(--sand); font-family: var(--body-font); }
+.ms-modal-search input:focus { outline: none; border-color: var(--accent); }
+.ms-modal-body { flex: 1; overflow-y: auto; padding: 16px; }
+.ms-modal-empty { text-align: center; padding: 40px; color: var(--khaki); }
+
+.ms-member-list { display: flex; flex-direction: column; gap: 4px; }
+.ms-member-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 6px; cursor: pointer; color: var(--sand); font-size: 0.9em; }
+.ms-member-item:hover { background: rgba(107,142,35,0.3); }
+
+.ms-terrain-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.ms-terrain-card { border: 2px solid var(--olive); border-radius: 5px; overflow: hidden; cursor: pointer; background: rgba(0,0,0,0.3); transition: border-color 0.15s; }
+.ms-terrain-card:hover { border-color: var(--accent); }
+.ms-terrain-thumb { height: 110px; background: #111; overflow: hidden; display: flex; align-items: center; justify-content: center; color: #333; font-size: 2em; }
+.ms-terrain-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ms-terrain-meta { padding: 10px 12px; }
+.ms-terrain-name { font-weight: 700; color: var(--accent); font-size: 0.9em; margin-bottom: 3px; }
+.ms-terrain-sub { color: var(--khaki); font-size: 0.75em; }
+
+@media (max-width: 900px) {
+    .mission-grid { grid-template-columns: 1fr; }
+    .mission-form-row { grid-template-columns: 1fr; }
+}

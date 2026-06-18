@@ -113,6 +113,9 @@ const __articleMod   = locals.articleModified  || null;
                         <a href="/orbat/view-all">ORBAT Templates</a>
                         <a href="/plans">Map Plans</a>
                         <a href="/modpacks">Modpacks</a>
+                        <% if (user && Array.isArray(user.permissions) && user.permissions.includes('missions.view')) { %>
+                            <a href="/missions">Mission Board</a>
+                        <% } %>
                         <% if (user && (user.isAdmin || user.isZeus)) { %>
                             <a href="/operations/manage/list" class="dropdown-divider">Manage Operations</a>
                             <a href="/modpacks/upload/new">Upload Modpack</a>
