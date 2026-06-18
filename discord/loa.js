@@ -3,7 +3,12 @@ const db = require('../config/database');
 
 async function sendLOANotification(client, loa, user, superior, action = 'submitted') {
     try {
-        const channelId = process.env.DISCORD_LOA_CHANNEL_ID;
+        const isStaff = loa.type === 'staff';
+        // Staff LOAs post to their own channel when configured, otherwise fall back
+        // to the normal LOA channel.
+        const channelId = (isStaff && process.env.DISCORD_STAFF_LOA_CHANNEL_ID)
+            ? process.env.DISCORD_STAFF_LOA_CHANNEL_ID
+            : process.env.DISCORD_LOA_CHANNEL_ID;
         if (!channelId) {
             console.warn('DISCORD_LOA_CHANNEL_ID not set');
             return null;
@@ -29,14 +34,14 @@ async function sendLOANotification(client, loa, user, superior, action = 'submit
         }
         if (!durationText) durationText = 'Less than 1 hour';
 
-        let title = '🛑 Leave of Absence Submitted';
-        let color = 0xE74C3C;
+        let title = isStaff ? '🛡️ Staff Leave of Absence Submitted' : '🛑 Leave of Absence Submitted';
+        let color = isStaff ? 0x9B59B6 : 0xE74C3C;
 
         if (action === 'updated') {
-            title = '✏️ Leave of Absence Updated';
+            title = isStaff ? '✏️ Staff Leave of Absence Updated' : '✏️ Leave of Absence Updated';
             color = 0xF39C12;
         } else if (action === 'deleted') {
-            title = '🗑️ Leave of Absence Cancelled';
+            title = isStaff ? '🗑️ Staff Leave of Absence Cancelled' : '🗑️ Leave of Absence Cancelled';
             color = 0x95A5A6;
         }
 
@@ -45,7 +50,7 @@ async function sendLOANotification(client, loa, user, superior, action = 'submit
             .setColor(color)
             .addFields(
                 {
-                    name: '👤 Player',
+                    name: isStaff ? '🛡️ Staff Member' : '👤 Player',
                     value: user.discord_global_name || user.username,
                     inline: true
                 },

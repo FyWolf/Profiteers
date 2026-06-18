@@ -10,7 +10,7 @@ const isActive = (base) => base === '/admin' ? cp === '/admin' : (cp === base ||
 // Group visibility — hide a group's label when none of its items are permitted.
 const gAttendance = can('attendance.manage') || can('attendance.rewards.manage') || can('feedback.manage');
 const gContent    = can('tools.manage') || can('gallery.manage') || can('info.manage') || can('lore.manage');
-const gSystem     = can('logs.view');
+const gSystem     = can('logs.view') || can('admin.access');
 %>
 <button class="admin-sidebar-toggle" id="admin-sidebar-toggle" aria-label="Toggle admin menu" aria-expanded="false">
     <span class="ai">☰</span> Admin Menu
@@ -95,6 +95,9 @@ const gSystem     = can('logs.view');
             <div class="admin-nav-label">System</div>
             <% if (can('logs.view')) { %>
             <a href="/admin/logs" class="admin-nav-link <%= isActive('/admin/logs') ? 'active' : '' %>"><span class="ai">📜</span> Action Log</a>
+            <% } %>
+            <% if (can('admin.access')) { %>
+            <a href="/admin/debug" class="admin-nav-link <%= isActive('/admin/debug') ? 'active' : '' %>"><span class="ai">🐛</span> Debug</a>
             <% } %>
         </div>
         <% } %>

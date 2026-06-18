@@ -19,6 +19,7 @@ router.use('/roles',      hasPermission('roles.manage'),     require('./admin/ro
 router.use('/info',       hasPermission('info.manage'),       require('./admin/info'));
 router.use('/presence',    require('./admin/presence'));
 router.use('/organigram', hasPermission('organigram.manage'), require('./admin/organigram'));
+router.use('/debug',      require('./admin/debug'));
 router.use('/slot-types', hasPermission('orbat.manage'), require('./admin/slot-types'));
 router.use('/map-plans', hasPermission('map.plans.admin'), require('./admin/map-plans'));
 router.use('/logs',       hasPermission('logs.view'),      require('./admin/logs'));

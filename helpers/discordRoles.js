@@ -36,6 +36,31 @@ async function fetchGuildRoles() {
 }
 
 /**
+ * Fetch every (non-bot) guild member, following pagination.
+ * Returns the raw member objects ({ user, roles, nick, ... }); [] when not configured.
+ * @returns {Promise<Array<object>>}
+ */
+async function fetchAllMembers() {
+    const { token, guildId } = config();
+    if (!token || !guildId) return [];
+
+    let all = [];
+    let after = '0';
+    let more = true;
+    while (more) {
+        const res = await axios.get(
+            `${API}/guilds/${guildId}/members?limit=1000&after=${after}`,
+            authHeaders()
+        );
+        const batch = res.data || [];
+        all = all.concat(batch);
+        if (batch.length < 1000) more = false;
+        else after = batch[batch.length - 1].user.id;
+    }
+    return all;
+}
+
+/**
  * Fetch the role ids a guild member currently holds.
  * Returns an array of id strings, or null if the lookup could not be performed
  * (not configured, member left the guild, or a transient error).
@@ -88,4 +113,4 @@ function removeRole(discordUserId, roleId) {
     return modifyRole('delete', discordUserId, roleId);
 }
 
-module.exports = { fetchGuildRoles, fetchMemberRoleIds, addRole, removeRole };
+module.exports = { fetchGuildRoles, fetchAllMembers, fetchMemberRoleIds, addRole, removeRole };

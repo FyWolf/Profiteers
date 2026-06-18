@@ -5,7 +5,7 @@ const { isAuthenticated, hasPermission } = require('../middleware/auth');
 const { checkZeusStatus } = require('../middleware/zeus');
 const { sendLOANotification } = require('../discord/loa');
 const { discordClient } = require('../discord');
-const { isStaffMember, syncUser } = require('../helpers/staffLoa');
+const { isStaffMember, grantIfActive, reconcile } = require('../helpers/staffLoa');
 
 router.get('/my-loas', (req, res) => res.redirect('/loa/all'));
 
@@ -60,8 +60,8 @@ router.post('/submit', isAuthenticated, async (req, res) => {
         `, [req.session.userId, type, startTs, endTs, reason, superior_id || null]);
 
         if (type === 'staff') {
-            try { await syncUser(req.session.userId); }
-            catch (e) { console.error('Staff LOA role sync failed:', e.message); }
+            try { await grantIfActive(req.session.userId); }
+            catch (e) { console.error('Staff LOA role grant failed:', e.message); }
         }
 
         if (process.env.DISCORD_BOT_TOKEN) {
@@ -73,7 +73,7 @@ router.post('/submit', isAuthenticated, async (req, res) => {
 
                 await sendLOANotification(
                     discordClient,
-                    { id: result.insertId, start_date: startTs, end_date: endTs },
+                    { id: result.insertId, type, start_date: startTs, end_date: endTs },
                     users[0],
                     superiors[0] || null,
                     'submitted'
@@ -156,8 +156,8 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
 
         // Re-sync if this LOA is (or just stopped being) a staff LOA, or its dates moved.
         if (type === 'staff' || existing?.type === 'staff') {
-            try { await syncUser(req.session.userId); }
-            catch (e) { console.error('Staff LOA role sync failed:', e.message); }
+            try { await reconcile(req.session.userId); }
+            catch (e) { console.error('Staff LOA role reconcile failed:', e.message); }
         }
 
         if (process.env.DISCORD_BOT_TOKEN) {
@@ -212,7 +212,7 @@ router.post('/delete/:id', isAuthenticated, async (req, res) => {
         }
         
         const [[delRow]] = await db.query(
-            'SELECT type FROM leave_of_absence WHERE id = ? AND user_id = ?',
+            'SELECT type, staff_role_applied FROM leave_of_absence WHERE id = ? AND user_id = ?',
             [req.params.id, req.session.userId]
         );
 
@@ -221,11 +221,11 @@ router.post('/delete/:id', isAuthenticated, async (req, res) => {
             [req.params.id, req.session.userId]
         );
 
-        // If this was a staff LOA, re-sync so the Discord role is revoked unless
-        // the user still has another active staff LOA.
+        // If this was a staff LOA we'd granted the role for, re-sync so the Discord
+        // role is revoked unless the user still has another active staff LOA.
         if (delRow?.type === 'staff') {
-            try { await syncUser(req.session.userId); }
-            catch (e) { console.error('Staff LOA role sync failed:', e.message); }
+            try { await reconcile(req.session.userId, { forceWasApplied: delRow.staff_role_applied === 1 }); }
+            catch (e) { console.error('Staff LOA role reconcile failed:', e.message); }
         }
 
         if (process.env.DISCORD_BOT_TOKEN && loaData && userData) {

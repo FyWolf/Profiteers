@@ -16,12 +16,14 @@
                 <% if (typeof isStaff !== 'undefined' && isStaff) { %>
                 <div class="form-group">
                     <label>LOA Type</label>
-                    <div style="display:flex;gap:20px;align-items:center;margin-top:4px;">
-                        <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;">
-                            <input type="radio" name="type" value="player" <%= loa.type === 'staff' ? '' : 'checked' %>> Player LOA
+                    <div class="loa-seg-group">
+                        <label class="loa-seg">
+                            <input type="radio" name="type" value="player" <%= loa.type === 'staff' ? '' : 'checked' %>>
+                            <span class="loa-seg-btn">🎮 Player LOA</span>
                         </label>
-                        <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;">
-                            <input type="radio" name="type" value="staff" <%= loa.type === 'staff' ? 'checked' : '' %>> Staff LOA
+                        <label class="loa-seg">
+                            <input type="radio" name="type" value="staff" <%= loa.type === 'staff' ? 'checked' : '' %>>
+                            <span class="loa-seg-btn">🛡️ Staff LOA</span>
                         </label>
                     </div>
                     <small style="color: var(--khaki);">A Staff LOA appears on the organigram and grants the staff-LOA Discord role for the period.</small>
@@ -30,11 +32,15 @@
 
                 <div class="form-group">
                     <label for="start_date">Start Date & Time</label>
-                    <input type="datetime-local" 
-                           id="start_date" 
-                           name="start_date" 
-                           required
-                           value="<%= new Date(loa.start_date * 1000).toISOString().slice(0, 16) %>">
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="datetime-local"
+                               id="start_date"
+                               name="start_date"
+                               required
+                               style="flex:1;"
+                               value="<%= new Date(loa.start_date * 1000).toISOString().slice(0, 16) %>">
+                        <button type="button" class="btn" style="flex:0 0 auto;padding:8px 14px;white-space:nowrap;" onclick="loaSetStartNow()">Now</button>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -118,6 +124,12 @@
                     function clearSuperior() {
                         hiddenInput.value = '';
                         selectedDiv.style.display = 'none';
+                    }
+
+                    function loaSetStartNow() {
+                        const d = new Date();
+                        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                        document.getElementById('start_date').value = d.toISOString().slice(0, 16);
                     }
 
                     // Hide results when clicking outside

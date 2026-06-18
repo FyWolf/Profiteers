@@ -1,0 +1,95 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>DEBUG</h1>
+        <div class="subtitle">Maintenance &amp; sanity-check tools for production</div>
+    </header>
+
+    <section class="section">
+        <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+        <% if (error)   { %><div class="alert alert-error"><%= error %></div><% } %>
+
+        <!-- ── Staff LOA role sanity check ──────────────────────────────── -->
+        <div class="panel" style="margin-bottom:18px;">
+            <h3 style="margin:0 0 6px;">🛡️ Staff LOA role check</h3>
+            <p style="margin:0 0 14px;font-size:0.86em;color:var(--khaki);opacity:0.8;">
+                Compares the staff-LOA Discord role against who should hold it (members with an
+                active staff LOA). Running the check changes nothing; apply fixes to grant the role
+                to anyone missing it and revoke it from anyone holding it without an active staff LOA.
+            </p>
+
+            <form method="POST" action="/admin/debug/staff-loa/audit" style="display:inline;">
+                <button type="submit" class="btn btn-primary">Run check</button>
+            </form>
+
+            <% if (staffLoaAudit) { %>
+                <% if (!staffLoaAudit.configured) { %>
+                    <div class="alert alert-error" style="margin-top:14px;">
+                        <code>DISCORD_STAFF_LOA_ROLE_ID</code> is not configured — nothing to check.
+                    </div>
+                <% } else if (!staffLoaAudit.available) { %>
+                    <div class="alert alert-error" style="margin-top:14px;">
+                        Could not reach Discord to enumerate guild members. Check the bot token / guild id.
+                    </div>
+                <% } else {
+                    const missing = staffLoaAudit.missing || [];
+                    const extra   = staffLoaAudit.extra || [];
+                    const inSync  = missing.length === 0 && extra.length === 0;
+                %>
+                    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+                        <div class="stat-chip"><span class="stat-val"><%= staffLoaAudit.okCount %></span><span class="stat-lbl">Correct</span></div>
+                        <div class="stat-chip"><span class="stat-val" style="color:#e86070;"><%= missing.length %></span><span class="stat-lbl">Missing role</span></div>
+                        <div class="stat-chip"><span class="stat-val" style="color:#f1c40f;"><%= extra.length %></span><span class="stat-lbl">Should not have</span></div>
+                    </div>
+
+                    <% if (inSync) { %>
+                        <div class="alert alert-success" style="margin-top:14px;">✅ Everyone has the correct staff-LOA role.</div>
+                    <% } else { %>
+                        <% if (missing.length) { %>
+                            <div style="margin-top:14px;">
+                                <strong style="color:#e86070;">Missing the role (active staff LOA, role not applied):</strong>
+                                <ul style="margin:6px 0 0;padding-left:20px;color:var(--khaki);font-size:0.9em;list-style:none;">
+                                    <% missing.forEach(m => { %>
+                                    <li style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+                                        <span style="flex:1;min-width:0;"><%= m.name %> <span style="opacity:0.5;">(<%= m.discord_id %>)</span></span>
+                                        <form method="POST" action="/admin/debug/staff-loa/fix-one" style="margin:0;">
+                                            <input type="hidden" name="discord_id" value="<%= m.discord_id %>">
+                                            <input type="hidden" name="action" value="grant">
+                                            <button type="submit" class="btn" style="padding:3px 10px;font-size:0.78em;">Grant</button>
+                                        </form>
+                                    </li>
+                                    <% }) %>
+                                </ul>
+                            </div>
+                        <% } %>
+                        <% if (extra.length) { %>
+                            <div style="margin-top:14px;">
+                                <strong style="color:#f1c40f;">Holds the role with no active staff LOA:</strong>
+                                <ul style="margin:6px 0 0;padding-left:20px;color:var(--khaki);font-size:0.9em;list-style:none;">
+                                    <% extra.forEach(m => { %>
+                                    <li style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+                                        <span style="flex:1;min-width:0;"><%= m.name %> <span style="opacity:0.5;">(<%= m.discord_id %>)</span></span>
+                                        <form method="POST" action="/admin/debug/staff-loa/fix-one" style="margin:0;"
+                                              onsubmit="return confirm('Revoke the staff-LOA role from <%= m.name %>?')">
+                                            <input type="hidden" name="discord_id" value="<%= m.discord_id %>">
+                                            <input type="hidden" name="action" value="revoke">
+                                            <button type="submit" class="btn btn-danger" style="padding:3px 10px;font-size:0.78em;">Revoke</button>
+                                        </form>
+                                    </li>
+                                    <% }) %>
+                                </ul>
+                            </div>
+                        <% } %>
+                        <form method="POST" action="/admin/debug/staff-loa/fix" style="margin-top:16px;"
+                              onsubmit="return confirm('Apply staff-LOA role fixes? This will grant <%= missing.length %> and revoke <%= extra.length %> role(s) in Discord.')">
+                            <button type="submit" class="btn btn-primary">Apply fixes (grant <%= missing.length %>, revoke <%= extra.length %>)</button>
+                        </form>
+                    <% } %>
+                <% } %>
+            <% } %>
+        </div>
+    </section>
+</div>
+
+<%- include('../partials/footer') %>
