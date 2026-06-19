@@ -236,11 +236,21 @@ body { overflow: hidden; }
     object-fit: contain;
     display: block;
 }
+#lore-modal-box iframe.lore-modal-pdf {
+    width: 88vw;
+    max-width: 1100px;
+    height: 82vh;
+    border: 1px solid #2c5c2c;
+    border-radius: 4px;
+    background: #fff;
+    display: block;
+}
 #lore-modal-caption {
     color: #4a8a4a;
     font-family: 'Roboto Mono', monospace;
     font-size: 0.8em;
 }
+#lore-modal-caption a { color: #6cc06c; margin-left: 8px; }
 #lore-modal-close {
     position: absolute;
     top: -36px;
@@ -459,19 +469,31 @@ async function fetchFiles(nodeId) {
 }
 
 /* ── Modal ──────────────────────────────────────────────────────────── */
-function openModal(src, caption, isVideo) {
+function openModal(src, caption, kind) {
     const box = document.getElementById('lore-modal-content');
     box.innerHTML = '';
-    if (isVideo) {
+    if (kind === 'video') {
         const v = document.createElement('video');
         v.src = src; v.controls = true; v.autoplay = false;
         box.appendChild(v);
+    } else if (kind === 'pdf') {
+        const frame = document.createElement('iframe');
+        frame.src = src; frame.className = 'lore-modal-pdf'; frame.title = caption;
+        box.appendChild(frame);
     } else {
         const img = document.createElement('img');
         img.src = src; img.alt = caption;
         box.appendChild(img);
     }
-    document.getElementById('lore-modal-caption').textContent = caption;
+    const cap = document.getElementById('lore-modal-caption');
+    cap.textContent = caption;
+    if (kind === 'pdf') {
+        // Fallback for browsers/devices that can't render the PDF inline.
+        const a = document.createElement('a');
+        a.href = src; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = '↗ open in new tab';
+        cap.appendChild(a);
+    }
     document.getElementById('lore-modal-overlay').classList.add('open');
 }
 
@@ -505,14 +527,16 @@ function renderFiles(files) {
         const mime = f.mimetype || '';
         const isImage = /^image\//.test(mime);
         const isVideo = /^video\//.test(mime);
-        const isMedia = isImage || isVideo;
+        const isPdf   = /pdf/.test(mime) || /\.pdf$/i.test(f.original_name || '');
+        const isModal = isImage || isVideo || isPdf;
 
-        const btn = document.createElement(isMedia ? 'button' : 'a');
+        const btn = document.createElement(isModal ? 'button' : 'a');
         btn.className = 'term-file';
 
-        if (isMedia) {
+        if (isModal) {
             btn.type = 'button';
-            btn.onclick = () => openModal(url, f.original_name, isVideo);
+            const kind = isVideo ? 'video' : isPdf ? 'pdf' : 'image';
+            btn.onclick = () => openModal(url, f.original_name, kind);
         } else {
             btn.href = url;
             btn.download = f.original_name;

@@ -147,7 +147,11 @@ const currentVersion = versions.length ? versions[0].version_number : null;
                     <ul class="mission-attach-list">
                         <% attachments.forEach(a => { %>
                             <li>
-                                <a href="/missions/<%= project.id %>/attachments/<%= a.id %>/download" class="mission-dl">📎 <%= a.original_name %></a>
+                                <% if (a.viewable) { %>
+                                    <a href="/missions/<%= project.id %>/attachments/<%= a.id %>/download" class="mission-dl" target="_blank" rel="noopener" title="Opens in browser">👁 <%= a.original_name %></a>
+                                <% } else { %>
+                                    <a href="/missions/<%= project.id %>/attachments/<%= a.id %>/download" class="mission-dl" title="Download">📎 <%= a.original_name %></a>
+                                <% } %>
                                 <span style="color:var(--khaki);font-size:0.85em;"><%= fmtBytes(a.size) %> · <%= a.uploaded_by_name || 'Unknown' %></span>
                                 <% if (canManage) { %>
                                     <form method="POST" action="/missions/<%= project.id %>/attachments/<%= a.id %>/delete" style="display:inline;" onsubmit="return confirm('Delete this attachment?')">

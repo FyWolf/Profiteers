@@ -11,6 +11,17 @@ function timestampToUTC(timestamp) {
 
 <div class="container view-page-container">
 
+    <% if (!operation.is_published) { %>
+    <!-- ── Draft notice (only staff/host/creator can reach this page) ──── -->
+    <div style="background:rgba(252,176,13,0.15);border:2px solid var(--accent);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <strong style="color:var(--accent);letter-spacing:0.05em;">📝 DRAFT</strong>
+        <span style="color:var(--sand);font-size:0.9em;">This operation is not published yet — it isn't visible to members.</span>
+        <% if (canManage) { %>
+            <a href="/operations/manage/edit/<%= operation.id %>" class="btn" style="margin-left:auto;padding:6px 14px;font-size:0.85em;">✏️ Edit</a>
+        <% } %>
+    </div>
+    <% } %>
+
     <!-- ── Banner ─────────────────────────────────────────────────────── -->
     <div style="width:calc(100% + 40px);height:220px;margin:-20px -20px 20px -20px;overflow:hidden;background:linear-gradient(135deg,#1a1a1a 0%,#2a2a2a 100%);position:relative;">
         <img src="<%= operation.banner_url %>"

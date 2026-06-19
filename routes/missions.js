@@ -500,7 +500,19 @@ router.get('/:id/attachments/:attId/download', hasPermission('missions.view'), a
     try {
         const [[a]] = await db.query('SELECT * FROM mission_project_attachments WHERE id = ? AND project_id = ?', [req.params.attId, req.params.id]);
         if (!a) return res.status(404).send('File not found');
-        return sendFile(res, projectDir(req.params.id), a.stored_name, a.original_name);
+
+        const dir  = projectDir(req.params.id);
+        const full = path.resolve(path.join(dir, a.stored_name));
+        if (!full.startsWith(path.resolve(dir) + path.sep)) return res.status(400).send('Bad path');
+        if (!fs.existsSync(full)) return res.status(404).send('File missing on disk');
+
+        // Web-viewable types open in the browser; everything else downloads.
+        if (isInlineViewable(a.mime, a.original_name)) {
+            if (a.mime) res.type(a.mime);
+            res.setHeader('Content-Disposition', `inline; filename="${headerFilename(a.original_name)}"`);
+            return res.sendFile(full);
+        }
+        return res.download(full, a.original_name);
     } catch (error) {
         console.error('Error downloading attachment:', error);
         res.status(500).send('Download failed');
@@ -555,6 +567,7 @@ router.get('/:id', hasPermission('missions.view'), async (req, res) => {
             WHERE at.project_id = ?
             ORDER BY at.uploaded_at DESC
         `, [req.params.id]);
+        attachments.forEach(a => { a.viewable = isInlineViewable(a.mime, a.original_name); });
 
         res.render('missions/view', {
             title: `${project.title} — Mission Board`,
@@ -570,6 +583,27 @@ router.get('/:id', hasPermission('missions.view'), async (req, res) => {
         res.render('error', { title: 'Error', message: 'Error Loading Mission Project', description: 'Could not load mission project.', user: res.locals.user });
     }
 });
+
+// True for files browsers can render inline (open in-tab instead of downloading).
+// SVG is intentionally excluded — served same-origin it can execute script.
+function isInlineViewable(mime, name) {
+    const m = (mime || '').toLowerCase();
+    const ext = path.extname(name || '').toLowerCase();
+    if (m === 'application/pdf' || ext === '.pdf') return true;
+    if (/^image\//.test(m) && m !== 'image/svg+xml') return true;
+    if (/^(video|audio)\//.test(m)) return true;
+    if (!m || m === 'application/octet-stream') {
+        return ['.png','.jpg','.jpeg','.gif','.webp','.avif','.bmp',
+                '.mp4','.webm','.ogg','.ogv','.mov','.m4v',
+                '.mp3','.wav','.m4a','.flac','.opus'].includes(ext);
+    }
+    return false;
+}
+
+// Sanitise a filename for a Content-Disposition header (strip quotes / control chars).
+function headerFilename(name) {
+    return (name || 'file').replace(/[\r\n"\\]/g, '_');
+}
 
 // Insert the version number before the file extension, e.g.
 // "Mission.Malden.pbo" + v2 -> "Mission.Malden_v2.pbo".

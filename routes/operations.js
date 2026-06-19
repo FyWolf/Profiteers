@@ -158,9 +158,9 @@ router.get('/:id', async (req, res) => {
             LEFT JOIN roster_members rmu ON rmu.discord_id = u.discord_id
             LEFT JOIN roster_members rmh ON rmh.discord_id = h.discord_id
             LEFT JOIN modpacks mp ON o.modpack_id = mp.id
-            WHERE o.id = ? AND o.is_published = TRUE
+            WHERE o.id = ?
         `, [req.params.id]);
-        
+
         if (operations.length === 0) {
             return res.status(404).render('error', {
                 title: 'Operation Not Found',
@@ -169,9 +169,30 @@ router.get('/:id', async (req, res) => {
                 user: res.locals.user
             });
         }
-        
+
         const operation = operations[0];
-        
+
+        // Drafts (unpublished) are only visible to operations staff, the host, or
+        // the creator — everyone else gets the same 404 as a missing operation.
+        if (!operation.is_published) {
+            const uid = req.session.userId;
+            const perms = Array.isArray(req.user && req.user.permissions) ? req.user.permissions : [];
+            const canSeeDraft = !!uid && (
+                perms.includes('operations.edit') ||
+                perms.includes('operations.create') ||
+                parseInt(operation.host_id) === parseInt(uid) ||
+                parseInt(operation.created_by) === parseInt(uid)
+            );
+            if (!canSeeDraft) {
+                return res.status(404).render('error', {
+                    title: 'Operation Not Found',
+                    message: 'Operation Not Found',
+                    description: 'This operation does not exist or has been removed.',
+                    user: res.locals.user
+                });
+            }
+        }
+
         const [attendance] = await db.query(`
             SELECT
                 status,
