@@ -131,6 +131,18 @@ router.get('/', hasPermission('missions.view'), async (req, res) => {
         const [campaigns] = await db.query('SELECT id, name, color FROM mission_campaigns ORDER BY display_order ASC, name ASC');
         const [[{ archived_count }]] = await db.query(`SELECT COUNT(*) AS archived_count FROM mission_projects mp WHERE ${ARCHIVED_SQL}`);
 
+        // Attach phases (sub-bars) to each visible project.
+        const ids = projects.map(p => p.id);
+        const byProject = {};
+        if (ids.length) {
+            const [phases] = await db.query(
+                'SELECT id, project_id, name, start_date, due_date, color FROM mission_phases WHERE project_id IN (?) ORDER BY display_order ASC, start_date ASC, id ASC',
+                [ids]
+            );
+            phases.forEach(ph => { (byProject[ph.project_id] = byProject[ph.project_id] || []).push(ph); });
+        }
+        projects.forEach(p => { p.phases = byProject[p.id] || []; });
+
         res.render('missions/board', {
             title: 'Mission Board — Profiteers PMC',
             description: 'Mission production planning board.',
@@ -374,6 +386,64 @@ router.post('/:id/status', hasPermission('missions.manage'), async (req, res) =>
     }
 });
 
+// ─── Phases (sub-periods within a mission) ──────────────────────────────────────
+router.post('/:id/phases', hasPermission('missions.manage'), async (req, res) => {
+    try {
+        const [[project]] = await db.query('SELECT id FROM mission_projects WHERE id = ?', [req.params.id]);
+        if (!project) return res.redirect('/missions?error=Mission project not found');
+        const name = (req.body.name || '').trim();
+        if (!name) return res.redirect(`/missions/${req.params.id}?error=Phase name is required`);
+        await db.query(
+            'INSERT INTO mission_phases (project_id, name, start_date, due_date, color, display_order) VALUES (?, ?, ?, ?, ?, ?)',
+            [req.params.id, name.slice(0, 120), parseDate(req.body.start_date), parseDate(req.body.due_date),
+             /^#[0-9a-fA-F]{6}$/.test(req.body.color || '') ? req.body.color : '#3498db',
+             parseInt(req.body.display_order, 10) || 0]
+        );
+        res.redirect(`/missions/${req.params.id}?success=Phase added`);
+    } catch (error) {
+        console.error('Error adding phase:', error);
+        res.redirect(`/missions/${req.params.id}?error=Failed to add phase`);
+    }
+});
+
+router.post('/:id/phases/:phaseId/edit', hasPermission('missions.manage'), async (req, res) => {
+    try {
+        const name = (req.body.name || '').trim();
+        if (!name) return res.redirect(`/missions/${req.params.id}?error=Phase name is required`);
+        await db.query(
+            'UPDATE mission_phases SET name = ?, start_date = ?, due_date = ?, color = ?, display_order = ? WHERE id = ? AND project_id = ?',
+            [name.slice(0, 120), parseDate(req.body.start_date), parseDate(req.body.due_date),
+             /^#[0-9a-fA-F]{6}$/.test(req.body.color || '') ? req.body.color : '#3498db',
+             parseInt(req.body.display_order, 10) || 0, req.params.phaseId, req.params.id]
+        );
+        res.redirect(`/missions/${req.params.id}?success=Phase updated`);
+    } catch (error) {
+        console.error('Error updating phase:', error);
+        res.redirect(`/missions/${req.params.id}?error=Failed to update phase`);
+    }
+});
+
+router.post('/:id/phases/:phaseId/delete', hasPermission('missions.manage'), async (req, res) => {
+    try {
+        await db.query('DELETE FROM mission_phases WHERE id = ? AND project_id = ?', [req.params.phaseId, req.params.id]);
+        res.redirect(`/missions/${req.params.id}?success=Phase deleted`);
+    } catch (error) {
+        console.error('Error deleting phase:', error);
+        res.redirect(`/missions/${req.params.id}?error=Failed to delete phase`);
+    }
+});
+
+router.post('/:id/phases/:phaseId/dates', hasPermission('missions.manage'), async (req, res) => {
+    try {
+        await db.query('UPDATE mission_phases SET start_date = ?, due_date = ? WHERE id = ? AND project_id = ?',
+            [parseDate(req.body.start), parseDate(req.body.end), req.params.phaseId, req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error updating phase dates:', error);
+        res.json({ success: false, error: 'Failed to update phase dates' });
+    }
+});
+
 // ─── Mission file versions ────────────────────────────────────────────────────
 router.post('/:id/files', hasPermission('missions.manage'), missionUpload, async (req, res) => {
     const id = parseInt(req.params.id, 10);
@@ -569,10 +639,15 @@ router.get('/:id', hasPermission('missions.view'), async (req, res) => {
         `, [req.params.id]);
         attachments.forEach(a => { a.viewable = isInlineViewable(a.mime, a.original_name); });
 
+        const [phases] = await db.query(
+            'SELECT * FROM mission_phases WHERE project_id = ? ORDER BY display_order ASC, start_date ASC, id ASC',
+            [req.params.id]
+        );
+
         res.render('missions/view', {
             title: `${project.title} — Mission Board`,
             description: 'Mission project details.',
-            project, assignees, versions, attachments,
+            project, assignees, versions, attachments, phases,
             statuses: STATUSES, priorities: PRIORITIES,
             canManage: req.user.permissions.includes('missions.manage'),
             success: req.query.success || null,

@@ -2021,6 +2021,34 @@ th[onclick]:hover { color: var(--accent) !important; }
 .gantt .bar-wrapper.status-cancelled   .bar { fill: var(--ms-cancelled); }
 .gantt .bar-wrapper .bar-progress { fill: rgba(252,176,13,0.55); }
 .gantt .bar-label { fill: #fff; font-weight: 700; }
+/* Phase segments: coloured band drawn inline along the bottom of a mission bar. */
+.gantt .mission-phase-seg { stroke: rgba(0,0,0,0.45); stroke-width: 0.6; pointer-events: none; }
+.gantt .mission-phase-seg-label {
+    fill: #fff; font-size: 9px; font-weight: 700; font-family: var(--body-font);
+    pointer-events: none;
+    paint-order: stroke; stroke: rgba(0,0,0,0.6); stroke-width: 2px; stroke-linejoin: round;
+}
+
+/* ── Phase rows on the detail page ── */
+.mission-phase-item {
+    display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;
+    background: rgba(0,0,0,0.25); border: 1px solid rgba(178,178,125,0.25);
+    border-radius: 8px; padding: 8px 10px;
+}
+.mission-phase-item form { margin: 0; }
+.mission-phase-row { display: flex; gap: 8px; align-items: center; flex: 1; flex-wrap: wrap; min-width: 0; }
+/* These inputs live outside .form-group, so theme them explicitly. */
+.mission-phase-row input {
+    background: rgba(40,40,40,0.9); border: 2px solid var(--khaki); border-radius: 6px;
+    color: var(--sand); padding: 8px 10px; font-family: var(--body-font); font-size: 0.85em;
+    color-scheme: dark;
+}
+.mission-phase-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 8px rgba(252,176,13,0.3); }
+.mission-phase-row input[type="text"] { flex: 1; min-width: 140px; }
+.mission-phase-row input[type="date"] { width: auto; flex-shrink: 0; }
+.mission-phase-row input[type="color"] { width: 42px; height: 38px; padding: 3px; flex-shrink: 0; cursor: pointer; }
+.mission-phase-row .btn { flex-shrink: 0; }
+.mission-phase-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; display: inline-block; border: 1px solid rgba(0,0,0,0.4); }
 
 /* Custom hover popup. */
 .mission-popup .title { font-family: var(--heading-font); }

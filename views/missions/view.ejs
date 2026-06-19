@@ -9,6 +9,11 @@ function ymd(d) {
     if (isNaN(x)) return '—';
     return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
 }
+// Same, but blank (not "—") for empty — for <input type="date"> values.
+function ymd2(d) {
+    const v = ymd(d);
+    return v === '—' ? '' : v;
+}
 function fmtBytes(n) {
     n = Number(n || 0);
     if (!n) return '—';
@@ -57,6 +62,56 @@ const currentVersion = versions.length ? versions[0].version_number : null;
                     <div class="mission-description"><%- project.description %></div>
                 <% } else { %>
                     <p style="color:var(--khaki);">No briefing provided.</p>
+                <% } %>
+            </section>
+
+            <%# ── Phases ──────────────────────────────────────────── %>
+            <section class="section">
+                <h2 style="margin-top:0;">Phases <span style="color:var(--khaki);font-weight:400;font-size:0.6em;">(stages within this mission, e.g. making vs testing)</span></h2>
+                <% if (phases.length === 0) { %>
+                    <p style="color:var(--khaki);">No phases yet.<% if (canManage) { %> Add stages like “Mission making” and “Testing” — they show as sub-bars on the board.<% } %></p>
+                <% } else { %>
+                    <% phases.forEach(ph => { %>
+                        <div class="mission-phase-item">
+                            <% if (canManage) { %>
+                                <form method="POST" action="/missions/<%= project.id %>/phases/<%= ph.id %>/edit" class="mission-phase-row">
+                                    <span class="mission-phase-swatch" style="background:<%= /^#[0-9a-fA-F]{6}$/.test(ph.color || '') ? ph.color : '#3498db' %>"></span>
+                                    <input type="text" name="name" value="<%= ph.name %>" maxlength="120" required>
+                                    <input type="date" name="start_date" value="<%= ymd2(ph.start_date) %>" title="Start">
+                                    <input type="date" name="due_date" value="<%= ymd2(ph.due_date) %>" title="End">
+                                    <input type="color" name="color" value="<%= /^#[0-9a-fA-F]{6}$/.test(ph.color || '') ? ph.color : '#3498db' %>" title="Colour">
+                                    <button type="submit" class="btn ms-btn-sm" title="Save">💾</button>
+                                </form>
+                                <form method="POST" action="/missions/<%= project.id %>/phases/<%= ph.id %>/delete" onsubmit="return confirm('Delete this phase?')">
+                                    <button type="submit" class="btn btn-danger ms-btn-sm" title="Delete">🗑️</button>
+                                </form>
+                            <% } else { %>
+                                <div class="mission-phase-row">
+                                    <span class="mission-phase-swatch" style="background:<%= /^#[0-9a-fA-F]{6}$/.test(ph.color || '') ? ph.color : '#3498db' %>"></span>
+                                    <strong style="color:var(--sand);"><%= ph.name %></strong>
+                                    <span style="color:var(--khaki);font-size:0.88em;"><%= ymd(ph.start_date) %> → <%= ymd(ph.due_date) %></span>
+                                </div>
+                            <% } %>
+                        </div>
+                    <% }) %>
+                <% } %>
+
+                <% if (canManage) { %>
+                    <details class="mission-upload">
+                        <summary>➕ Add phase</summary>
+                        <form method="POST" action="/missions/<%= project.id %>/phases">
+                            <div class="mission-form-row">
+                                <div class="form-group"><label>Name *</label><input type="text" name="name" maxlength="120" required placeholder="e.g. Testing"></div>
+                                <div class="form-group"><label>Colour</label><input type="color" name="color" value="#3498db" style="height:44px;padding:4px;"></div>
+                            </div>
+                            <div class="mission-form-row">
+                                <div class="form-group"><label>Start</label><input type="date" name="start_date"></div>
+                                <div class="form-group"><label>End</label><input type="date" name="due_date"></div>
+                            </div>
+                            <small style="color:var(--khaki);display:block;margin-bottom:10px;">A phase needs both dates to appear as a sub-bar on the board.</small>
+                            <button type="submit" class="btn btn-primary">Add Phase</button>
+                        </form>
+                    </details>
                 <% } %>
             </section>
 

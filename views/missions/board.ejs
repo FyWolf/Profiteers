@@ -18,19 +18,29 @@ projects.forEach(p => {
     const start = ymd(p.start_date), end = ymd(p.due_date);
     (start && end ? scheduled : unscheduled).push(p);
 });
-const tasks = scheduled.map(p => ({
-    id: String(p.id),
-    name: (p.campaign_name ? `[${p.campaign_name}] ` : '') + p.title,
-    start: ymd(p.start_date),
-    end: ymd(p.due_date),
-    progress: p.progress || 0,
-    custom_class: 'status-' + p.status,
-    _status: STATUS_LABELS[p.status] || p.status,
-    _lead: p.lead_display_name || null,
-    _priority: p.priority,
-    _campaign: p.campaign_name || null,
-    _campaignColor: p.campaign_color || null
-}));
+// Each scheduled mission is one bar. Its phases render inline as coloured
+// segments along the bottom of that same bar (drawn as an overlay client-side).
+const tasks = [];
+const phaseClient = [];
+scheduled.forEach(p => {
+    tasks.push({
+        id: String(p.id),
+        name: (p.campaign_name ? `[${p.campaign_name}] ` : '') + p.title,
+        start: ymd(p.start_date),
+        end: ymd(p.due_date),
+        progress: p.progress || 0,
+        custom_class: 'status-' + p.status,
+        _status: STATUS_LABELS[p.status] || p.status,
+        _lead: p.lead_display_name || null,
+        _priority: p.priority,
+        _campaign: p.campaign_name || null
+    });
+    (p.phases || []).forEach(ph => {
+        const ps = ymd(ph.start_date), pe = ymd(ph.due_date);
+        if (!ps || !pe) return;
+        phaseClient.push({ missionId: String(p.id), name: ph.name, start: ps, end: pe, color: ph.color || '#3498db' });
+    });
+});
 %>
 <%- include('../partials/header') %>
 <link rel="stylesheet" href="/vendor/frappe-gantt/frappe-gantt.css">
@@ -108,13 +118,95 @@ const tasks = scheduled.map(p => ({
 <script>
 (function () {
     const tasks = <%- JSON.stringify(tasks).replace(/</g, '\\u003c') %>;
+    const phases = <%- JSON.stringify(phaseClient).replace(/</g, '\\u003c') %>;
     const canManage = <%= canManage ? 'true' : 'false' %>;
     if (!tasks.length || typeof Gantt === 'undefined') return;
 
     function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+    const toYmd = d => {
+        const x = new Date(d);
+        return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+    };
+
+    // Mission span (live: updated on drag) + phases grouped by mission, for the overlay.
+    const span = {};
+    tasks.forEach(t => { span[t.id] = { start: t.start, end: t.end }; });
+    const phasesByMission = {};
+    phases.forEach(p => { (phasesByMission[p.missionId] = phasesByMission[p.missionId] || []).push(p); });
+    const dms = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d).getTime(); };
+    const SVGNS = 'http://www.w3.org/2000/svg';
+
+    // Draw each mission's phases as coloured segments along the bottom of its bar.
+    function drawPhaseOverlays() {
+        const root = document.querySelector('#gantt');
+        if (!root) return;
+        root.querySelectorAll('.mission-phase-seg').forEach(el => el.remove());
+        Object.keys(phasesByMission).forEach(mid => {
+            const wrapper = root.querySelector('.bar-wrapper[data-id="' + mid + '"]');
+            const s = span[mid];
+            if (!wrapper || !s) return;
+            // frappe nests .bar and .bar-label inside a .bar-group within the wrapper —
+            // append segments there so insertBefore(label) has the right parent.
+            const group = wrapper.querySelector('.bar-group') || wrapper;
+            const bar = group.querySelector('.bar');
+            if (!bar) return;
+            const label = group.querySelector('.bar-label');
+            const bx = parseFloat(bar.getAttribute('x'));
+            const by = parseFloat(bar.getAttribute('y'));
+            const bw = parseFloat(bar.getAttribute('width'));
+            const bh = parseFloat(bar.getAttribute('height'));
+            const s0 = dms(s.start), s1 = dms(s.end);
+            const denom = (s1 - s0) || 1;
+            const bandH = Math.max(5, bh * 0.42);
+            const bandY = by + bh - bandH;
+            phasesByMission[mid].forEach(ph => {
+                let f0 = (dms(ph.start) - s0) / denom;
+                let f1 = (dms(ph.end)   - s0) / denom;
+                f0 = Math.max(0, Math.min(1, f0));
+                f1 = Math.max(0, Math.min(1, f1));
+                if (f1 <= f0) return;
+                const segX = bx + f0 * bw;
+                const segW = (f1 - f0) * bw;
+                const before = (node) => { (label && label.parentNode === group) ? group.insertBefore(node, label) : group.appendChild(node); };
+
+                const rect = document.createElementNS(SVGNS, 'rect');
+                rect.setAttribute('class', 'mission-phase-seg');
+                rect.setAttribute('x', segX);
+                rect.setAttribute('y', bandY);
+                rect.setAttribute('width', segW);
+                rect.setAttribute('height', bandH);
+                rect.setAttribute('rx', 2);
+                rect.setAttribute('fill', ph.color);
+                const title = document.createElementNS(SVGNS, 'title');
+                title.textContent = ph.name + ' (' + ph.start + ' → ' + ph.end + ')';
+                rect.appendChild(title);
+                before(rect);
+
+                // Phase name on the segment, truncated to fit.
+                if (segW > 22) {
+                    const txt = document.createElementNS(SVGNS, 'text');
+                    txt.setAttribute('class', 'mission-phase-seg-label');
+                    txt.setAttribute('x', segX + 4);
+                    txt.setAttribute('y', bandY + bandH / 2);
+                    txt.setAttribute('dominant-baseline', 'central');
+                    txt.textContent = ph.name;
+                    before(txt);
+                    const avail = segW - 8;
+                    if (txt.getComputedTextLength() > avail) {
+                        let name = ph.name;
+                        while (name.length > 1 && txt.getComputedTextLength() > avail) {
+                            name = name.slice(0, -1);
+                            txt.textContent = name + '…';
+                        }
+                    }
+                }
+            });
+        });
+    }
+    const scheduleOverlay = () => requestAnimationFrame(() => requestAnimationFrame(drawPhaseOverlays));
 
     const gantt = new Gantt('#gantt', tasks, {
-        view_mode: 'Week',
+        view_mode: 'Day',
         view_mode_select: true,
         today_button: true,
         readonly_progress: true,
@@ -134,12 +226,11 @@ const tasks = scheduled.map(p => ({
                 </div>
             </div>`,
         on_click: (task) => { window.location = '/missions/' + task.id; },
+        on_view_change: scheduleOverlay,
         on_date_change: (task, start, end) => {
+            span[task.id] = { start: toYmd(start), end: toYmd(end) };
+            scheduleOverlay();
             if (!canManage) return;
-            const toYmd = d => {
-                const x = new Date(d);
-                return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
-            };
             fetch('/missions/' + task.id + '/dates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -147,6 +238,8 @@ const tasks = scheduled.map(p => ({
             }).catch(err => console.error('Reschedule failed', err));
         }
     });
+
+    scheduleOverlay();
 })();
 </script>
 
