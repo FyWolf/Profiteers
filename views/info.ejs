@@ -95,46 +95,59 @@
 
 <% if (servers.length > 0) { %>
 <script>
-(async function() {
-    try {
-        const res = await fetch('/info/api/server-status');
-        const data = await res.json();
-        data.forEach(srv => {
-            const card = document.querySelector(`[data-server-id="${srv.id}"]`);
-            const dot  = document.getElementById(`dot-${srv.id}`);
-            const meta = document.getElementById(`meta-${srv.id}`);
-            if (!card) return;
+(function() {
+    const source = new EventSource('/info/api/server-status');
 
-            card.classList.remove('loading');
-            dot.classList.remove('dot-loading');
+    source.onmessage = function(e) {
+        const srv = JSON.parse(e.data);
+        updateCard(srv);
+    };
 
-            if (srv.online) {
-                card.classList.add('online');
-                dot.classList.add('dot-online');
-                const pct = srv.maxPlayers > 0 ? Math.round((srv.players / srv.maxPlayers) * 100) : 0;
-                meta.innerHTML = `
-                    <span>👥 ${srv.players}/${srv.maxPlayers}</span>
-                    <span>🗺️ ${srv.map || 'Unknown'}</span>
-                    <span>📶 ${srv.ping}ms</span>
-                `;
-                card.insertAdjacentHTML('beforeend', `
-                    <div class="players-bar-wrap">
-                        <div class="players-bar" style="width:${pct}%"></div>
-                    </div>
-                `);
-            } else {
-                card.classList.add('offline');
-                dot.classList.add('dot-offline');
-                meta.innerHTML = `<span style="color:#e74c3c;opacity:0.8;">Offline</span>`;
-            }
-        });
-    } catch (e) {
-        document.querySelectorAll('.server-card').forEach(c => {
+    source.addEventListener('done', function() {
+        source.close();
+    });
+
+    source.onerror = function() {
+        // Fallback: mark all remaining loading cards as offline
+        document.querySelectorAll('.server-card.loading').forEach(c => {
             c.classList.remove('loading');
             c.classList.add('offline');
             const dot = c.querySelector('.server-status-dot');
             if (dot) { dot.classList.remove('dot-loading'); dot.classList.add('dot-offline'); }
+            const meta = c.querySelector('.server-meta');
+            if (meta) meta.innerHTML = `<span style="color:#e74c3c;opacity:0.8;">Offline</span>`;
         });
+        source.close();
+    };
+
+    function updateCard(srv) {
+        const card = document.querySelector(`[data-server-id="${srv.id}"]`);
+        const dot  = document.getElementById(`dot-${srv.id}`);
+        const meta = document.getElementById(`meta-${srv.id}`);
+        if (!card) return;
+
+        card.classList.remove('loading');
+        dot.classList.remove('dot-loading');
+
+        if (srv.online) {
+            card.classList.add('online');
+            dot.classList.add('dot-online');
+            const pct = srv.maxPlayers > 0 ? Math.round((srv.players / srv.maxPlayers) * 100) : 0;
+            meta.innerHTML = `
+                <span>👥 ${srv.players}/${srv.maxPlayers}</span>
+                <span>🗺️ ${srv.map || 'Unknown'}</span>
+                <span>📶 ${srv.ping}ms</span>
+            `;
+            card.insertAdjacentHTML('beforeend', `
+                <div class="players-bar-wrap">
+                    <div class="players-bar" style="width:${pct}%"></div>
+                </div>
+            `);
+        } else {
+            card.classList.add('offline');
+            dot.classList.add('dot-offline');
+            meta.innerHTML = `<span style="color:#e74c3c;opacity:0.8;">Offline</span>`;
+        }
     }
 })();
 </script>

@@ -43,7 +43,10 @@ router.get('/', async (req, res) => {
 
 router.get('/api/server-status', async (req, res) => {
     const now = Date.now();
-    if (serverStatusCache.data && now - serverStatusCache.fetchedAt < CACHE_TTL) {
+    const useSSE = req.headers.accept && req.headers.accept.includes('text/event-stream');
+
+    // Only serve from cache for JSON requests — SSE always streams fresh
+    if (!useSSE && serverStatusCache.data && now - serverStatusCache.fetchedAt < CACHE_TTL) {
         return res.json(serverStatusCache.data);
     }
 
@@ -62,38 +65,90 @@ router.get('/api/server-status', async (req, res) => {
             return res.json(servers.map(s => ({ id: s.id, name: s.name, online: false })));
         }
 
-        const results = await Promise.allSettled(
-            servers.map(async srv => {
-                try {
-                    const state = await Promise.race([
-                        GameDig.query({ type: srv.game_type, host: srv.host, port: srv.port }),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000))
-                    ]);
-                    return {
-                        id: srv.id,
-                        name: srv.name,
-                        online: true,
-                        serverName: state.name || srv.name,
-                        map: state.map || '',
-                        players: state.players?.length ?? 0,
-                        maxPlayers: state.maxplayers ?? 0,
-                        ping: state.ping ?? 0
-                    };
-                } catch {
-                    return { id: srv.id, name: srv.name, online: false };
-                }
-            })
-        );
+        // Check if the client wants SSE streaming (Accept: text/event-stream)
+        const useSSE = req.headers.accept && req.headers.accept.includes('text/event-stream');
 
-        const data = results.map((r, i) =>
-            r.status === 'fulfilled' ? r.value : { id: servers[i].id, name: servers[i].name, online: false }
-        );
+        if (useSSE) {
+            // ── SSE: stream each server result as it resolves ──────────────
+            res.writeHead(200, {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'X-Accel-Buffering': 'no'
+            });
 
-        serverStatusCache = { data, fetchedAt: now };
-        res.json(data);
+            const allResults = [];
+            let completed = 0;
+
+            for (const srv of servers) {
+                const promise = (async () => {
+                    try {
+                        const state = await Promise.race([
+                            GameDig.query({ type: srv.game_type, host: srv.host, port: srv.port }),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000))
+                        ]);
+                        return {
+                            id: srv.id,
+                            name: srv.name,
+                            online: true,
+                            serverName: state.name || srv.name,
+                            map: state.map || '',
+                            players: state.players?.length ?? 0,
+                            maxPlayers: state.maxplayers ?? 0,
+                            ping: state.ping ?? 0
+                        };
+                    } catch {
+                        return { id: srv.id, name: srv.name, online: false };
+                    }
+                })();
+
+                promise.then(result => {
+                    allResults.push(result);
+                    completed++;
+                    res.write(`data: ${JSON.stringify(result)}\n\n`);
+                    if (completed === servers.length) {
+                        serverStatusCache = { data: allResults, fetchedAt: Date.now() };
+                        res.write('event: done\ndata: {}\n\n');
+                        res.end();
+                    }
+                });
+            }
+        } else {
+            // ── JSON: wait for all (legacy / cache-refresh path) ───────────
+            const results = await Promise.allSettled(
+                servers.map(async srv => {
+                    try {
+                        const state = await Promise.race([
+                            GameDig.query({ type: srv.game_type, host: srv.host, port: srv.port }),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000))
+                        ]);
+                        return {
+                            id: srv.id,
+                            name: srv.name,
+                            online: true,
+                            serverName: state.name || srv.name,
+                            map: state.map || '',
+                            players: state.players?.length ?? 0,
+                            maxPlayers: state.maxplayers ?? 0,
+                            ping: state.ping ?? 0
+                        };
+                    } catch {
+                        return { id: srv.id, name: srv.name, online: false };
+                    }
+                })
+            );
+
+            const data = results.map((r, i) =>
+                r.status === 'fulfilled' ? r.value : { id: servers[i].id, name: servers[i].name, online: false }
+            );
+
+            serverStatusCache = { data, fetchedAt: now };
+            res.json(data);
+        }
     } catch (error) {
         console.error('Error querying server status:', error);
-        res.json([]);
+        if (!res.headersSent) res.json([]);
+        else res.end();
     }
 });
 
