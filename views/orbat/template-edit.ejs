@@ -197,7 +197,7 @@ function renderTemplateSquadCard(squad) {
         ? `<img id="squadIcon_${squad.id}" src="/uploads/squad-icons/${esc(squad.icon)}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;border:1px solid ${squad.color};flex-shrink:0;">`
         : `<div id="squadIcon_${squad.id}" style="width:28px;height:28px;border-radius:4px;background:rgba(0,0,0,0.3);border:1px dashed rgba(178,178,125,0.3);flex-shrink:0;"></div>`;
 
-    return `<div class="card orbat-squad-card" id="squadCard_${squad.id}" style="border-left: 4px solid ${squad.color}; padding: 10px 12px;">
+    return `<div class="card orbat-squad-card" id="squadCard_${squad.id}" data-discord-role-id="${esc(squad.discord_role_id || '')}" style="border-left: 4px solid ${squad.color}; padding: 10px 12px;">
         <input type="file" id="iconInput_${squad.id}" accept="image/*" style="display:none" onchange="uploadSquadIcon(${squad.id}, this)">
         <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 2px solid ${squad.color};">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
@@ -217,6 +217,7 @@ function renderTemplateSquadCard(squad) {
                         <button class="ctrl-menu-item" onclick="document.getElementById('iconInput_${squad.id}').click()">${squad.icon ? 'Change icon' : 'Upload icon'}</button>
                         ${squad.icon ? `<button class="ctrl-menu-item ctrl-menu-danger" onclick="removeSquadIcon(${squad.id})">Remove icon</button>` : ''}
                         <button class="ctrl-menu-item" onclick="toggleFreqForm('sq', ${squad.id})">Radio Freq</button>
+                        <button class="ctrl-menu-item" onclick="toggleDiscordRolePicker(${squad.id})">Discord Role</button>
                         <button class="ctrl-menu-item" onclick="toggleSquadEdit(${squad.id})">Edit group</button>
                         <button class="ctrl-menu-item ctrl-menu-danger" onclick="deleteSquad(${squad.id})">Delete group</button>
                     </div>
@@ -237,6 +238,18 @@ function renderTemplateSquadCard(squad) {
             </div>
         </div>
         ${squadFreqForm}
+        <div id="discordRolePicker_${squad.id}" style="display:none;padding:8px;background:rgba(52,152,219,0.08);border-radius:4px;margin-bottom:8px;border:1px solid rgba(52,152,219,0.25);">
+            <div style="font-size:0.78em;font-weight:700;color:#3498DB;margin-bottom:6px;">🎮 Discord Role</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+                <select id="discordRoleSelect_${squad.id}"
+                        style="flex:1;min-width:0;padding:5px 8px;background:rgba(40,40,40,0.9);color:var(--sand);border:1px solid var(--olive);border-radius:4px;font-size:0.82em;">
+                    <option value="">— No role —</option>
+                </select>
+                <button onclick="saveDiscordRole(${squad.id})" class="btn btn-primary" style="flex-shrink:0;padding:4px 10px;font-size:0.8em;">💾</button>
+                <button onclick="document.getElementById('discordRolePicker_${squad.id}').style.display='none'" class="btn" style="flex-shrink:0;padding:4px 8px;font-size:0.8em;">✕</button>
+            </div>
+            <div id="discordRoleStatus_${squad.id}" style="font-size:0.72em;color:var(--khaki);margin-top:4px;"></div>
+        </div>
         ${unassignedHtml}
         <div id="teams-order-${squad.id}">${teamsHtml}</div>
         ${addTeamHtml}
@@ -368,6 +381,88 @@ async function deleteSquad(squadId) {
         const d = await r.json();
         if (d.success) location.reload(); else alert(d.error || 'Failed to delete group');
     } catch { alert('Failed to delete group'); }
+}
+
+// ── Discord Role Picker ──────────────────────────────────────────────
+let discordRolesCache = null;
+
+async function loadDiscordRoles() {
+    if (discordRolesCache) return discordRolesCache;
+    try {
+        const r = await fetch('/orbat/api/discord-roles');
+        const d = await r.json();
+        if (d.success) {
+            discordRolesCache = d.roles;
+            return d.roles;
+        }
+    } catch {}
+    return [];
+}
+
+async function toggleDiscordRolePicker(squadId) {
+    const picker = document.getElementById('discordRolePicker_' + squadId);
+    const select = document.getElementById('discordRoleSelect_' + squadId);
+    const status = document.getElementById('discordRoleStatus_' + squadId);
+
+    if (picker.style.display !== 'none') {
+        picker.style.display = 'none';
+        return;
+    }
+
+    picker.style.display = 'block';
+    status.textContent = 'Loading Discord roles...';
+
+    const roles = await loadDiscordRoles();
+    if (roles.length === 0) {
+        status.textContent = 'Could not load Discord roles. Check bot configuration.';
+        return;
+    }
+
+    // Get current squad info to pre-select
+    let currentRoleId = '';
+    try {
+        // We pass the current discord_role_id via a data attribute on the squad card
+        const card = document.querySelector(`#squadCard_${squadId}`);
+        currentRoleId = card?.dataset?.discordRoleId || '';
+    } catch {}
+
+    select.innerHTML = '<option value="">— No role —</option>';
+    roles.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = `${r.name} (${r.id})`;
+        if (r.color) opt.style.color = '#' + r.color.toString(16).padStart(6, '0');
+        if (r.id === currentRoleId) opt.selected = true;
+        select.appendChild(opt);
+    });
+
+    status.textContent = `${roles.length} roles loaded`;
+}
+
+async function saveDiscordRole(squadId) {
+    const select = document.getElementById('discordRoleSelect_' + squadId);
+    const status = document.getElementById('discordRoleStatus_' + squadId);
+    const discordRoleId = select.value || null;
+
+    status.textContent = 'Saving...';
+    try {
+        const r = await fetch(`/orbat/api/squads/${squadId}/set-discord-role`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ discordRoleId })
+        });
+        const d = await r.json();
+        if (d.success) {
+            status.textContent = discordRoleId ? '✅ Role saved!' : '✅ Role cleared!';
+            // Update the data attribute on the card
+            const card = document.querySelector(`#squadCard_${squadId}`);
+            if (card) card.dataset.discordRoleId = discordRoleId || '';
+        } else {
+            status.textContent = '❌ ' + (d.error || 'Failed to save');
+        }
+    } catch {
+        status.textContent = '❌ Failed to save';
+    }
 }
 
 function showRoleEdit(roleId) {

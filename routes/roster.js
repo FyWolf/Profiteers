@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 const axios = require('axios');
+const { logOrbatChange } = require('../helpers/orbatChangeLog');
+const { removeSquadRoleByDiscordId } = require('../helpers/squadDiscordRoles');
 const { loadNodesWithMembers, buildTree } = require('../helpers/organigram');
 
 router.get('/', async (req, res) => {
@@ -153,8 +155,11 @@ async function runRosterSync() {
     // Remove static (template) ORBAT assignments for members who are no longer
     // in the roster (i.e. they left the Discord guild). Dynamic operation ORBATs
     // are left alone — hosts manage those per-operation.
-    const [cleanup] = await db.query(`
-        DELETE oa FROM orbat_assignments oa
+    const [staleAssignments] = await db.query(`
+        SELECT oa.id as assign_id, oa.role_id, oa.user_id, r.squad_id,
+               r.role_name, s.orbat_id, s.operation_id,
+               u.username, u.discord_global_name, u.discord_id
+        FROM orbat_assignments oa
         JOIN orbat_roles r ON oa.role_id = r.id
         JOIN orbat_squads s ON r.squad_id = s.id
         JOIN users u ON oa.user_id = u.id
@@ -164,7 +169,28 @@ async function runRosterSync() {
               SELECT 1 FROM roster_members rm WHERE rm.discord_id = u.discord_id
           )
     `);
-    const orbatRemoved = cleanup.affectedRows || 0;
+    const orbatRemoved = staleAssignments.length;
+
+    if (staleAssignments.length > 0) {
+        const staleIds = staleAssignments.map(a => a.assign_id);
+        await db.query('DELETE FROM orbat_assignments WHERE id IN (?)', [staleIds]);
+
+        for (const sa of staleAssignments) {
+            // Remove Discord role if squad has one configured
+            await removeSquadRoleByDiscordId(sa.squad_id, sa.discord_id);
+
+            const playerName = sa.discord_global_name || sa.username;
+            await logOrbatChange({
+                templateId: sa.orbat_id,
+                operationId: sa.operation_id,
+                roleId: sa.role_id,
+                actionType: 'roster_auto_remove',
+                targetUserId: sa.user_id,
+                oldValue: { player: playerName, role_name: sa.role_name },
+                description: `${sa.role_name}: ${playerName} auto-removed (left Discord)`
+            });
+        }
+    }
 
     console.log(`Roster sync complete: ${syncedCount} members synced (${skippedBots} bots skipped, ${orbatRemoved} stale ORBAT assignments removed)`);
     return { total: allMembers.length, synced: syncedCount, skipped: skippedBots, orbatRemoved };

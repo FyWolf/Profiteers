@@ -9,6 +9,9 @@ const path = require('path');
 const fs = require('fs');
 
 const { createCardBuilder } = require('../helpers/orbatCard');
+const { logOrbatChange, resolveOrbatContext } = require('../helpers/orbatChangeLog');
+const { fetchGuildRoles } = require('../helpers/discordRoles');
+const { assignSquadRole, removeSquadRole, swapSquadRole } = require('../helpers/squadDiscordRoles');
 
 const SQUAD_ICON_DIR = path.join(__dirname, '..', 'public', 'uploads', 'squad-icons');
 const ALLOWED_ICON_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg']);
@@ -802,6 +805,15 @@ router.post('/claim/:roleId', isAuthenticated, async (req, res) => {
             return res.json({ success: false, error: 'Slot already taken' });
         }
 
+        // Get previous assignment for this user in this operation (if any)
+        const [prevAssignments] = await db.query(`
+            SELECT oa.role_id as prev_role_id, r.role_name as prev_role_name
+            FROM orbat_assignments oa
+            JOIN orbat_roles r ON oa.role_id = r.id
+            JOIN orbat_squads os ON r.squad_id = os.id
+            WHERE os.operation_id = ? AND oa.user_id = ? AND oa.role_id != ?
+        `, [role.operation_id, req.session.userId, req.params.roleId]);
+
         await db.query(`
             DELETE oa FROM orbat_assignments oa
             JOIN orbat_roles orp ON oa.role_id = orp.id
@@ -814,6 +826,24 @@ router.post('/claim/:roleId', isAuthenticated, async (req, res) => {
             [req.params.roleId, req.session.userId, req.session.userId]
         );
 
+        // Assign Discord role for the squad
+        await assignSquadRole(parseInt(req.params.roleId), req.session.userId);
+
+        // Log the claim
+        const ctx = await resolveOrbatContext(parseInt(req.params.roleId));
+        const prevDesc = prevAssignments.length > 0
+            ? ` (moved from ${prevAssignments[0].prev_role_name})`
+            : '';
+        await logOrbatChange({
+            operationId: ctx.operationId,
+            templateId: ctx.templateId,
+            roleId: parseInt(req.params.roleId),
+            actionType: 'claim',
+            performedBy: req.session.userId,
+            targetUserId: req.session.userId,
+            description: `${role.role_name} claimed by player${prevDesc}`
+        });
+
         res.json({ success: true });
     } catch (error) {
         console.error('Error claiming slot:', error);
@@ -823,10 +853,33 @@ router.post('/claim/:roleId', isAuthenticated, async (req, res) => {
 
 router.post('/unclaim/:roleId', isAuthenticated, async (req, res) => {
     try {
+        // Get info before deleting
+        const [roleRows] = await db.query(`
+            SELECT r.role_name, os.operation_id, os.orbat_id
+            FROM orbat_roles r
+            JOIN orbat_squads os ON r.squad_id = os.id
+            WHERE r.id = ?
+        `, [req.params.roleId]);
+
+        // Remove Discord role for the squad
+        await removeSquadRole(parseInt(req.params.roleId), req.session.userId);
+
         await db.query(
             'DELETE FROM orbat_assignments WHERE role_id = ? AND user_id = ?',
             [req.params.roleId, req.session.userId]
         );
+
+        if (roleRows.length > 0) {
+            await logOrbatChange({
+                operationId: roleRows[0].operation_id,
+                templateId: roleRows[0].orbat_id,
+                roleId: parseInt(req.params.roleId),
+                actionType: 'unclaim',
+                performedBy: req.session.userId,
+                targetUserId: req.session.userId,
+                description: `${roleRows[0].role_name} unclaimed by player`
+            });
+        }
 
         res.json({ success: true });
     } catch (error) {
@@ -889,12 +942,57 @@ router.post('/assign/:roleId', isAuthenticated, async (req, res) => {
             return res.json({ success: false, error: 'No user selected' });
         }
 
+        // Get previous assignment info for logging
+        const [prevAssignData] = await db.query(`
+            SELECT u.username, u.discord_global_name
+            FROM orbat_assignments oa
+            JOIN users u ON oa.user_id = u.id
+            WHERE oa.role_id = ?
+        `, [req.params.roleId]);
+
+        const [roleInfo] = await db.query(`
+            SELECT r.role_name, os.operation_id, os.orbat_id
+            FROM orbat_roles r
+            JOIN orbat_squads os ON r.squad_id = os.id
+            WHERE r.id = ?
+        `, [req.params.roleId]);
+
         await db.query('DELETE FROM orbat_assignments WHERE role_id = ?', [req.params.roleId]);
 
         await db.query(
             'INSERT INTO orbat_assignments (role_id, user_id, assigned_by) VALUES (?, ?, ?)',
             [req.params.roleId, finalUserId, req.session.userId]
         );
+
+        // Get target user name for logging
+        const [targetUser] = await db.query(
+            'SELECT username, discord_global_name FROM users WHERE id = ?',
+            [finalUserId]
+        );
+        const targetName = targetUser.length > 0
+            ? (targetUser[0].discord_global_name || targetUser[0].username)
+            : 'Unknown';
+
+        const prevName = prevAssignData.length > 0
+            ? (prevAssignData[0].discord_global_name || prevAssignData[0].username)
+            : null;
+
+        // Assign Discord role for the squad
+        await assignSquadRole(parseInt(req.params.roleId), finalUserId);
+
+        await logOrbatChange({
+            operationId: roleInfo.length > 0 ? roleInfo[0].operation_id : null,
+            templateId: roleInfo.length > 0 ? roleInfo[0].orbat_id : null,
+            roleId: parseInt(req.params.roleId),
+            actionType: 'assign',
+            performedBy: req.session.userId,
+            targetUserId: finalUserId,
+            oldValue: prevName ? { previous_player: prevName } : null,
+            newValue: { player: targetName },
+            description: prevName
+                ? `${roleInfo[0].role_name}: ${prevName} → ${targetName}`
+                : `${roleInfo[0].role_name} assigned to ${targetName}`
+        });
 
         res.json({ success: true });
     } catch (error) {
@@ -914,7 +1012,38 @@ router.post('/unassign/:roleId', isAuthenticated, async (req, res) => {
             }
         }
 
+        // Get info before deleting
+        const [assignData] = await db.query(`
+            SELECT oa.user_id, r.role_name, os.operation_id, os.orbat_id,
+                   u.username, u.discord_global_name
+            FROM orbat_assignments oa
+            JOIN orbat_roles r ON oa.role_id = r.id
+            JOIN orbat_squads os ON r.squad_id = os.id
+            JOIN users u ON oa.user_id = u.id
+            WHERE oa.role_id = ?
+        `, [req.params.roleId]);
+
+        // Remove Discord role for the squad
+        if (assignData.length > 0) {
+            await removeSquadRole(parseInt(req.params.roleId), assignData[0].user_id);
+        }
+
         await db.query('DELETE FROM orbat_assignments WHERE role_id = ?', [req.params.roleId]);
+
+        if (assignData.length > 0) {
+            const playerName = assignData[0].discord_global_name || assignData[0].username;
+            await logOrbatChange({
+                operationId: assignData[0].operation_id,
+                templateId: assignData[0].orbat_id,
+                roleId: parseInt(req.params.roleId),
+                actionType: 'unassign',
+                performedBy: req.session.userId,
+                targetUserId: assignData[0].user_id,
+                oldValue: { player: playerName },
+                description: `${assignData[0].role_name}: ${playerName} removed`
+            });
+        }
+
         res.json({ success: true });
     } catch (error) {
         console.error('Error unassigning player:', error);
@@ -943,6 +1072,15 @@ router.post('/operation/:operationId/create-dynamic', isAuthenticated, canManage
             ['dynamic', req.params.operationId]
         );
 
+        await logOrbatChange({
+            operationId: parseInt(req.params.operationId),
+            squadId: squadId,
+            actionType: 'squad_added',
+            performedBy: req.session.userId,
+            newValue: { squad_name: squadName, role_name: roleName },
+            description: `Group "${squadName}" created with slot "${roleName}"`
+        });
+
         res.json({ success: true });
     } catch (error) {
         console.error('Error creating dynamic ORBAT:', error);
@@ -961,10 +1099,19 @@ router.post('/operation/:operationId/add-squad', isAuthenticated, canManageOpera
 
         const nextOrder = (maxOrder[0]?.max_order || 0) + 1;
 
-        await db.query(
+        const [result] = await db.query(
             'INSERT INTO orbat_squads (operation_id, name, color, display_order, parent_squad_id) VALUES (?, ?, ?, ?, ?)',
             [req.params.operationId, squadName, squadColor || '#3498DB', nextOrder, parentSquadId || null]
         );
+
+        await logOrbatChange({
+            operationId: parseInt(req.params.operationId),
+            squadId: result.insertId,
+            actionType: 'squad_added',
+            performedBy: req.session.userId,
+            newValue: { squad_name: squadName },
+            description: `Group "${squadName}" added to operation`
+        });
 
         res.json({ success: true });
     } catch (error) {
@@ -992,10 +1139,27 @@ router.post('/squads/:squadId/add-role-dynamic', isAuthenticated, async (req, re
         );
         const nextOrder = (maxOrder[0]?.max ?? -1) + 1;
 
-        await db.query(
+        const [roleResult] = await db.query(
             'INSERT INTO orbat_roles (squad_id, role_name, display_order) VALUES (?, ?, ?)',
             [req.params.squadId, roleName, nextOrder]
         );
+
+        const [sqInfo] = await db.query(
+            'SELECT name, orbat_id, operation_id FROM orbat_squads WHERE id = ?',
+            [req.params.squadId]
+        );
+        if (sqInfo.length > 0) {
+            await logOrbatChange({
+                templateId: sqInfo[0].orbat_id,
+                operationId: sqInfo[0].operation_id,
+                squadId: parseInt(req.params.squadId),
+                roleId: roleResult.insertId,
+                actionType: 'role_added',
+                performedBy: req.session.userId,
+                newValue: { role_name: roleName, squad_name: sqInfo[0].name },
+                description: `Slot "${roleName}" added to ${sqInfo[0].name}`
+            });
+        }
 
         res.json({ success: true });
     } catch (error) {
@@ -1053,6 +1217,23 @@ router.post('/api/squads/:squadId/add-role', isAuthenticated, async (req, res) =
             );
             insertedId = result.insertId;
         }
+
+        // Log role addition
+        const [squadInfo] = await db.query(`
+            SELECT os.name as squad_name, os.orbat_id, os.operation_id
+            FROM orbat_squads os WHERE os.id = ?
+        `, [req.params.squadId]);
+        const roleName = isTemplateSqd ? typeRows[0].name : req.body.roleName?.trim();
+        await logOrbatChange({
+            templateId: squadInfo.length > 0 ? squadInfo[0].orbat_id : null,
+            operationId: squadInfo.length > 0 ? squadInfo[0].operation_id : null,
+            squadId: parseInt(req.params.squadId),
+            roleId: insertedId,
+            actionType: 'role_added',
+            performedBy: req.session.userId,
+            newValue: { role_name: roleName, squad_name: squadInfo[0]?.squad_name },
+            description: `Slot "${roleName}" added to ${squadInfo[0]?.squad_name || 'squad'}`
+        });
 
         res.json({ success: true, roleId: insertedId });
     } catch (error) {
@@ -1115,6 +1296,24 @@ router.post('/api/roles/:id/edit', isAuthenticated, async (req, res) => {
             }
         }
 
+        // Log role edit
+        const [ctxRows] = await db.query(`
+            SELECT r.role_name, os.orbat_id, os.operation_id
+            FROM orbat_roles r
+            JOIN orbat_squads os ON r.squad_id = os.id
+            WHERE r.id = ?
+        `, [req.params.id]);
+        if (ctxRows.length > 0) {
+            await logOrbatChange({
+                templateId: ctxRows[0].orbat_id,
+                operationId: ctxRows[0].operation_id,
+                roleId: parseInt(req.params.id),
+                actionType: 'role_edited',
+                performedBy: req.session.userId,
+                description: `Slot "${ctxRows[0].role_name}" edited`
+            });
+        }
+
         res.json({ success: true });
     } catch (error) {
         console.error('Error updating role:', error);
@@ -1163,7 +1362,38 @@ router.post('/api/roles/:id/delete', isAuthenticated, async (req, res) => {
             }
         }
 
+        // Get info before deleting
+        const [roleData] = await db.query(`
+            SELECT r.role_name, r.squad_id, os.operation_id, os.orbat_id,
+                   oa.user_id, u.username, u.discord_global_name
+            FROM orbat_roles r
+            JOIN orbat_squads os ON r.squad_id = os.id
+            LEFT JOIN orbat_assignments oa ON oa.role_id = r.id
+            LEFT JOIN users u ON oa.user_id = u.id
+            WHERE r.id = ?
+        `, [req.params.id]);
+
         await db.query('DELETE FROM orbat_roles WHERE id = ?', [req.params.id]);
+
+        if (roleData.length > 0) {
+            const playerName = roleData[0].user_id
+                ? (roleData[0].discord_global_name || roleData[0].username)
+                : null;
+            await logOrbatChange({
+                operationId: roleData[0].operation_id,
+                templateId: roleData[0].orbat_id,
+                squadId: roleData[0].squad_id,
+                roleId: parseInt(req.params.id),
+                actionType: 'role_deleted',
+                performedBy: req.session.userId,
+                targetUserId: roleData[0].user_id || null,
+                oldValue: { role_name: roleData[0].role_name, player: playerName },
+                description: playerName
+                    ? `Slot "${roleData[0].role_name}" deleted (had ${playerName})`
+                    : `Slot "${roleData[0].role_name}" deleted`
+            });
+        }
+
         res.json({ success: true });
     } catch (error) {
         console.error('Error deleting role:', error);
@@ -1188,6 +1418,16 @@ router.post('/api/templates/:templateId/squads/add', isAuthenticated, async (req
             'INSERT INTO orbat_squads (orbat_id, name, color, display_order, parent_squad_id) VALUES (?, ?, ?, ?, ?)',
             [req.params.templateId, name.trim(), color || '#3498DB', displayOrder || 0, parentSquadId || null]
         );
+
+        // Log squad addition
+        await logOrbatChange({
+            templateId: parseInt(req.params.templateId),
+            squadId: result.insertId,
+            actionType: 'squad_added',
+            performedBy: req.session.userId,
+            newValue: { squad_name: name.trim(), color: color || '#3498DB' },
+            description: `Group "${name.trim()}" added`
+        });
 
         res.json({ success: true, squadId: result.insertId });
     } catch (error) {
@@ -1234,6 +1474,12 @@ router.post('/api/squads/:id/delete', isAuthenticated, async (req, res) => {
             }
         }
 
+        // Get squad info before deleting
+        const [squadInfo] = await db.query(
+            'SELECT name, orbat_id, operation_id FROM orbat_squads WHERE id = ?',
+            [req.params.id]
+        );
+
         async function collectDescendantIds(id) {
             const [children] = await db.query('SELECT id FROM orbat_squads WHERE parent_squad_id = ?', [id]);
             let ids = [id];
@@ -1244,6 +1490,19 @@ router.post('/api/squads/:id/delete', isAuthenticated, async (req, res) => {
         }
         const allIds = await collectDescendantIds(req.params.id);
         await db.query('DELETE FROM orbat_squads WHERE id IN (?)', [allIds]);
+
+        if (squadInfo.length > 0) {
+            await logOrbatChange({
+                templateId: squadInfo[0].orbat_id,
+                operationId: squadInfo[0].operation_id,
+                squadId: parseInt(req.params.id),
+                actionType: 'squad_deleted',
+                performedBy: req.session.userId,
+                oldValue: { squad_name: squadInfo[0].name },
+                description: `Group "${squadInfo[0].name}" deleted`
+            });
+        }
+
         res.json({ success: true });
     } catch (error) {
         console.error('Error deleting squad:', error);
@@ -1625,6 +1884,134 @@ router.post('/api/teams/:teamId/set-frequencies', isAuthenticated, async (req, r
     } catch (error) {
         console.error('Error setting team frequencies:', error);
         res.json({ success: false, error: 'Failed to set frequencies' });
+    }
+});
+
+// ─── Squad Discord Role API ───────────────────────────────────────────────
+
+/**
+ * GET /orbat/api/discord-roles
+ * Returns the list of assignable Discord roles from the guild.
+ * Requires admin or Zeus.
+ */
+router.get('/api/discord-roles', isAuthenticated, async (req, res) => {
+    try {
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus) {
+            return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
+        const roles = await fetchGuildRoles();
+        res.json({ success: true, roles });
+    } catch (error) {
+        console.error('Error fetching Discord roles:', error);
+        res.json({ success: false, error: 'Failed to fetch Discord roles' });
+    }
+});
+
+/**
+ * POST /orbat/api/squads/:squadId/set-discord-role
+ * Sets the Discord role ID for a squad.
+ * Body: { discordRoleId: string|null }
+ */
+router.post('/api/squads/:squadId/set-discord-role', isAuthenticated, async (req, res) => {
+    try {
+        const userIsZeus = req.session.isAdmin || await checkZeusStatus(req.session.userId);
+        if (!userIsZeus) {
+            return res.status(403).json({ success: false, error: 'Permission denied' });
+        }
+
+        const { discordRoleId } = req.body;
+        await db.query(
+            'UPDATE orbat_squads SET discord_role_id = ? WHERE id = ?',
+            [discordRoleId || null, req.params.squadId]
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error setting squad Discord role:', error);
+        res.json({ success: false, error: 'Failed to set Discord role' });
+    }
+});
+
+// ─── ORBAT Change History API ─────────────────────────────────────────────
+
+router.get('/api/change-log/:templateId', async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const offset = parseInt(req.query.offset) || 0;
+
+        const [logs] = await db.query(`
+            SELECT
+                ocl.*,
+                performer.username AS performer_name,
+                performer.discord_global_name AS performer_global_name,
+                performer.discord_avatar AS performer_avatar,
+                performer.discord_id AS performer_discord_id,
+                target.username AS target_name,
+                target.discord_global_name AS target_global_name
+            FROM orbat_change_log ocl
+            LEFT JOIN users performer ON ocl.performed_by = performer.id
+            LEFT JOIN users target ON ocl.target_user_id = target.id
+            WHERE ocl.template_id = ?
+            ORDER BY ocl.created_at DESC
+            LIMIT ? OFFSET ?
+        `, [req.params.templateId, limit, offset]);
+
+        const [countResult] = await db.query(
+            'SELECT COUNT(*) as total FROM orbat_change_log WHERE template_id = ?',
+            [req.params.templateId]
+        );
+
+        res.json({
+            success: true,
+            logs: logs,
+            total: countResult[0].total,
+            limit: limit,
+            offset: offset
+        });
+    } catch (error) {
+        console.error('Error fetching ORBAT change log:', error);
+        res.json({ success: false, error: 'Failed to fetch change log' });
+    }
+});
+
+router.get('/api/change-log/operation/:operationId', async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const offset = parseInt(req.query.offset) || 0;
+
+        const [logs] = await db.query(`
+            SELECT
+                ocl.*,
+                performer.username AS performer_name,
+                performer.discord_global_name AS performer_global_name,
+                performer.discord_avatar AS performer_avatar,
+                performer.discord_id AS performer_discord_id,
+                target.username AS target_name,
+                target.discord_global_name AS target_global_name
+            FROM orbat_change_log ocl
+            LEFT JOIN users performer ON ocl.performed_by = performer.id
+            LEFT JOIN users target ON ocl.target_user_id = target.id
+            WHERE ocl.operation_id = ?
+            ORDER BY ocl.created_at DESC
+            LIMIT ? OFFSET ?
+        `, [req.params.operationId, limit, offset]);
+
+        const [countResult] = await db.query(
+            'SELECT COUNT(*) as total FROM orbat_change_log WHERE operation_id = ?',
+            [req.params.operationId]
+        );
+
+        res.json({
+            success: true,
+            logs: logs,
+            total: countResult[0].total,
+            limit: limit,
+            offset: offset
+        });
+    } catch (error) {
+        console.error('Error fetching ORBAT change log:', error);
+        res.json({ success: false, error: 'Failed to fetch change log' });
     }
 });
 

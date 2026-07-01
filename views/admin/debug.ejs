@@ -89,6 +89,108 @@
                 <% } %>
             <% } %>
         </div>
+
+        <!-- ── ORBAT Squad Discord Role Audit ──────────────────────────── -->
+        <div class="panel" style="margin-bottom:18px;">
+            <h3 style="margin:0 0 6px;">🎮 ORBAT Squad Discord Role Audit</h3>
+            <p style="margin:0 0 14px;font-size:0.86em;color:var(--khaki);opacity:0.8;">
+                Compares Discord roles against ORBAT squad assignments. Finds members who have a
+                squad's Discord role but aren't assigned to that squad, and members assigned to a
+                squad who are missing the squad's Discord role.
+            </p>
+
+            <form method="POST" action="/admin/debug/orbat-roles/audit" style="display:inline;">
+                <button type="submit" class="btn btn-primary">Run check</button>
+            </form>
+
+            <% if (orbatRolesAudit) { %>
+                <% if (!orbatRolesAudit.configured) { %>
+                    <div class="alert alert-error" style="margin-top:14px;">
+                        Discord bot is not configured — nothing to check.
+                    </div>
+                <% } else if (orbatRolesAudit.available === false) { %>
+                    <div class="alert alert-error" style="margin-top:14px;">
+                        Could not reach Discord to enumerate guild members. Check the bot token / guild id.
+                    </div>
+                <% } else if (orbatRolesAudit.message) { %>
+                    <div class="alert" style="margin-top:14px;"><%= orbatRolesAudit.message %></div>
+                <% } else { %>
+                    <% const squads = orbatRolesAudit.squads || []; %>
+                    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+                        <div class="stat-chip"><span class="stat-val"><%= squads.length %></span><span class="stat-lbl">Squads with roles</span></div>
+                    </div>
+
+                    <% squads.forEach(squad => { %>
+                        <% const totalIssues = squad.missing.length + squad.extra.length; %>
+                        <div style="margin-top:16px;padding:12px;background:rgba(0,0,0,0.15);border-radius:6px;border-left:3px solid <%= totalIssues > 0 ? '#f1c40f' : '#2ecc71' %>;">
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+                                <strong style="color:var(--sand);"><%= squad.templateName %> / <%= squad.squadName %></strong>
+                                <span style="font-size:0.78em;color:var(--khaki);">Role ID: <code><%= squad.discordRoleId %></code></span>
+                                <span style="font-size:0.78em;color:var(--khaki);">Assigned: <%= squad.assignedCount %></span>
+                                <span style="font-size:0.78em;color:var(--khaki);">Role holders: <%= squad.roleHolderCount %></span>
+                            </div>
+
+                            <% if (totalIssues === 0) { %>
+                                <div style="font-size:0.85em;color:#2ecc71;">✅ All good — no discrepancies.</div>
+                            <% } else { %>
+                                <% if (squad.missing.length > 0) { %>
+                                    <div style="margin-top:8px;">
+                                        <strong style="color:#e86070;font-size:0.85em;">Missing role (assigned but don't have the Discord role):</strong>
+                                        <ul style="margin:4px 0 0;padding-left:16px;color:var(--khaki);font-size:0.85em;list-style:none;">
+                                            <% squad.missing.forEach(m => { %>
+                                            <li style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                                                <span style="flex:1;min-width:0;"><%= m.name %> <span style="opacity:0.5;">(<%= m.discord_id %>)</span><% if (!m.inGuild) { %><span style="color:#e86070;font-size:0.85em;"> ⚠ not in guild</span><% } %></span>
+                                                <form method="POST" action="/admin/debug/orbat-roles/fix-missing" style="margin:0;flex-shrink:0;"
+                                                      onsubmit="return confirm('Grant squad role to <%= m.name %>?')">
+                                                    <input type="hidden" name="squadId" value="<%= squad.squadId %>">
+                                                    <input type="hidden" name="discordIds" value="<%= m.discord_id %>">
+                                                    <button type="submit" class="btn" style="padding:2px 8px;font-size:0.72em;">Grant</button>
+                                                </form>
+                                            </li>
+                                            <% }) %>
+                                        </ul>
+                                        <form method="POST" action="/admin/debug/orbat-roles/fix-missing" style="margin-top:6px;"
+                                              onsubmit="return confirm('Grant the squad role to <%= squad.missing.length %> member(s)?')">
+                                            <input type="hidden" name="squadId" value="<%= squad.squadId %>">
+                                            <% squad.missing.forEach(m => { %>
+                                            <input type="hidden" name="discordIds" value="<%= m.discord_id %>">
+                                            <% }) %>
+                                            <button type="submit" class="btn" style="padding:3px 10px;font-size:0.78em;">Grant all <%= squad.missing.length %></button>
+                                        </form>
+                                    </div>
+                                <% } %>
+                                <% if (squad.extra.length > 0) { %>
+                                    <div style="margin-top:8px;">
+                                        <strong style="color:#f1c40f;font-size:0.85em;">Extra role (has the role but not assigned to squad):</strong>
+                                        <ul style="margin:4px 0 0;padding-left:16px;color:var(--khaki);font-size:0.85em;list-style:none;">
+                                            <% squad.extra.forEach(m => { %>
+                                            <li style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                                                <span style="flex:1;min-width:0;"><%= m.name %> <span style="opacity:0.5;">(<%= m.discord_id %>)</span></span>
+                                                <form method="POST" action="/admin/debug/orbat-roles/fix-extra" style="margin:0;flex-shrink:0;"
+                                                      onsubmit="return confirm('Revoke squad role from <%= m.name %>?')">
+                                                    <input type="hidden" name="squadId" value="<%= squad.squadId %>">
+                                                    <input type="hidden" name="discordIds" value="<%= m.discord_id %>">
+                                                    <button type="submit" class="btn btn-danger" style="padding:2px 8px;font-size:0.72em;">Revoke</button>
+                                                </form>
+                                            </li>
+                                            <% }) %>
+                                        </ul>
+                                        <form method="POST" action="/admin/debug/orbat-roles/fix-extra" style="margin-top:6px;"
+                                              onsubmit="return confirm('Revoke the squad role from <%= squad.extra.length %> member(s)?')">
+                                            <input type="hidden" name="squadId" value="<%= squad.squadId %>">
+                                            <% squad.extra.forEach(m => { %>
+                                            <input type="hidden" name="discordIds" value="<%= m.discord_id %>">
+                                            <% }) %>
+                                            <button type="submit" class="btn btn-danger" style="padding:3px 10px;font-size:0.78em;">Revoke all <%= squad.extra.length %></button>
+                                        </form>
+                                    </div>
+                                <% } %>
+                            <% } %>
+                        </div>
+                    <% }); %>
+                <% } %>
+            <% } %>
+        </div>
     </section>
 </div>
 

@@ -145,13 +145,211 @@ function renderPubNode(node, isRoot) {
         </section>
     <% } %>
 
+    <%# ─── Change History Toggle ─────────────────────────────────────── %>
+    <section class="section" style="margin-top: 30px;">
+        <button onclick="toggleChangeHistory()" class="btn" style="width: 100%; text-align: center; padding: 12px; font-size: 0.95em; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <span id="chToggleIcon">▶</span>
+            <span>Change History</span>
+            <span id="chCount" style="opacity: 0.6; font-size: 0.85em;"></span>
+        </button>
+
+        <div id="changeHistoryPanel" style="display: none; margin-top: 15px;">
+            <div id="changeHistoryLoading" style="text-align: center; padding: 20px; color: var(--khaki);">Loading change history...</div>
+            <div id="changeHistoryContent"></div>
+            <div id="changeHistoryMore" style="text-align: center; padding: 10px; display: none;">
+                <button onclick="loadMoreHistory()" class="btn" style="font-size: 0.85em;">Load more</button>
+            </div>
+        </div>
+    </section>
+
     <section class="section">
         <a href="/orbat/view-all" class="btn">← Back to ORBAT Templates</a>
     </section>
 </div>
 
+<style>
+.change-entry {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    transition: background 0.2s;
+}
+.change-entry:hover {
+    background: rgba(255,255,255,0.03);
+}
+.change-entry:last-child {
+    border-bottom: none;
+}
+.change-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--olive);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.75em;
+    color: white;
+    overflow: hidden;
+}
+.change-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.change-body {
+    flex: 1;
+    min-width: 0;
+}
+.change-desc {
+    font-size: 0.88em;
+    color: var(--sand);
+    line-height: 1.4;
+}
+.change-meta {
+    font-size: 0.75em;
+    color: var(--khaki);
+    opacity: 0.6;
+    margin-top: 3px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.change-action-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 0.7em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+.badge-assign { background: rgba(52,152,219,0.2); color: #3498DB; }
+.badge-unassign { background: rgba(231,76,60,0.2); color: #e74c3c; }
+.badge-claim { background: rgba(46,204,113,0.2); color: #2ecc71; }
+.badge-unclaim { background: rgba(231,76,60,0.15); color: #e67e22; }
+.badge-role_added { background: rgba(107,142,35,0.2); color: #6b8e23; }
+.badge-role_deleted { background: rgba(231,76,60,0.2); color: #e74c3c; }
+.badge-role_edited { background: rgba(52,152,219,0.15); color: #85c1e9; }
+.badge-roster_auto_remove { background: rgba(142,68,173,0.2); color: #af7ac5; }
+</style>
+
 <script>
 const templateId = '<%= template.id %>';
+let chOffset = 0;
+let chTotal = 0;
+const chLimit = 50;
+
+function toggleChangeHistory() {
+    const panel = document.getElementById('changeHistoryPanel');
+    const icon = document.getElementById('chToggleIcon');
+    if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        icon.textContent = '▼';
+        if (!panel.dataset.loaded) {
+            loadChangeHistory();
+        }
+    } else {
+        panel.style.display = 'none';
+        icon.textContent = '▶';
+    }
+}
+
+async function loadChangeHistory() {
+    const loading = document.getElementById('changeHistoryLoading');
+    const content = document.getElementById('changeHistoryContent');
+    const moreBtn = document.getElementById('changeHistoryMore');
+
+    loading.style.display = 'block';
+
+    try {
+        const r = await fetch(`/orbat/api/change-log/${templateId}?limit=${chLimit}&offset=${chOffset}`);
+        const data = await r.json();
+
+        loading.style.display = 'none';
+
+        if (!data.success) {
+            content.innerHTML = '<p style="color: var(--khaki); text-align: center; padding: 20px;">Failed to load change history.</p>';
+            return;
+        }
+
+        chTotal = data.total;
+        document.getElementById('chCount').textContent = `(${chTotal} change${chTotal !== 1 ? 's' : ''})`;
+
+        if (data.logs.length === 0) {
+            content.innerHTML = '<p style="color: var(--khaki); text-align: center; padding: 20px; opacity: 0.6;">No changes recorded yet.</p>';
+            return;
+        }
+
+        let html = '<div style="background: rgba(0,0,0,0.15); border-radius: 8px; overflow: hidden;">';
+        data.logs.forEach(log => {
+            const performerName = log.performer_global_name || log.performer_name || 'System';
+            const performerInitial = performerName.charAt(0).toUpperCase();
+            const performerAvatar = log.performer_avatar
+                ? `<img src="https://cdn.discordapp.com/avatars/${log.performer_discord_id}/${log.performer_avatar}.png?size=32" alt="">`
+                : performerInitial;
+            const timeAgo = timeSince(new Date(log.created_at).getTime());
+            const actionLabel = log.action_type.replace(/_/g, ' ');
+            const badgeClass = 'badge-' + log.action_type;
+
+            html += `<div class="change-entry">
+                <div class="change-avatar">${performerAvatar}</div>
+                <div class="change-body">
+                    <div class="change-desc">${escHtml(log.description || actionLabel)}</div>
+                    <div class="change-meta">
+                        <span>${escHtml(performerName)}</span>
+                        <span>•</span>
+                        <span>${timeAgo}</span>
+                        <span class="change-action-badge ${badgeClass}">${escHtml(actionLabel)}</span>
+                    </div>
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+        content.innerHTML = html;
+
+        if (chOffset + chLimit < chTotal) {
+            moreBtn.style.display = 'block';
+        } else {
+            moreBtn.style.display = 'none';
+        }
+
+        document.getElementById('changeHistoryPanel').dataset.loaded = 'true';
+    } catch (e) {
+        loading.style.display = 'none';
+        content.innerHTML = '<p style="color: #e74c3c; text-align: center; padding: 20px;">Error loading change history.</p>';
+        console.error('Error loading change history:', e);
+    }
+}
+
+async function loadMoreHistory() {
+    chOffset += chLimit;
+    await loadChangeHistory();
+}
+
+function timeSince(timestamp) {
+    const now = Date.now();
+    const seconds = Math.floor((now - timestamp) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return minutes + 'm ago';
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return hours + 'h ago';
+    const days = Math.floor(hours / 24);
+    if (days < 30) return days + 'd ago';
+    const months = Math.floor(days / 30);
+    return months + 'mo ago';
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 <% if (user && editorSquadIds && editorSquadIds.length > 0) { %>
 async function submitAddChildSquad(parentSquadId) {
