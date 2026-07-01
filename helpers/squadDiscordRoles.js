@@ -71,7 +71,26 @@ async function assignSquadRole(roleId, userId) {
 }
 
 /**
+ * Check if a user is assigned to any squad that uses the given Discord role.
+ * Used to avoid removing a shared role when the user still needs it.
+ */
+async function isUserAssignedToDiscordRole(discordUserId, discordRoleId) {
+    const [rows] = await db.query(`
+        SELECT 1 FROM orbat_assignments oa
+        JOIN orbat_roles r ON oa.role_id = r.id
+        JOIN orbat_squads s ON r.squad_id = s.id
+        JOIN users u ON oa.user_id = u.id
+        WHERE u.discord_id = ?
+          AND s.discord_role_id = ?
+          AND oa.role_id != ?
+        LIMIT 1
+    `, [discordUserId, discordRoleId, -1]); // -1 placeholder, overridden below
+    return rows.length > 0;
+}
+
+/**
  * Remove the squad's Discord role from a user.
+ * Skips removal if the same Discord role is shared by another squad the user is assigned to.
  * @param {number} roleId - The ORBAT role (slot) ID
  * @param {number} userId - The site user ID
  * @returns {Promise<{ok:boolean, error?:string}>}
@@ -87,6 +106,21 @@ async function removeSquadRole(roleId, userId) {
         const discordUserId = await getDiscordIdFromUserId(userId);
         if (!discordUserId) return { ok: false, error: 'User has no Discord ID' };
 
+        // Check if user is still assigned to another squad using the same Discord role
+        const [shared] = await db.query(`
+            SELECT 1 FROM orbat_assignments oa
+            JOIN orbat_roles r ON oa.role_id = r.id
+            JOIN orbat_squads s ON r.squad_id = s.id
+            WHERE s.discord_role_id = ?
+              AND oa.user_id = ?
+              AND oa.role_id != ?
+            LIMIT 1
+        `, [discordRoleId, userId, roleId]);
+
+        if (shared.length > 0) {
+            return { ok: true, skipped: true, reason: 'User still assigned to another squad sharing this role' };
+        }
+
         return await removeRole(discordUserId, discordRoleId);
     } catch (err) {
         console.error('[SQUAD_ROLE] remove error:', err);
@@ -97,6 +131,7 @@ async function removeSquadRole(roleId, userId) {
 /**
  * Remove the squad's Discord role from a user by Discord ID directly.
  * Used when we only have the Discord ID (e.g., roster auto-removal).
+ * Skips removal if the same Discord role is shared by another squad the user is assigned to.
  * @param {number} squadId
  * @param {string} discordUserId
  * @returns {Promise<{ok:boolean, error?:string}>}
@@ -105,6 +140,22 @@ async function removeSquadRoleByDiscordId(squadId, discordUserId) {
     try {
         const discordRoleId = await getSquadDiscordRoleId(squadId);
         if (!discordRoleId) return { ok: true };
+
+        // Check if user is still assigned to another squad using the same Discord role
+        const [shared] = await db.query(`
+            SELECT 1 FROM orbat_assignments oa
+            JOIN orbat_roles r ON oa.role_id = r.id
+            JOIN orbat_squads s ON r.squad_id = s.id
+            JOIN users u ON oa.user_id = u.id
+            WHERE s.discord_role_id = ?
+              AND u.discord_id = ?
+              AND r.squad_id != ?
+            LIMIT 1
+        `, [discordRoleId, discordUserId, squadId]);
+
+        if (shared.length > 0) {
+            return { ok: true, skipped: true, reason: 'User still assigned to another squad sharing this role' };
+        }
 
         return await removeRole(discordUserId, discordRoleId);
     } catch (err) {

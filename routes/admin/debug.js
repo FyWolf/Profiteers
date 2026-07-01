@@ -111,6 +111,13 @@ router.post('/orbat-roles/audit', async (req, res) => {
             }
         });
 
+        // Build a map of discord_role_id -> [squadId, ...] to detect shared roles
+        const roleToSquads = {};
+        for (const squad of squads) {
+            if (!roleToSquads[squad.discord_role_id]) roleToSquads[squad.discord_role_id] = [];
+            roleToSquads[squad.discord_role_id].push(squad.id);
+        }
+
         // For each squad, find who's assigned and who has the role
         const squadResults = [];
         for (const squad of squads) {
@@ -134,9 +141,25 @@ router.post('/orbat-roles/audit', async (req, res) => {
                 }
             }
 
-            // Members who have the role but aren't assigned to this squad
+            // If this role is shared by multiple squads, get ALL assigned discord IDs
+            // across all squads that share this role, so we don't flag them as "extra"
+            const sharedSquadIds = roleToSquads[squad.discord_role_id] || [];
+            let allAssignedForRole = assignedDiscordIds;
+            if (sharedSquadIds.length > 1) {
+                const [allAssignments] = await db.query(`
+                    SELECT DISTINCT u.discord_id
+                    FROM orbat_assignments oa
+                    JOIN orbat_roles r ON oa.role_id = r.id
+                    JOIN users u ON oa.user_id = u.id
+                    WHERE r.squad_id IN (?)
+                      AND u.discord_id IS NOT NULL
+                `, [sharedSquadIds]);
+                allAssignedForRole = new Set(allAssignments.map(a => a.discord_id));
+            }
+
+            // Members who have the role but aren't assigned to ANY squad sharing this role
             const extra = membersWithRole
-                .filter(did => !assignedDiscordIds.has(did))
+                .filter(did => !allAssignedForRole.has(did))
                 .map(did => {
                     const m = memberMap[did];
                     return {
@@ -278,6 +301,13 @@ async function runOrbatRolesAudit() {
         if (m.user && !m.user.bot) memberMap[m.user.id] = m;
     });
 
+    // Build a map of discord_role_id -> [squadId, ...] to detect shared roles
+    const roleToSquads = {};
+    for (const squad of squads) {
+        if (!roleToSquads[squad.discord_role_id]) roleToSquads[squad.discord_role_id] = [];
+        roleToSquads[squad.discord_role_id].push(squad.id);
+    }
+
     const squadResults = [];
     for (const squad of squads) {
         const [assignments] = await db.query(`
@@ -298,8 +328,24 @@ async function runOrbatRolesAudit() {
             }
         }
 
+        // If this role is shared by multiple squads, get ALL assigned discord IDs
+        // across all squads that share this role, so we don't flag them as "extra"
+        const sharedSquadIds = roleToSquads[squad.discord_role_id] || [];
+        let allAssignedForRole = assignedDiscordIds;
+        if (sharedSquadIds.length > 1) {
+            const [allAssignments] = await db.query(`
+                SELECT DISTINCT u.discord_id
+                FROM orbat_assignments oa
+                JOIN orbat_roles r ON oa.role_id = r.id
+                JOIN users u ON oa.user_id = u.id
+                WHERE r.squad_id IN (?)
+                  AND u.discord_id IS NOT NULL
+            `, [sharedSquadIds]);
+            allAssignedForRole = new Set(allAssignments.map(a => a.discord_id));
+        }
+
         const extra = membersWithRole
-            .filter(did => !assignedDiscordIds.has(did))
+            .filter(did => !allAssignedForRole.has(did))
             .map(did => {
                 const m = memberMap[did];
                 return {
