@@ -20,10 +20,10 @@ router.get('/', async (req, res) => {
             FROM store_items
         `);
         const [recentTransactions] = await db.query(`
-            SELECT st.*, si.display_name, rm.discord_username
+            SELECT st.*, si.display_name, u.discord_global_name AS discord_username
             FROM store_transactions st
             JOIN store_items si ON si.id = st.item_id
-            JOIN roster_members rm ON rm.id = st.user_id
+            JOIN users u ON u.id = st.user_id
             ORDER BY st.created_at DESC
             LIMIT 20
         `);
@@ -203,17 +203,18 @@ router.post('/import', async (req, res) => {
 router.get('/currency', async (req, res) => {
     try {
         const [balances] = await db.query(`
-            SELECT pc.*, rm.discord_username, rm.nickname
+            SELECT pc.*, u.discord_username, u.discord_global_name
             FROM player_currency pc
-            JOIN roster_members rm ON rm.id = pc.user_id
+            JOIN users u ON u.id = pc.user_id
             ORDER BY pc.balance DESC
             LIMIT 100
         `);
         const [players] = await db.query(`
-            SELECT rm.id, rm.discord_username, rm.nickname, COALESCE(pc.balance, 0) AS balance
-            FROM roster_members rm
-            LEFT JOIN player_currency pc ON pc.user_id = rm.id
-            ORDER BY rm.discord_username ASC
+            SELECT u.id, u.discord_username, u.discord_global_name, COALESCE(pc.balance, 0) AS balance
+            FROM users u
+            LEFT JOIN player_currency pc ON pc.user_id = u.id
+            WHERE u.discord_id IS NOT NULL
+            ORDER BY u.discord_global_name ASC
         `);
         res.render('admin/store/currency', {
             title: 'Currency Management',
@@ -271,10 +272,10 @@ router.get('/transactions', async (req, res) => {
         const offset = (page - 1) * limit;
 
         const [transactions] = await db.query(`
-            SELECT st.*, si.display_name, rm.discord_username
+            SELECT st.*, si.display_name, u.discord_global_name AS discord_username
             FROM store_transactions st
             JOIN store_items si ON si.id = st.item_id
-            JOIN roster_members rm ON rm.id = st.user_id
+            JOIN users u ON u.id = st.user_id
             ORDER BY st.created_at DESC
             LIMIT ? OFFSET ?
         `, [limit, offset]);
