@@ -50,6 +50,8 @@ router.post('/', requireApiKey, async (req, res) => {
     try {
         const { action } = req.body;
 
+        console.log(`[Economy API] Request received - action: ${action}, body keys: ${Object.keys(req.body).join(', ')}`);
+
         if (!action) {
             return sqfError(res, 'Missing action field');
         }
@@ -140,7 +142,13 @@ router.post('/', requireApiKey, async (req, res) => {
             case 'exportArsenal': {
                 const { steamId, items, categoryId } = req.body;
                 if (!steamId) return sqfError(res, 'Missing steamId');
-                if (!items || !Array.isArray(items)) return sqfError(res, 'Missing or invalid items array');
+
+                // Items may come as a JSON string (from SQF) or already parsed (from web)
+                let parsedItems = items;
+                if (typeof parsedItems === 'string') {
+                    try { parsedItems = JSON.parse(parsedItems); } catch (e) { return sqfError(res, 'Invalid items JSON string'); }
+                }
+                if (!parsedItems || !Array.isArray(parsedItems)) return sqfError(res, 'Missing or invalid items array');
 
                 const userId = await getUserIdBySteamId(steamId);
                 if (!userId) return sqfError(res, 'Player not found');
@@ -175,7 +183,7 @@ router.post('/', requireApiKey, async (req, res) => {
                     let inserted = 0;
                     let skipped = 0;
 
-                    for (const item of items) {
+                    for (const item of parsedItems) {
                         const { className, displayName, picture, description, itemType } = item;
 
                         if (!className || !displayName) {
