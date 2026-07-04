@@ -240,6 +240,7 @@ passport.use('steam-link', new SteamStrategy({
     returnURL: `${process.env.WEBSITE_URL || 'http://localhost:3000'}/auth/steam/return`,
     realm: process.env.WEBSITE_URL || 'http://localhost:3000',
     profile: false,  // We only need the Steam 64 ID from OpenID, not the profile
+    passReqToCallback: true,  // Must be true so verify receives (req, identifier, profile, done)
 }, async (req, identifier, profile, done) => {
     // Only authenticated users should be able to link Steam
     if (!req.isAuthenticated()) {

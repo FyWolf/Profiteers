@@ -216,8 +216,11 @@ const __articleMod   = locals.articleModified  || null;
         background: linear-gradient(135deg, #1b2838 0%, #2a475e 100%);
         border-bottom: 2px solid #5dade2;
         padding: 0;
-        position: relative;
-        z-index: 100;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
     }
     .steam-link-banner-content {
         max-width: 1200px;
@@ -261,6 +264,8 @@ const __articleMod   = locals.articleModified  || null;
         flex-shrink: 0;
     }
     .steam-link-banner-close:hover { opacity: 1; }
+    /* Push nav down so it's not hidden behind the fixed banner */
+    #main-nav { margin-top: 44px; }
     </style>
     <% } %>
 
