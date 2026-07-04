@@ -170,21 +170,29 @@ router.post('/api/buy', requireAuth, async (req, res) => {
     }
 });
 
+// ─── Helper: Get users.id from steam_id via discord_id link ─
+async function getUserIdBySteamId(steamId) {
+    const [rows] = await db.query(`
+        SELECT u.id
+        FROM users u
+        JOIN roster_members rm ON rm.discord_id = u.discord_id
+        WHERE rm.steam_id = ?
+    `, [steamId]);
+    return rows.length ? rows[0].id : null;
+}
+
 // ─── API: Get Player Inventory (used by Arma addon) ─────────
 router.get('/api/inventory/:steamId', async (req, res) => {
     try {
-        const [members] = await db.query(
-            'SELECT id FROM roster_members WHERE steam_id = ?',
-            [req.params.steamId]
-        );
-        if (!members.length) return res.json({ items: [] });
+        const userId = await getUserIdBySteamId(req.params.steamId);
+        if (!userId) return res.json({ items: [] });
 
         const [items] = await db.query(`
             SELECT si.class_name, si.item_type, pi.quantity
             FROM player_inventory pi
             JOIN store_items si ON si.id = pi.item_id
             WHERE pi.user_id = ? AND pi.quantity > 0 AND si.is_active = 1
-        `, [members[0].id]);
+        `, [userId]);
 
         res.json({ items });
     } catch (err) {
@@ -196,15 +204,12 @@ router.get('/api/inventory/:steamId', async (req, res) => {
 // ─── API: Get Player Balance (used by Arma addon) ───────────
 router.get('/api/balance/:steamId', async (req, res) => {
     try {
-        const [members] = await db.query(
-            'SELECT id FROM roster_members WHERE steam_id = ?',
-            [req.params.steamId]
-        );
-        if (!members.length) return res.json({ balance: 0 });
+        const userId = await getUserIdBySteamId(req.params.steamId);
+        if (!userId) return res.json({ balance: 0 });
 
         const [currency] = await db.query(
             'SELECT balance FROM player_currency WHERE user_id = ?',
-            [members[0].id]
+            [userId]
         );
         res.json({ balance: currency?.[0]?.balance ?? 0 });
     } catch (err) {
@@ -241,15 +246,12 @@ router.post('/api/loadout/save', requireAuth, async (req, res) => {
 // ─── API: Get Loadouts ──────────────────────────────────────
 router.get('/api/loadouts/:steamId', async (req, res) => {
     try {
-        const [members] = await db.query(
-            'SELECT id FROM roster_members WHERE steam_id = ?',
-            [req.params.steamId]
-        );
-        if (!members.length) return res.json({ loadouts: [] });
+        const userId = await getUserIdBySteamId(req.params.steamId);
+        if (!userId) return res.json({ loadouts: [] });
 
         const [loadouts] = await db.query(
             'SELECT id, name, loadout_data, is_default FROM player_loadouts WHERE user_id = ? ORDER BY is_default DESC, updated_at DESC',
-            [members[0].id]
+            [userId]
         );
         res.json({ loadouts });
     } catch (err) {

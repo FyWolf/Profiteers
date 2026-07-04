@@ -4,8 +4,8 @@
     <h1><i class="fas fa-box"></i> Store Items</h1>
     <a href="/admin/store" class="back-link">&larr; Back to Store Admin</a>
 
-    <% if (typeof req !== 'undefined' && req.query && req.query.error) { %><div class="alert alert-error"><%= req.query.error %></div><% } %>
-    <% if (typeof req !== 'undefined' && req.query && req.query.success) { %><div class="alert alert-success"><%= req.query.success %></div><% } %>
+    <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+    <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
 
     <div class="admin-actions">
         <a href="/admin/store/import" class="btn btn-primary">
@@ -90,7 +90,7 @@
             </thead>
             <tbody>
                 <% items.forEach(item => { %>
-                    <tr>
+                    <tr id="item-row-<%= item.id %>">
                         <td><code><%= item.class_name %></code></td>
                         <td><%= item.display_name %></td>
                         <td><%= item.category_name %></td>
@@ -99,8 +99,68 @@
                         <td><%= item.stock === -1 ? '∞' : item.stock %></td>
                         <td><%= item.is_active ? '✅' : '❌' %></td>
                         <td>
+                            <button class="btn btn-primary btn-sm" onclick="toggleEdit(<%= item.id %>)"><i class="fas fa-edit"></i></button>
                             <form method="POST" action="/admin/store/items/<%= item.id %>/delete" style="display:inline" onsubmit="return confirm('Delete this item?')">
                                 <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr id="item-edit-<%= item.id %>" class="edit-row" style="display:none">
+                        <td colspan="8">
+                            <form method="POST" action="/admin/store/items/<%= item.id %>/edit" class="inline-edit-form">
+                                <div class="edit-grid">
+                                    <div class="edit-field">
+                                        <label>Category</label>
+                                        <select name="category_id">
+                                            <% categories.forEach(cat => { %>
+                                                <option value="<%= cat.id %>" <%= item.category_id === cat.id ? 'selected' : '' %>><%= cat.name %></option>
+                                            <% }) %>
+                                        </select>
+                                    </div>
+                                    <div class="edit-field">
+                                        <label>Type</label>
+                                        <select name="item_type">
+                                            <% ['weapon','magazine','attachment','uniform','vest','helmet','backpack','item','grenade','explosive','misc'].forEach(t => { %>
+                                                <option value="<%= t %>" <%= item.item_type === t ? 'selected' : '' %>><%= t %></option>
+                                            <% }) %>
+                                        </select>
+                                    </div>
+                                    <div class="edit-field">
+                                        <label>Class Name</label>
+                                        <input type="text" name="class_name" value="<%= item.class_name %>" required>
+                                    </div>
+                                    <div class="edit-field">
+                                        <label>Display Name</label>
+                                        <input type="text" name="display_name" value="<%= item.display_name %>" required>
+                                    </div>
+                                    <div class="edit-field" style="flex:2">
+                                        <label>Description</label>
+                                        <input type="text" name="description" value="<%= item.description || '' %>">
+                                    </div>
+                                    <div class="edit-field">
+                                        <label>Price (¢)</label>
+                                        <input type="number" name="base_price" value="<%= item.base_price %>" min="0" required>
+                                    </div>
+                                    <div class="edit-field">
+                                        <label>Stock</label>
+                                        <input type="number" name="stock" value="<%= item.stock %>">
+                                    </div>
+                                    <div class="edit-field">
+                                        <label>Max/Player</label>
+                                        <input type="number" name="max_per_player" value="<%= item.max_per_player %>">
+                                    </div>
+                                    <div class="edit-field">
+                                        <label>Active</label>
+                                        <select name="is_active">
+                                            <option value="1" <%= item.is_active ? 'selected' : '' %>>Yes</option>
+                                            <option value="0" <%= !item.is_active ? 'selected' : '' %>>No</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="edit-actions">
+                                    <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-save"></i> Save</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleEdit(<%= item.id %>)">Cancel</button>
+                                </div>
                             </form>
                         </td>
                     </tr>
@@ -153,6 +213,21 @@ code { background: #2a2a3a; padding: 2px 6px; border-radius: 3px; font-size: 0.8
 .type-grenade { background: #2e2e00; color: #ffff6b; }
 .type-explosive { background: #2e0000; color: #ff4444; }
 .type-misc { background: #1a1a2e; color: #888; }
+.edit-row { background: #1a1a2e; }
+.edit-grid { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.edit-field { flex: 1; min-width: 140px; }
+.edit-field label { display: block; font-size: 0.75rem; color: #999; margin-bottom: 0.2rem; }
+.edit-field input, .edit-field select { width: 100%; padding: 0.4rem; background: #2a2a3a; border: 1px solid #444; border-radius: 4px; color: #e0e0e0; box-sizing: border-box; }
+.edit-actions { display: flex; gap: 0.5rem; }
+.btn-success { background: #2e7d32; color: #fff; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; }
+.btn-secondary { background: #555; color: #fff; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; }
 </style>
+
+<script>
+function toggleEdit(id) {
+    const row = document.getElementById('item-edit-' + id);
+    row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+}
+</script>
 
 <%- include('../../partials/footer') %>

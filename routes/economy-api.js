@@ -36,12 +36,14 @@ function sqfError(res, message) {
     res.type('text/plain').send(`[0,"${message.replace(/"/g, '""')}"]`);
 }
 
-// ─── Helper: Get roster_members.id from steam_id ───────────
+// ─── Helper: Get users.id from steam_id via discord_id link ─
 async function getUserIdBySteamId(steamId) {
-    const [rows] = await db.query(
-        'SELECT id FROM roster_members WHERE steam_id = ?',
-        [steamId]
-    );
+    const [rows] = await db.query(`
+        SELECT u.id
+        FROM users u
+        JOIN roster_members rm ON rm.discord_id = u.discord_id
+        WHERE rm.steam_id = ?
+    `, [steamId]);
     return rows.length ? rows[0].id : null;
 }
 

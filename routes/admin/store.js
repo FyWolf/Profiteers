@@ -49,7 +49,8 @@ router.get('/categories', async (req, res) => {
         res.render('admin/store/categories', {
             title: 'Store Categories',
             categories,
-            user: res.locals.user
+            user: res.locals.user,
+            error: req.query.error || null
         });
     } catch (err) {
         console.error(err);
@@ -95,7 +96,9 @@ router.get('/items', async (req, res) => {
             title: 'Store Items',
             items,
             categories,
-            user: res.locals.user
+            user: res.locals.user,
+            error: req.query.error || null,
+            success: req.query.success || null
         });
     } catch (err) {
         console.error(err);
@@ -149,7 +152,8 @@ router.get('/import', async (req, res) => {
         res.render('admin/store/import', {
             title: 'Bulk Import Items',
             categories,
-            user: res.locals.user
+            user: res.locals.user,
+            error: req.query.error || null
         });
     } catch (err) {
         console.error(err);

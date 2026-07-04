@@ -4,7 +4,7 @@
     <h1><i class="fas fa-folder"></i> Store Categories</h1>
     <a href="/admin/store" class="back-link">&larr; Back to Store Admin</a>
 
-    <% if (typeof req !== 'undefined' && req.query && req.query.error) { %><div class="alert alert-error"><%= req.query.error %></div><% } %>
+    <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
     <div class="admin-card">
         <h2>Add Category</h2>

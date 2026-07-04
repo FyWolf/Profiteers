@@ -421,11 +421,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.success) {
                     document.getElementById('walletBalance').innerHTML = data.balance.toLocaleString() + ' <small>¢</small>';
                     showToast(`Purchased ${qty}x ${card.querySelector('.item-name').textContent}!`);
-                    // Update owned badge
-                    const badge = card.querySelector('.owned-badge');
+                    // Update or create owned badge
+                    let badge = card.querySelector('.owned-badge');
+                    const meta = card.querySelector('.item-meta');
                     if (badge) {
                         const match = badge.textContent.match(/\d+/);
                         if (match) badge.innerHTML = `<i class="fas fa-check"></i> Owned: ${parseInt(match[0]) + qty}`;
+                    } else if (meta) {
+                        const newBadge = document.createElement('span');
+                        newBadge.className = 'owned-badge';
+                        newBadge.innerHTML = `<i class="fas fa-check"></i> Owned: ${qty}`;
+                        meta.appendChild(newBadge);
                     }
                 } else {
                     showToast(data.error || 'Purchase failed', 'error');

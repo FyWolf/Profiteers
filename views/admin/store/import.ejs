@@ -4,7 +4,7 @@
     <h1><i class="fas fa-upload"></i> Bulk Import Items</h1>
     <a href="/admin/store/items" class="back-link">&larr; Back to Items</a>
 
-    <% if (typeof req !== 'undefined' && req.query && req.query.error) { %><div class="alert alert-error"><%= req.query.error %></div><% } %>
+    <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
     <div class="admin-card">
         <h2>Paste Class Names</h2>
