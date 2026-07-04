@@ -24,6 +24,7 @@ const { attachUser } = require('./middleware/auth');
 const { trackPageView } = require('./middleware/analytics');
 const { actionLogger } = require('./middleware/action-log');
 const { attachSeoDefaults } = require('./middleware/seo');
+const { requireSteamLink } = require('./middleware/steam-link');
 const passport = require('./config/passport.js');
 
 
@@ -31,6 +32,7 @@ const homeRoutes = require('./routes/home');
 const authRoutes = require('./routes/auth');
 const toolsRoutes = require('./routes/tools');
 const discordAuthRoutes = require('./routes/discord-auth');
+const steamAuthRoutes = require('./routes/steam-auth');
 const galleryRoutes = require('./routes/gallery');
 const profileRoutes = require('./routes/profile');
 const adminRoutes = require('./routes/admin');
@@ -48,7 +50,7 @@ const infoRoutes = require('./routes/info');
 const feedbackRoutes = require('./routes/feedback');
 const cron = require('node-cron');
 const { runRosterSync } = require('./routes/roster');
-
+const storeRoutes = require('./routes/store');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -125,11 +127,13 @@ app.use(attachUser);
 app.use(attachSeoDefaults);
 app.use(trackPageView);
 app.use(actionLogger);
+app.use(requireSteamLink);
 
 app.use('/', require('./routes/sitemap'));
 app.use('/', homeRoutes);
 app.use('/', authRoutes);
 app.use('/auth', discordAuthRoutes);
+app.use('/auth', steamAuthRoutes);
 app.use('/tools', toolsRoutes);
 app.use('/gallery', galleryRoutes);
 app.use('/profile', profileRoutes);
@@ -144,6 +148,7 @@ app.use('/loa', loaRoutes);
 app.use('/roster', rosterRoutes);
 app.use('/modpacks', modpacksRoutes);
 app.use('/feedback', feedbackRoutes);
+app.use('/store', storeRoutes);
 const loreRoutes = require('./routes/lore');
 app.use('/lore', loreRoutes);
 app.use('/info', infoRoutes);

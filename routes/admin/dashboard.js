@@ -13,7 +13,11 @@ router.get('/', async (req, res) => {
                 (SELECT COUNT(*) FROM medals)          as medals,
                 (SELECT COUNT(*) FROM trainings)       as trainings,
                 (SELECT COUNT(*) FROM slot_types)       as slot_types,
-                (SELECT COUNT(*) FROM orbat_attendance) as attendance_records
+                (SELECT COUNT(*) FROM orbat_attendance) as attendance_records,
+                (SELECT COUNT(*) FROM store_items)      as store_items,
+                (SELECT COUNT(*) FROM store_categories) as store_categories,
+                (SELECT COUNT(*) FROM player_currency)  as store_players,
+                (SELECT COALESCE(SUM(balance), 0) FROM player_currency) as store_currency
         `);
 
         let analytics = {

@@ -124,6 +124,7 @@ const __articleMod   = locals.articleModified  || null;
                 </li>
 
                 <li><a href="/lore">Lore Terminal</a></li>
+                <li><a href="/store"><i class="fas fa-store"></i> Store</a></li>
                 <li><a href="/info">Information</a></li>
                 <li><a href="/join">Join Us</a></li>
                 <li><a href="/gallery">Gallery</a></li>
@@ -196,6 +197,72 @@ const __articleMod   = locals.articleModified  || null;
         });
     })();
     </script>
+
+    <%# ── Steam Link Required Banner ──────────────────────────────────── %>
+    <% if (typeof needsSteamLink !== 'undefined' && needsSteamLink) { %>
+    <div class="steam-link-banner">
+        <div class="steam-link-banner-content">
+            <span class="steam-link-banner-icon">🎮</span>
+            <div class="steam-link-banner-text">
+                <strong>Link your Steam account</strong> to access the in-game arsenal system.
+                Your purchases on the website will be available in-game once your Steam ID is linked.
+            </div>
+            <a href="/profile" class="steam-link-banner-btn">Link Now</a>
+            <button class="steam-link-banner-close" onclick="this.parentElement.parentElement.style.display='none'" aria-label="Dismiss">✕</button>
+        </div>
+    </div>
+    <style>
+    .steam-link-banner {
+        background: linear-gradient(135deg, #1b2838 0%, #2a475e 100%);
+        border-bottom: 2px solid #5dade2;
+        padding: 0;
+        position: relative;
+        z-index: 100;
+    }
+    .steam-link-banner-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 10px 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .steam-link-banner-icon { font-size: 1.4em; flex-shrink: 0; }
+    .steam-link-banner-text {
+        flex: 1;
+        min-width: 200px;
+        color: #c8d6e5;
+        font-size: 0.85em;
+        line-height: 1.4;
+    }
+    .steam-link-banner-text strong { color: #5dade2; }
+    .steam-link-banner-btn {
+        background: #5dade2;
+        color: #1b2838;
+        padding: 6px 16px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 0.82em;
+        white-space: nowrap;
+        flex-shrink: 0;
+        transition: background 0.2s;
+    }
+    .steam-link-banner-btn:hover { background: #7ec8ff; }
+    .steam-link-banner-close {
+        background: transparent;
+        border: none;
+        color: #5dade2;
+        cursor: pointer;
+        font-size: 1.1em;
+        padding: 2px 6px;
+        opacity: 0.6;
+        flex-shrink: 0;
+    }
+    .steam-link-banner-close:hover { opacity: 1; }
+    </style>
+    <% } %>
 
     <%# ── Admin shell: persistent sidebar wraps all /admin pages ───────── %>
     <% if (typeof currentPath !== 'undefined' && currentPath && currentPath.startsWith('/admin')) { %>

@@ -257,6 +257,33 @@ router.post('/', isAuthenticated, async (req, res) => {
                     }
                 }
             })();
+
+            // ─── Economy: award currency for attendance ─────────────
+            const ECONOMY_PER_OP = parseInt(process.env.ECONOMY_PER_OP) || 500;
+            (async () => {
+                for (const uid of presentUserIds) {
+                    try {
+                        // Ensure player_currency row exists
+                        await db.query(
+                            'INSERT INTO player_currency (user_id, balance, lifetime_earned) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE user_id = user_id',
+                            [uid, ECONOMY_PER_OP, ECONOMY_PER_OP]
+                        );
+                        // Credit the currency
+                        await db.query(
+                            'UPDATE player_currency SET balance = balance + ?, lifetime_earned = lifetime_earned + ? WHERE user_id = ?',
+                            [ECONOMY_PER_OP, ECONOMY_PER_OP, uid]
+                        );
+                        // Log the currency transaction
+                        await db.query(
+                            'INSERT INTO currency_transactions (user_id, amount, balance_after, reason, source, operation_id) VALUES (?, ?, (SELECT balance FROM player_currency WHERE user_id = ?), ?, ?, ?)',
+                            [uid, ECONOMY_PER_OP, uid, `Operation attendance reward`, 'op_attendance', opId]
+                        );
+                    } catch (econErr) {
+                        console.error(`[ECONOMY] Failed to credit user ${uid} for operation ${opId}:`, econErr.message);
+                    }
+                }
+                console.log(`[ECONOMY] Credited ${presentUserIds.length} players ${ECONOMY_PER_OP}¢ each for operation #${opId}`);
+            })();
         }
 
         res.redirect(`/operations/${opId}/post-op?success=Attendance saved`);

@@ -1,0 +1,86 @@
+<%- include('../../partials/header') %>
+
+<div class="container">
+    <h1><i class="fas fa-coins"></i> Currency Management</h1>
+    <a href="/admin/store" class="back-link">&larr; Back to Store Admin</a>
+
+    <% if (typeof req !== 'undefined' && req.query && req.query.error) { %><div class="alert alert-error"><%= req.query.error %></div><% } %>
+
+    <div class="admin-card">
+        <h2>Grant Currency</h2>
+        <form method="POST" action="/admin/store/currency/grant" class="inline-form">
+            <input type="number" name="user_id" placeholder="User ID" required>
+            <input type="number" name="amount" placeholder="Amount" min="1" required>
+            <input type="text" name="reason" placeholder="Reason (optional)">
+            <button type="submit" class="btn btn-success">Grant</button>
+        </form>
+    </div>
+
+    <div class="admin-card">
+        <h2>Remove Currency</h2>
+        <form method="POST" action="/admin/store/currency/remove" class="inline-form">
+            <input type="number" name="user_id" placeholder="User ID" required>
+            <input type="number" name="amount" placeholder="Amount" min="1" required>
+            <input type="text" name="reason" placeholder="Reason (optional)">
+            <button type="submit" class="btn btn-danger">Remove</button>
+        </form>
+    </div>
+
+    <h2>Player Balances</h2>
+    <div class="table-responsive">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Nickname</th>
+                    <th>Balance</th>
+                    <th>Lifetime Earned</th>
+                    <th>Lifetime Spent</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% balances.forEach(b => { %>
+                    <tr>
+                        <td><%= b.user_id %></td>
+                        <td><%= b.discord_username %></td>
+                        <td><%= b.nickname || '-' %></td>
+                        <td><strong><%= b.balance.toLocaleString() %>¢</strong></td>
+                        <td><%= b.lifetime_earned.toLocaleString() %>¢</td>
+                        <td><%= b.lifetime_spent.toLocaleString() %>¢</td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.admin-card {
+    background: var(--card-bg, #1e1e2e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.inline-form {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+.inline-form input {
+    padding: 0.5rem;
+    background: #2a2a3a;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #e0e0e0;
+}
+.btn-success { background: #2e7d32; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
+.btn-danger { background: #c62828; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
+.back-link { color: var(--text-secondary, #999); text-decoration: none; display: inline-block; margin-bottom: 1rem; }
+.back-link:hover { color: #ffd700; }
+.alert-error { background: #c62828; color: #fff; padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; }
+</style>
+
+<%- include('../../partials/footer') %>

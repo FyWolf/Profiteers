@@ -47,6 +47,7 @@ mysql -u your_user -p your_database < schema.sql
 NODE_ENV=development
 PORT=3000
 SESSION_SECRET=change_this_to_a_long_random_string
+WEBSITE_URL=http://localhost:3000
 
 # Database
 DB_HOST=localhost
@@ -77,9 +78,6 @@ DISCORD_ENABLE_REMINDERS=false
 
 # Steam Web API key (for modpack mod metadata fetching)
 STEAM_API_KEY=your_steam_api_key
-
-# Public URL of the site (used in Discord embeds)
-WEBSITE_URL=http://localhost:3000
 
 # File upload size limit in bytes (default: 10MB)
 MAX_FILE_SIZE=10485760

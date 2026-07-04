@@ -1,0 +1,158 @@
+<%- include('../../partials/header') %>
+
+<div class="container">
+    <h1><i class="fas fa-box"></i> Store Items</h1>
+    <a href="/admin/store" class="back-link">&larr; Back to Store Admin</a>
+
+    <% if (typeof req !== 'undefined' && req.query && req.query.error) { %><div class="alert alert-error"><%= req.query.error %></div><% } %>
+    <% if (typeof req !== 'undefined' && req.query && req.query.success) { %><div class="alert alert-success"><%= req.query.success %></div><% } %>
+
+    <div class="admin-actions">
+        <a href="/admin/store/import" class="btn btn-primary">
+            <i class="fas fa-upload"></i> Bulk Import
+        </a>
+    </div>
+
+    <div class="admin-card">
+        <h2>Add Item</h2>
+        <form method="POST" class="item-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Category</label>
+                    <select name="category_id" required>
+                        <% categories.forEach(cat => { %>
+                            <option value="<%= cat.id %>"><%= cat.name %></option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Type</label>
+                    <select name="item_type" required>
+                        <option value="weapon">Weapon</option>
+                        <option value="magazine">Magazine</option>
+                        <option value="attachment">Attachment</option>
+                        <option value="uniform">Uniform</option>
+                        <option value="vest">Vest</option>
+                        <option value="helmet">Helmet</option>
+                        <option value="backpack">Backpack</option>
+                        <option value="item">Item</option>
+                        <option value="grenade">Grenade</option>
+                        <option value="explosive">Explosive</option>
+                        <option value="misc">Misc</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Class Name (Arma 3)</label>
+                    <input type="text" name="class_name" placeholder="e.g. arifle_MX_F" required>
+                </div>
+                <div class="form-group">
+                    <label>Display Name</label>
+                    <input type="text" name="display_name" placeholder="e.g. MX 6.5mm" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea name="description" rows="2" placeholder="Optional description"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Base Price (¢)</label>
+                    <input type="number" name="base_price" value="100" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Stock (-1 = unlimited)</label>
+                    <input type="number" name="stock" value="-1">
+                </div>
+                <div class="form-group">
+                    <label>Max Per Player (-1 = unlimited)</label>
+                    <input type="number" name="max_per_player" value="-1">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Item</button>
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Class Name</th>
+                    <th>Display Name</th>
+                    <th>Category</th>
+                    <th>Type</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Active</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% items.forEach(item => { %>
+                    <tr>
+                        <td><code><%= item.class_name %></code></td>
+                        <td><%= item.display_name %></td>
+                        <td><%= item.category_name %></td>
+                        <td><span class="type-badge type-<%= item.item_type %>"><%= item.item_type %></span></td>
+                        <td><%= item.base_price.toLocaleString() %>¢</td>
+                        <td><%= item.stock === -1 ? '∞' : item.stock %></td>
+                        <td><%= item.is_active ? '✅' : '❌' %></td>
+                        <td>
+                            <form method="POST" action="/admin/store/items/<%= item.id %>/delete" style="display:inline" onsubmit="return confirm('Delete this item?')">
+                                <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.admin-card {
+    background: var(--card-bg, #1e1e2e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.item-form { max-width: 700px; }
+.form-row { display: flex; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+.form-group { flex: 1; min-width: 150px; }
+.form-group label { display: block; font-size: 0.85rem; color: var(--text-secondary, #999); margin-bottom: 0.25rem; }
+.form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    padding: 0.5rem;
+    background: #2a2a3a;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #e0e0e0;
+    box-sizing: border-box;
+}
+.btn-primary { background: #8b6914; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
+.btn-danger { background: #c62828; color: #fff; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; }
+.btn-sm { font-size: 0.85rem; }
+.back-link { color: var(--text-secondary, #999); text-decoration: none; display: inline-block; margin-bottom: 1rem; }
+.back-link:hover { color: #ffd700; }
+.alert-error { background: #c62828; color: #fff; padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; }
+.alert-success { background: #2e7d32; color: #fff; padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; }
+.admin-actions { margin-bottom: 1rem; }
+.admin-actions .btn { text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; }
+code { background: #2a2a3a; padding: 2px 6px; border-radius: 3px; font-size: 0.85rem; }
+.type-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; font-weight: 600; }
+.type-weapon { background: #4a0000; color: #ff6b6b; }
+.type-magazine { background: #003d1a; color: #6bff8a; }
+.type-attachment { background: #002b4a; color: #6bc5ff; }
+.type-uniform { background: #2d1b00; color: #d4a04a; }
+.type-vest { background: #1a1a2e; color: #8b8bff; }
+.type-helmet { background: #1a2e1a; color: #8bff8b; }
+.type-backpack { background: #2e1a1a; color: #ff8b8b; }
+.type-item { background: #1a1a1a; color: #aaa; }
+.type-grenade { background: #2e2e00; color: #ffff6b; }
+.type-explosive { background: #2e0000; color: #ff4444; }
+.type-misc { background: #1a1a2e; color: #888; }
+</style>
+
+<%- include('../../partials/footer') %>

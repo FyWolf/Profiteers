@@ -1,0 +1,131 @@
+<%- include('../../partials/header') %>
+
+<div class="admin-page">
+    <h1><i class="fas fa-store"></i> Store Management</h1>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-boxes"></i></div>
+            <div class="stat-info">
+                <span class="stat-value"><%= stats.total_items %></span>
+                <span class="stat-label">Total Items</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+            <div class="stat-info">
+                <span class="stat-value"><%= stats.active_items %></span>
+                <span class="stat-label">Active Items</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-tags"></i></div>
+            <div class="stat-info">
+                <span class="stat-value"><%= categories.length %></span>
+                <span class="stat-label">Categories</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-actions">
+        <a href="/admin/store/categories" class="btn btn-primary">
+            <i class="fas fa-folder"></i> Manage Categories
+        </a>
+        <a href="/admin/store/items" class="btn btn-primary">
+            <i class="fas fa-box"></i> Manage Items
+        </a>
+        <a href="/admin/store/currency" class="btn btn-primary">
+            <i class="fas fa-coins"></i> Currency Management
+        </a>
+        <a href="/admin/store/transactions" class="btn btn-secondary">
+            <i class="fas fa-receipt"></i> Transaction Log
+        </a>
+    </div>
+
+    <h2>Recent Transactions</h2>
+    <div class="table-responsive">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Player</th>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Total</th>
+                    <th>Type</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (recentTransactions.length === 0) { %>
+                    <tr><td colspan="6" class="empty">No transactions yet</td></tr>
+                <% } %>
+                <% recentTransactions.forEach(tx => { %>
+                    <tr>
+                        <td><%= new Date(tx.created_at).toLocaleDateString() %></td>
+                        <td><%= tx.discord_username %></td>
+                        <td><%= tx.display_name %></td>
+                        <td><%= tx.quantity %></td>
+                        <td><%= tx.total_price.toLocaleString() %>¢</td>
+                        <td><span class="badge badge-<%= tx.transaction_type %>"><%= tx.transaction_type %></span></td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+.stat-card {
+    background: var(--card-bg, #1e1e2e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 8px;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.stat-icon {
+    font-size: 2rem;
+    color: #ffd700;
+}
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    display: block;
+}
+.stat-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #999);
+}
+.admin-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+}
+.admin-actions .btn {
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.btn-primary { background: #8b6914; color: #fff; }
+.btn-primary:hover { background: #a07818; }
+.btn-secondary { background: #333; color: #ccc; }
+.btn-secondary:hover { background: #444; }
+.badge-purchase { background: #2e7d32; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
+.badge-grant { background: #1565c0; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
+.badge-refund { background: #6a1b9a; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
+.badge-admin { background: #c62828; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
+</style>
+
+<%- include('../../partials/footer') %>

@@ -1,0 +1,161 @@
+<%- include('../partials/header') %>
+
+<div class="store-container">
+    <div class="store-header">
+        <div class="store-title-section">
+            <h1><i class="fas fa-store"></i> Equipment Store</h1>
+            <p>Browse and purchase gear for upcoming operations</p>
+        </div>
+        <div class="wallet-card">
+            <div class="wallet-icon"><i class="fas fa-coins"></i></div>
+            <div class="wallet-info">
+                <span class="wallet-label">Your Balance</span>
+                <span class="wallet-balance" id="walletBalance"><%= balance.toLocaleString() %> <small>¢</small></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="store-categories">
+        <% categories.forEach(cat => { %>
+            <a href="/store/category/<%= cat.slug %>" class="category-card">
+                <div class="category-icon">
+                    <i class="fas fa-<%= cat.icon %>"></i>
+                </div>
+                <div class="category-info">
+                    <h3><%= cat.name %></h3>
+                    <span class="item-count"><%= cat.item_count %> items</span>
+                </div>
+                <div class="category-arrow">
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </a>
+        <% }) %>
+    </div>
+</div>
+
+<style>
+.store-container {
+    max-width: 1000px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.store-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.store-title-section h1 {
+    font-size: 2rem;
+    color: var(--text-primary, #e0e0e0);
+    margin: 0 0 0.5rem 0;
+}
+
+.store-title-section p {
+    color: var(--text-secondary, #999);
+    margin: 0;
+}
+
+.wallet-card {
+    background: linear-gradient(135deg, #2d1b00, #4a2a00);
+    border: 1px solid #8b6914;
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 200px;
+}
+
+.wallet-icon {
+    font-size: 2rem;
+    color: #ffd700;
+}
+
+.wallet-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.wallet-label {
+    font-size: 0.8rem;
+    color: #b8860b;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.wallet-balance {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #ffd700;
+}
+
+.wallet-balance small {
+    font-size: 0.9rem;
+    opacity: 0.7;
+}
+
+.store-categories {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.category-card {
+    background: var(--card-bg, #1e1e2e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 10px;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s ease;
+}
+
+.category-card:hover {
+    border-color: #8b6914;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(139, 105, 20, 0.15);
+}
+
+.category-icon {
+    width: 50px;
+    height: 50px;
+    background: rgba(139, 105, 20, 0.1);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: #ffd700;
+    flex-shrink: 0;
+}
+
+.category-info {
+    flex: 1;
+}
+
+.category-info h3 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.1rem;
+    color: var(--text-primary, #e0e0e0);
+}
+
+.item-count {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #999);
+}
+
+.category-arrow {
+    color: var(--text-secondary, #555);
+    font-size: 1.2rem;
+}
+</style>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,444 @@
+<%- include('../partials/header') %>
+
+<div class="store-container">
+    <div class="store-header">
+        <div class="store-title-section">
+            <a href="/store" class="back-link"><i class="fas fa-arrow-left"></i> Back to Store</a>
+            <h1><i class="fas fa-<%= category.icon %>"></i> <%= category.name %></h1>
+        </div>
+        <div class="wallet-card">
+            <div class="wallet-icon"><i class="fas fa-coins"></i></div>
+            <div class="wallet-info">
+                <span class="wallet-label">Your Balance</span>
+                <span class="wallet-balance" id="walletBalance"><%= balance.toLocaleString() %> <small>¢</small></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="items-grid">
+        <% if (items.length === 0) { %>
+            <div class="empty-state">
+                <i class="fas fa-box-open"></i>
+                <p>No items available in this category yet.</p>
+            </div>
+        <% } %>
+
+        <% items.forEach(item => { %>
+            <div class="item-card" data-item-id="<%= item.id %>" data-price="<%= item.base_price %>">
+                <div class="item-image">
+                    <% if (item.image_url) { %>
+                        <img src="<%= item.image_url %>" alt="<%= item.display_name %>">
+                    <% } else { %>
+                        <div class="item-placeholder">
+                            <i class="fas fa-<%= item.item_type === 'weapon' ? 'crosshairs' : item.item_type === 'uniform' ? 'tshirt' : item.item_type === 'vest' ? 'vest' : item.item_type === 'helmet' ? 'hard-hat' : item.item_type === 'backpack' ? 'bag' : item.item_type === 'attachment' ? 'search-plus' : 'cube' %>"></i>
+                        </div>
+                    <% } %>
+                </div>
+                <div class="item-details">
+                    <h3 class="item-name"><%= item.display_name %></h3>
+                    <span class="item-class"><%= item.class_name %></span>
+                    <div class="item-meta">
+                        <span class="item-type-badge type-<%= item.item_type %>"><%= item.item_type %></span>
+                        <% if (item.owned_qty > 0) { %>
+                            <span class="owned-badge"><i class="fas fa-check"></i> Owned: <%= item.owned_qty %></span>
+                        <% } %>
+                    </div>
+                    <% if (item.description) { %>
+                        <p class="item-description"><%= item.description %></p>
+                    <% } %>
+                </div>
+                <div class="item-actions">
+                    <div class="item-price">
+                        <span class="price-value"><%= item.base_price.toLocaleString() %></span>
+                        <span class="price-currency">¢</span>
+                    </div>
+                    <% if (item.stock !== -1) { %>
+                        <div class="stock-info">
+                            Stock: <%= item.stock %>
+                        </div>
+                    <% } %>
+                    <div class="buy-controls">
+                        <div class="qty-selector">
+                            <button class="qty-btn qty-minus" disabled><i class="fas fa-minus"></i></button>
+                            <input type="number" class="qty-input" value="1" min="1" max="99" readonly>
+                            <button class="qty-btn qty-plus"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <button class="buy-btn" <%= balance < item.base_price ? 'disabled' : '' %>>
+                            <i class="fas fa-shopping-cart"></i> Buy
+                        </button>
+                    </div>
+                </div>
+            </div>
+        <% }) %>
+    </div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast" class="toast"></div>
+
+<style>
+.store-container {
+    max-width: 1100px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary, #999);
+    text-decoration: none;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    transition: color 0.2s;
+}
+
+.back-link:hover { color: #ffd700; }
+
+.store-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.store-title-section h1 {
+    font-size: 2rem;
+    color: var(--text-primary, #e0e0e0);
+    margin: 0;
+}
+
+.wallet-card {
+    background: linear-gradient(135deg, #2d1b00, #4a2a00);
+    border: 1px solid #8b6914;
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 200px;
+}
+
+.wallet-icon { font-size: 2rem; color: #ffd700; }
+.wallet-info { display: flex; flex-direction: column; }
+.wallet-label { font-size: 0.8rem; color: #b8860b; text-transform: uppercase; letter-spacing: 1px; }
+.wallet-balance { font-size: 1.5rem; font-weight: 700; color: #ffd700; }
+.wallet-balance small { font-size: 0.9rem; opacity: 0.7; }
+
+.items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1rem;
+}
+
+.item-card {
+    background: var(--card-bg, #1e1e2e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.item-card:hover {
+    border-color: #555;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.item-image {
+    height: 120px;
+    background: #151520;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.item-image img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.item-placeholder {
+    font-size: 3rem;
+    color: #444;
+}
+
+.item-details {
+    padding: 0.75rem 1rem;
+}
+
+.item-name {
+    margin: 0 0 0.25rem 0;
+    font-size: 1rem;
+    color: var(--text-primary, #e0e0e0);
+}
+
+.item-class {
+    font-size: 0.75rem;
+    color: #666;
+    font-family: monospace;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.item-meta {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.item-type-badge {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.type-weapon { background: #4a0000; color: #ff6b6b; }
+.type-magazine { background: #003d1a; color: #6bff8a; }
+.type-attachment { background: #002b4a; color: #6bc5ff; }
+.type-uniform { background: #2d1b00; color: #d4a04a; }
+.type-vest { background: #1a1a2e; color: #8b8bff; }
+.type-helmet { background: #1a2e1a; color: #8bff8b; }
+.type-backpack { background: #2e1a1a; color: #ff8b8b; }
+.type-item { background: #1a1a1a; color: #aaa; }
+.type-grenade { background: #2e2e00; color: #ffff6b; }
+.type-explosive { background: #2e0000; color: #ff4444; }
+.type-misc { background: #1a1a2e; color: #888; }
+
+.owned-badge {
+    font-size: 0.75rem;
+    color: #4caf50;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.item-description {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #888);
+    margin: 0.5rem 0 0 0;
+    line-height: 1.4;
+}
+
+.item-actions {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border-color, #333);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.item-price {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+}
+
+.price-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #ffd700;
+}
+
+.price-currency {
+    font-size: 0.9rem;
+    color: #b8860b;
+}
+
+.stock-info {
+    font-size: 0.75rem;
+    color: #888;
+}
+
+.buy-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.qty-selector {
+    display: flex;
+    align-items: center;
+    border: 1px solid #444;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.qty-btn {
+    background: #2a2a3a;
+    border: none;
+    color: #ccc;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: background 0.2s;
+}
+
+.qty-btn:hover:not(:disabled) { background: #3a3a4a; }
+.qty-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.qty-input {
+    width: 36px;
+    height: 30px;
+    text-align: center;
+    border: none;
+    border-left: 1px solid #444;
+    border-right: 1px solid #444;
+    background: #1e1e2e;
+    color: #e0e0e0;
+    font-size: 0.85rem;
+    -moz-appearance: textfield;
+}
+
+.qty-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+.buy-btn {
+    flex: 1;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #8b6914, #b8860b);
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.buy-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #a07818, #d4a04a);
+    transform: translateY(-1px);
+}
+
+.buy-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #666;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: 500;
+    z-index: 9999;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast.success { background: #2e7d32; }
+.toast.error { background: #c62828; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const toast = document.getElementById('walletBalance');
+
+    function showToast(message, type = 'success') {
+        const el = document.getElementById('toast');
+        el.textContent = message;
+        el.className = `toast ${type} show`;
+        setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    // Quantity controls
+    document.querySelectorAll('.qty-plus').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const input = btn.closest('.qty-selector').querySelector('.qty-input');
+            const minus = btn.closest('.qty-selector').querySelector('.qty-minus');
+            const val = parseInt(input.value) + 1;
+            if (val <= 99) {
+                input.value = val;
+                minus.disabled = false;
+            }
+        });
+    });
+
+    document.querySelectorAll('.qty-minus').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const input = btn.closest('.qty-selector').querySelector('.qty-input');
+            const val = parseInt(input.value) - 1;
+            if (val >= 1) {
+                input.value = val;
+                if (val === 1) btn.disabled = true;
+            }
+        });
+    });
+
+    // Buy buttons
+    document.querySelectorAll('.buy-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const card = btn.closest('.item-card');
+            const itemId = card.dataset.itemId;
+            const qty = parseInt(card.querySelector('.qty-input').value);
+            const price = parseInt(card.dataset.price) * qty;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buying...';
+
+            try {
+                const res = await fetch('/store/api/buy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ itemId, quantity: qty })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    document.getElementById('walletBalance').innerHTML = data.balance.toLocaleString() + ' <small>¢</small>';
+                    showToast(`Purchased ${qty}x ${card.querySelector('.item-name').textContent}!`);
+                    // Update owned badge
+                    const badge = card.querySelector('.owned-badge');
+                    if (badge) {
+                        const match = badge.textContent.match(/\d+/);
+                        if (match) badge.innerHTML = `<i class="fas fa-check"></i> Owned: ${parseInt(match[0]) + qty}`;
+                    }
+                } else {
+                    showToast(data.error || 'Purchase failed', 'error');
+                }
+            } catch (err) {
+                showToast('Network error', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-shopping-cart"></i> Buy';
+            }
+        });
+    });
+});
+</script>
+
+<%- include('../partials/footer') %>

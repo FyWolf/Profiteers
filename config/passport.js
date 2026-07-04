@@ -1,5 +1,6 @@
 const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
+const SteamStrategy = require('passport-steam').Strategy;
 const axios = require('axios');
 const db = require('./database');
 
@@ -228,6 +229,61 @@ passport.use(new DiscordStrategy({
         return done(null, updatedUsers[0]);
     } catch (error) {
         console.error('Discord authentication error:', error);
+        return done(error, null);
+    }
+}));
+
+// ─── Steam OpenID Strategy ─────────────────────────────────
+// Used for linking Steam accounts to user profiles.
+// The Steam 64 ID is extracted from the OpenID identifier URL.
+passport.use('steam-link', new SteamStrategy({
+    returnURL: `${process.env.BASE_URL || 'http://localhost:3000'}/auth/steam/return`,
+    realm: process.env.BASE_URL || 'http://localhost:3000',
+    profile: false,  // We only need the Steam 64 ID from OpenID, not the profile
+}, async (req, identifier, profile, done) => {
+    // Only authenticated users should be able to link Steam
+    if (!req.isAuthenticated()) {
+        return done(null, false, { message: 'You must be logged in to link a Steam account.' });
+    }
+
+    // Extract Steam 64 ID from the OpenID identifier
+    // Format: https://steamcommunity.com/openid/id/76561197960435530
+    const steamId = identifier.match(/\/(\d+)$/)?.[1];
+    if (!steamId || !/^7656\d{12,13}$/.test(steamId)) {
+        return done(null, false, { message: 'Invalid Steam ID returned from Steam.' });
+    }
+
+    try {
+        // Check if this Steam ID is already linked to another member
+        const [existing] = await db.query(
+            `SELECT rm.discord_id FROM roster_members rm
+             JOIN users u ON u.discord_id = rm.discord_id
+             WHERE rm.steam_id = ? AND u.id != ?`,
+            [steamId, req.session.userId]
+        );
+        if (existing.length > 0) {
+            return done(null, false, { message: 'This Steam account is already linked to another user.' });
+        }
+
+        // Update the roster member's steam_id
+        const [result] = await db.query(
+            `UPDATE roster_members rm
+             JOIN users u ON u.discord_id = rm.discord_id
+             SET rm.steam_id = ?
+             WHERE u.id = ?`,
+            [steamId, req.session.userId]
+        );
+
+        if (result.affectedRows === 0) {
+            return done(null, false, { message: 'Could not link Steam account. Make sure your Discord account is synced with the roster.' });
+        }
+
+        return done(null, req.user);
+    } catch (error) {
+        console.error('Steam link error:', error);
+        if (error.code === 'ER_DUP_ENTRY') {
+            return done(null, false, { message: 'This Steam account is already linked to another user.' });
+        }
         return done(error, null);
     }
 }));

@@ -49,7 +49,12 @@ async function fetchAttendanceForProfile(profileUserId, viewerUserId, viewerPerm
 
 router.get('/', isAuthenticated, async (req, res) => {
     try {
-        const [users] = await db.query('SELECT u.*, (SELECT rm.nickname FROM roster_members rm WHERE rm.discord_id = u.discord_id LIMIT 1) AS roster_nickname FROM users u WHERE u.id = ?', [req.session.userId]);
+        const [users] = await db.query(`
+            SELECT u.*,
+                   (SELECT rm.nickname FROM roster_members rm WHERE rm.discord_id = u.discord_id LIMIT 1) AS roster_nickname,
+                   (SELECT rm.steam_id FROM roster_members rm WHERE rm.discord_id = u.discord_id LIMIT 1) AS steam_id
+            FROM users u WHERE u.id = ?
+        `, [req.session.userId]);
         if (users.length === 0) return res.redirect('/login');
         const user = users[0];
 
@@ -86,6 +91,7 @@ router.get('/', isAuthenticated, async (req, res) => {
             medals: medals[0],
             trainings: trainings[0],
             roles: roleRows[0].map(r => r.name),
+            steam_id: user.steam_id,
             stats: {
                 memberSince: user.created_at,
                 lastLogin: user.last_login,
@@ -100,6 +106,61 @@ router.get('/', isAuthenticated, async (req, res) => {
     } catch (error) {
         console.error('Error loading profile:', error);
         res.render('error', { title: 'Error Loading Profile', message: 'Error Loading Profile', description: 'Could not load your profile.', user: res.locals.user });
+    }
+});
+
+// ─── Steam Account Linking ──────────────────────────────────
+// Linking is done via Steam OpenID at GET /auth/steam.
+// This endpoint handles unlinking only.
+router.post('/link-steam', isAuthenticated, async (req, res) => {
+    const { steam_id } = req.body;
+
+    // If steam_id is empty, this is an unlink request
+    if (!steam_id || steam_id.trim() === '') {
+        try {
+            const [result] = await db.query(
+                'UPDATE roster_members rm JOIN users u ON u.discord_id = rm.discord_id SET rm.steam_id = NULL WHERE u.id = ?',
+                [req.session.userId]
+            );
+            return res.redirect('/profile?success=Steam+account+unlinked');
+        } catch (err) {
+            console.error('Steam unlink error:', err);
+            return res.redirect('/profile?error=Failed+to+unlink+Steam+account');
+        }
+    }
+
+    // If steam_id is provided, validate and link manually (fallback)
+    if (!/^7656\d{12,13}$/.test(steam_id.trim())) {
+        return res.redirect('/profile?error=Invalid+Steam+ID.+Please+enter+a+valid+Steam+64+ID');
+    }
+
+    try {
+        // Check if this Steam ID is already linked to another member
+        const [existing] = await db.query(
+            'SELECT rm.discord_id, u.username FROM roster_members rm LEFT JOIN users u ON u.discord_id = rm.discord_id WHERE rm.steam_id = ? AND rm.discord_id != (SELECT discord_id FROM users WHERE id = ?)',
+            [steam_id.trim(), req.session.userId]
+        );
+        if (existing.length > 0) {
+            return res.redirect('/profile?error=This+Steam+ID+is+already+linked+to+another+account');
+        }
+
+        // Update the roster member's steam_id via the user's discord_id
+        const [result] = await db.query(
+            'UPDATE roster_members rm JOIN users u ON u.discord_id = rm.discord_id SET rm.steam_id = ? WHERE u.id = ?',
+            [steam_id.trim(), req.session.userId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.redirect('/profile?error=Could+not+link+Steam+ID.+Make+sure+your+Discord+account+is+synced+with+the+roster.');
+        }
+
+        res.redirect('/profile?success=Steam+ID+linked+successfully');
+    } catch (err) {
+        console.error('Steam link error:', err);
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.redirect('/profile?error=This+Steam+ID+is+already+linked+to+another+account');
+        }
+        res.redirect('/profile?error=Failed+to+link+Steam+ID');
     }
 });
 

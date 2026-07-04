@@ -30,6 +30,14 @@
                 <span class="chip-icon">🎓</span>
                 <div><div class="chip-value"><%= stats.trainings || 0 %></div><div class="chip-label">Trainings</div></div>
             </div>
+            <div class="dash-stat-chip">
+                <span class="chip-icon">🏪</span>
+                <div><div class="chip-value"><%= stats.store_items || 0 %></div><div class="chip-label">Store Items</div></div>
+            </div>
+            <div class="dash-stat-chip">
+                <span class="chip-icon">💰</span>
+                <div><div class="chip-value"><%= (stats.store_currency || 0).toLocaleString() %></div><div class="chip-label">Total Currency</div></div>
+            </div>
         </div>
     </section>
 
@@ -46,6 +54,7 @@
             <% if (can('users.view')) { %><a href="/admin/users"><span>👥</span> Users</a><% } %>
             <% if (can('attendance.manage')) { %><a href="/admin/attendance"><span>📋</span> Attendance</a><% } %>
             <% if (can('logs.view')) { %><a href="/admin/logs"><span>📜</span> Action Log</a><% } %>
+            <% if (can('store.manage')) { %><a href="/admin/store"><span>🏪</span> Store</a><% } %>
         </div>
         <p style="font-size:0.78em;color:var(--khaki);opacity:0.6;margin-top:12px;">
             Use the sidebar on the left to reach every management area.
