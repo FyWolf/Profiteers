@@ -51,6 +51,7 @@ const feedbackRoutes = require('./routes/feedback');
 const cron = require('node-cron');
 const { runRosterSync } = require('./routes/roster');
 const storeRoutes = require('./routes/store');
+const economyApiRoutes = require('./routes/economy-api');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -149,6 +150,7 @@ app.use('/roster', rosterRoutes);
 app.use('/modpacks', modpacksRoutes);
 app.use('/feedback', feedbackRoutes);
 app.use('/store', storeRoutes);
+app.use('/api/economy', economyApiRoutes);
 const loreRoutes = require('./routes/lore');
 app.use('/lore', loreRoutes);
 app.use('/info', infoRoutes);
