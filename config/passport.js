@@ -237,8 +237,8 @@ passport.use(new DiscordStrategy({
 // Used for linking Steam accounts to user profiles.
 // The Steam 64 ID is extracted from the OpenID identifier URL.
 passport.use('steam-link', new SteamStrategy({
-    returnURL: `${process.env.BASE_URL || 'http://localhost:3000'}/auth/steam/return`,
-    realm: process.env.BASE_URL || 'http://localhost:3000',
+    returnURL: `${process.env.WEBSITE_URL || 'http://localhost:3000'}/auth/steam/return`,
+    realm: process.env.WEBSITE_URL || 'http://localhost:3000',
     profile: false,  // We only need the Steam 64 ID from OpenID, not the profile
 }, async (req, identifier, profile, done) => {
     // Only authenticated users should be able to link Steam
