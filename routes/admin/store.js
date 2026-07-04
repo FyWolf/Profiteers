@@ -220,7 +220,8 @@ router.get('/currency', async (req, res) => {
             title: 'Currency Management',
             balances,
             players,
-            user: res.locals.user
+            user: res.locals.user,
+            error: req.query.error || null
         });
     } catch (err) {
         console.error(err);
@@ -230,6 +231,9 @@ router.get('/currency', async (req, res) => {
 
 router.post('/currency/grant', async (req, res) => {
     const { user_id, amount, reason } = req.body;
+    if (!user_id) {
+        return res.redirect('/admin/store/currency?error=Please select a player');
+    }
     try {
         await db.query(
             'INSERT INTO player_currency (user_id, balance, lifetime_earned) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE balance = balance + ?, lifetime_earned = lifetime_earned + ?',
@@ -248,6 +252,9 @@ router.post('/currency/grant', async (req, res) => {
 
 router.post('/currency/remove', async (req, res) => {
     const { user_id, amount, reason } = req.body;
+    if (!user_id) {
+        return res.redirect('/admin/store/currency?error=Please select a player');
+    }
     try {
         await db.query(
             'UPDATE player_currency SET balance = GREATEST(balance - ?, 0) WHERE user_id = ?',

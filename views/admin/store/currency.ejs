@@ -4,7 +4,7 @@
     <h1><i class="fas fa-coins"></i> Currency Management</h1>
     <a href="/admin/store" class="back-link">&larr; Back to Store Admin</a>
 
-    <% if (typeof req !== 'undefined' && req.query && req.query.error) { %><div class="alert alert-error"><%= req.query.error %></div><% } %>
+    <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
     <div class="admin-card">
         <h2>Grant Currency</h2>
@@ -12,7 +12,7 @@
             <div class="player-select-wrapper">
                 <input type="text" class="player-search" placeholder="Search player..." oninput="filterPlayers(this)">
                 <select name="user_id" required size="5">
-                    <option value="">— Select Player —</option>
+                    <option value="" disabled selected>— Select Player —</option>
                     <% players.forEach(p => { %>
                         <option value="<%= p.id %>" data-name="<%= (p.discord_global_name || p.discord_username).toLowerCase() %>"><%= p.discord_global_name || p.discord_username %> — <%= p.balance %>¢</option>
                     <% }) %>
@@ -30,7 +30,7 @@
             <div class="player-select-wrapper">
                 <input type="text" class="player-search" placeholder="Search player..." oninput="filterPlayers(this)">
                 <select name="user_id" required size="5">
-                    <option value="">— Select Player —</option>
+                    <option value="" disabled selected>— Select Player —</option>
                     <% players.forEach(p => { %>
                         <option value="<%= p.id %>" data-name="<%= (p.discord_global_name || p.discord_username).toLowerCase() %>"><%= p.discord_global_name || p.discord_username %> — <%= p.balance %>¢</option>
                     <% }) %>
@@ -127,11 +127,5 @@ function filterPlayers(input) {
     }
 }
 </script>
-.btn-success { background: #2e7d32; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
-.btn-danger { background: #c62828; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
-.back-link { color: var(--text-secondary, #999); text-decoration: none; display: inline-block; margin-bottom: 1rem; }
-.back-link:hover { color: #ffd700; }
-.alert-error { background: #c62828; color: #fff; padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; }
-</style>
 
 <%- include('../../partials/footer') %>
