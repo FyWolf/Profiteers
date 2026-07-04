@@ -209,9 +209,16 @@ router.get('/currency', async (req, res) => {
             ORDER BY pc.balance DESC
             LIMIT 100
         `);
+        const [players] = await db.query(`
+            SELECT rm.id, rm.discord_username, rm.nickname, COALESCE(pc.balance, 0) AS balance
+            FROM roster_members rm
+            LEFT JOIN player_currency pc ON pc.user_id = rm.id
+            ORDER BY rm.discord_username ASC
+        `);
         res.render('admin/store/currency', {
             title: 'Currency Management',
             balances,
+            players,
             user: res.locals.user
         });
     } catch (err) {

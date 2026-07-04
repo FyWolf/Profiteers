@@ -9,7 +9,12 @@
     <div class="admin-card">
         <h2>Grant Currency</h2>
         <form method="POST" action="/admin/store/currency/grant" class="inline-form">
-            <input type="number" name="user_id" placeholder="User ID" required>
+            <select name="user_id" required>
+                <option value="">— Select Player —</option>
+                <% players.forEach(p => { %>
+                    <option value="<%= p.id %>"><%= p.discord_username %><%= p.nickname ? ' (' + p.nickname + ')' : '' %> — <%= p.balance %>¢</option>
+                <% }) %>
+            </select>
             <input type="number" name="amount" placeholder="Amount" min="1" required>
             <input type="text" name="reason" placeholder="Reason (optional)">
             <button type="submit" class="btn btn-success">Grant</button>
@@ -19,7 +24,12 @@
     <div class="admin-card">
         <h2>Remove Currency</h2>
         <form method="POST" action="/admin/store/currency/remove" class="inline-form">
-            <input type="number" name="user_id" placeholder="User ID" required>
+            <select name="user_id" required>
+                <option value="">— Select Player —</option>
+                <% players.forEach(p => { %>
+                    <option value="<%= p.id %>"><%= p.discord_username %><%= p.nickname ? ' (' + p.nickname + ')' : '' %> — <%= p.balance %>¢</option>
+                <% }) %>
+            </select>
             <input type="number" name="amount" placeholder="Amount" min="1" required>
             <input type="text" name="reason" placeholder="Reason (optional)">
             <button type="submit" class="btn btn-danger">Remove</button>
@@ -69,12 +79,17 @@
     flex-wrap: wrap;
     align-items: flex-end;
 }
-.inline-form input {
+.inline-form input,
+.inline-form select {
     padding: 0.5rem;
     background: #2a2a3a;
     border: 1px solid #444;
     border-radius: 4px;
     color: #e0e0e0;
+}
+.inline-form select {
+    min-width: 250px;
+    cursor: pointer;
 }
 .btn-success { background: #2e7d32; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
 .btn-danger { background: #c62828; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }

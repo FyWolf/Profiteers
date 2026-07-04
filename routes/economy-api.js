@@ -150,9 +150,6 @@ router.post('/', requireApiKey, async (req, res) => {
                 }
                 if (!parsedItems || !Array.isArray(parsedItems)) return sqfError(res, 'Missing or invalid items array');
 
-                const userId = await getUserIdBySteamId(steamId);
-                if (!userId) return sqfError(res, 'Player not found');
-
                 let targetCategoryId = parseInt(categoryId) || 0;
 
                 const conn = await db.getConnection();
