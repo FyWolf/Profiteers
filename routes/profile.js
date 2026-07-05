@@ -51,8 +51,7 @@ router.get('/', isAuthenticated, async (req, res) => {
     try {
         const [users] = await db.query(`
             SELECT u.*,
-                   (SELECT rm.nickname FROM roster_members rm WHERE rm.discord_id = u.discord_id LIMIT 1) AS roster_nickname,
-                   (SELECT rm.steam_id FROM roster_members rm WHERE rm.discord_id = u.discord_id LIMIT 1) AS steam_id
+                   (SELECT rm.nickname FROM roster_members rm WHERE rm.discord_id = u.discord_id LIMIT 1) AS roster_nickname
             FROM users u WHERE u.id = ?
         `, [req.session.userId]);
         if (users.length === 0) return res.redirect('/login');
@@ -118,8 +117,8 @@ router.post('/link-steam', isAuthenticated, async (req, res) => {
     // If steam_id is empty, this is an unlink request
     if (!steam_id || steam_id.trim() === '') {
         try {
-            const [result] = await db.query(
-                'UPDATE roster_members rm JOIN users u ON u.discord_id = rm.discord_id SET rm.steam_id = NULL WHERE u.id = ?',
+            await db.query(
+                'UPDATE users SET steam_id = NULL WHERE id = ?',
                 [req.session.userId]
             );
             return res.redirect('/profile?success=Steam+account+unlinked');
@@ -135,24 +134,20 @@ router.post('/link-steam', isAuthenticated, async (req, res) => {
     }
 
     try {
-        // Check if this Steam ID is already linked to another member
+        // Check if this Steam ID is already linked to another user
         const [existing] = await db.query(
-            'SELECT rm.discord_id, u.username FROM roster_members rm LEFT JOIN users u ON u.discord_id = rm.discord_id WHERE rm.steam_id = ? AND rm.discord_id != (SELECT discord_id FROM users WHERE id = ?)',
+            'SELECT id FROM users WHERE steam_id = ? AND id != ?',
             [steam_id.trim(), req.session.userId]
         );
         if (existing.length > 0) {
             return res.redirect('/profile?error=This+Steam+ID+is+already+linked+to+another+account');
         }
 
-        // Update the roster member's steam_id via the user's discord_id
-        const [result] = await db.query(
-            'UPDATE roster_members rm JOIN users u ON u.discord_id = rm.discord_id SET rm.steam_id = ? WHERE u.id = ?',
+        // Store steam_id directly on users table
+        await db.query(
+            'UPDATE users SET steam_id = ? WHERE id = ?',
             [steam_id.trim(), req.session.userId]
         );
-
-        if (result.affectedRows === 0) {
-            return res.redirect('/profile?error=Could+not+link+Steam+ID.+Make+sure+your+Discord+account+is+synced+with+the+roster.');
-        }
 
         res.redirect('/profile?success=Steam+ID+linked+successfully');
     } catch (err) {

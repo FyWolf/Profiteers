@@ -1,80 +1,85 @@
 <%- include('../../partials/header') %>
 
 <div class="container">
-    <h1><i class="fas fa-folder"></i> Store Categories</h1>
-    <a href="/admin/store" class="back-link">&larr; Back to Store Admin</a>
+    <header>
+        <h1><i class="fas fa-folder"></i> Store Categories</h1>
+        <div class="subtitle">Manage item categories</div>
+    </header>
 
     <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
-    <div class="admin-card">
-        <h2>Add Category</h2>
-        <form method="POST" class="inline-form">
-            <input type="text" name="name" placeholder="Category Name" required>
-            <input type="text" name="slug" placeholder="slug-name" required>
-            <input type="text" name="icon" placeholder="fontawesome icon name (e.g. crosshairs)" value="box">
-            <input type="number" name="display_order" placeholder="Order" value="0">
-            <button type="submit" class="btn btn-primary">Add</button>
+    <div class="section">
+        <div class="top-row">
+            <h2>Add Category</h2>
+        </div>
+        <form method="POST" class="form-wrap">
+            <div class="field">
+                <label>Name</label>
+                <input type="text" name="name" placeholder="Category Name" required>
+            </div>
+            <div class="field">
+                <label>Slug</label>
+                <input type="text" name="slug" placeholder="slug-name" required>
+            </div>
+            <div class="field">
+                <label>Icon</label>
+                <input type="text" name="icon" placeholder="fontawesome icon name (e.g. crosshairs)" value="box">
+            </div>
+            <div class="field">
+                <label>Display Order</label>
+                <input type="number" name="display_order" placeholder="Order" value="0">
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn">Add Category</button>
+            </div>
         </form>
     </div>
 
-    <div class="table-responsive">
-        <table class="admin-table">
-            <thead>
-                <tr>
-                    <th>Icon</th>
-                    <th>Name</th>
-                    <th>Slug</th>
-                    <th>Order</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <% categories.forEach(cat => { %>
+    <div class="section">
+        <div class="top-row">
+            <h2>All Categories</h2>
+            <input type="text" id="catSearch" placeholder="Search categories..." style="padding:0.4rem 0.6rem; background:rgba(0,0,0,0.4); border:1px solid rgba(107,142,35,0.5); border-radius:4px; color:var(--sand); font-size:0.85rem;">
+        </div>
+        <div class="table-responsive">
+            <table class="admin-table" id="categoriesTable">
+                <thead>
                     <tr>
-                        <td><i class="fas fa-<%= cat.icon %>"></i></td>
-                        <td><%= cat.name %></td>
-                        <td><code><%= cat.slug %></code></td>
-                        <td><%= cat.display_order %></td>
-                        <td>
-                            <form method="POST" action="/admin/store/categories/<%= cat.id %>/delete" style="display:inline" onsubmit="return confirm('Delete this category and all its items?')">
-                                <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>
-                            </form>
-                        </td>
+                        <th>Icon</th>
+                        <th>Name</th>
+                        <th>Slug</th>
+                        <th>Order</th>
+                        <th>Actions</th>
                     </tr>
-                <% }) %>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <% categories.forEach(cat => { %>
+                        <tr>
+                            <td><i class="fas fa-<%= cat.icon %>"></i></td>
+                            <td><%= cat.name %></td>
+                            <td><code><%= cat.slug %></code></td>
+                            <td><%= cat.display_order %></td>
+                            <td>
+                                <form method="POST" action="/admin/store/categories/<%= cat.id %>/delete" style="display:inline" onsubmit="return confirm('Delete this category and all its items?')">
+                                    <button type="submit" class="act act-del"><i class="fas fa-trash"></i> Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
-<style>
-.admin-card {
-    background: var(--card-bg, #1e1e2e);
-    border: 1px solid var(--border-color, #333);
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-}
-.inline-form {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    align-items: flex-end;
-}
-.inline-form input {
-    padding: 0.5rem;
-    background: #2a2a3a;
-    border: 1px solid #444;
-    border-radius: 4px;
-    color: #e0e0e0;
-}
-.btn-primary { background: #8b6914; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
-.btn-danger { background: #c62828; color: #fff; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; }
-.btn-sm { font-size: 0.85rem; }
-.back-link { color: var(--text-secondary, #999); text-decoration: none; display: inline-block; margin-bottom: 1rem; }
-.back-link:hover { color: #ffd700; }
-.alert-error { background: #c62828; color: #fff; padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; }
-code { background: #2a2a3a; padding: 2px 6px; border-radius: 3px; font-size: 0.85rem; }
-</style>
+<script>
+document.getElementById('catSearch').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#categoriesTable tbody tr').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+</script>
+
+<%- include('../../partials/footer') %>
 
 <%- include('../../partials/footer') %>

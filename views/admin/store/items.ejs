@@ -1,23 +1,22 @@
 <%- include('../../partials/header') %>
 
 <div class="container">
-    <h1><i class="fas fa-box"></i> Store Items</h1>
-    <a href="/admin/store" class="back-link">&larr; Back to Store Admin</a>
+    <header>
+        <h1><i class="fas fa-box"></i> Store Items</h1>
+        <div class="subtitle">Manage store inventory items</div>
+    </header>
 
     <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
 
-    <div class="admin-actions">
-        <a href="/admin/store/import" class="btn btn-primary">
-            <i class="fas fa-upload"></i> Bulk Import
-        </a>
-    </div>
-
-    <div class="admin-card">
-        <h2>Add Item</h2>
-        <form method="POST" class="item-form">
-            <div class="form-row">
-                <div class="form-group">
+    <div class="section">
+        <div class="top-row">
+            <h2>Add Item</h2>
+            <a href="/admin/store/import" class="btn"><i class="fas fa-upload"></i> Bulk Import</a>
+        </div>
+        <form method="POST" class="form-wrap" style="max-width: 700px;">
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <div class="field" style="flex: 1; min-width: 150px;">
                     <label>Category</label>
                     <select name="category_id" required>
                         <% categories.forEach(cat => { %>
@@ -25,7 +24,7 @@
                         <% }) %>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="field" style="flex: 1; min-width: 150px;">
                     <label>Type</label>
                     <select name="item_type" required>
                         <option value="weapon">Weapon</option>
@@ -42,165 +41,151 @@
                     </select>
                 </div>
             </div>
-            <div class="form-row">
-                <div class="form-group">
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <div class="field" style="flex: 1; min-width: 150px;">
                     <label>Class Name (Arma 3)</label>
                     <input type="text" name="class_name" placeholder="e.g. arifle_MX_F" required>
                 </div>
-                <div class="form-group">
+                <div class="field" style="flex: 1; min-width: 150px;">
                     <label>Display Name</label>
                     <input type="text" name="display_name" placeholder="e.g. MX 6.5mm" required>
                 </div>
             </div>
-            <div class="form-group">
+            <div class="field">
                 <label>Description</label>
                 <textarea name="description" rows="2" placeholder="Optional description"></textarea>
             </div>
-            <div class="form-row">
-                <div class="form-group">
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <div class="field" style="flex: 1; min-width: 150px;">
                     <label>Base Price (¢)</label>
                     <input type="number" name="base_price" value="100" min="0" required>
                 </div>
-                <div class="form-group">
+                <div class="field" style="flex: 1; min-width: 150px;">
                     <label>Stock (-1 = unlimited)</label>
                     <input type="number" name="stock" value="-1">
                 </div>
-                <div class="form-group">
+                <div class="field" style="flex: 1; min-width: 150px;">
                     <label>Max Per Player (-1 = unlimited)</label>
                     <input type="number" name="max_per_player" value="-1">
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary">Add Item</button>
+            <div class="form-actions">
+                <button type="submit" class="btn">Add Item</button>
+            </div>
         </form>
     </div>
 
-    <div class="table-responsive">
-        <table class="admin-table">
-            <thead>
-                <tr>
-                    <th>Class Name</th>
-                    <th>Display Name</th>
-                    <th>Category</th>
-                    <th>Type</th>
-                    <th>Price</th>
-                    <th>Stock</th>
-                    <th>Active</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <% items.forEach(item => { %>
-                    <tr id="item-row-<%= item.id %>">
-                        <td><code><%= item.class_name %></code></td>
-                        <td><%= item.display_name %></td>
-                        <td><%= item.category_name %></td>
-                        <td><span class="type-badge type-<%= item.item_type %>"><%= item.item_type %></span></td>
-                        <td><%= item.base_price.toLocaleString() %>¢</td>
-                        <td><%= item.stock === -1 ? '∞' : item.stock %></td>
-                        <td><%= item.is_active ? '✅' : '❌' %></td>
-                        <td>
-                            <button class="btn btn-primary btn-sm" onclick="toggleEdit(<%= item.id %>)"><i class="fas fa-edit"></i></button>
-                            <form method="POST" action="/admin/store/items/<%= item.id %>/delete" style="display:inline" onsubmit="return confirm('Delete this item?')">
-                                <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>
-                            </form>
-                        </td>
+    <div class="section">
+        <div class="top-row">
+            <h2>All Items</h2>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+                <input type="text" id="itemSearch" placeholder="Search items..." style="padding:0.4rem 0.6rem; background:rgba(0,0,0,0.4); border:1px solid rgba(107,142,35,0.5); border-radius:4px; color:var(--sand); font-size:0.85rem;">
+                <select id="categoryFilter" style="padding:0.4rem 0.6rem; background:rgba(0,0,0,0.4); border:1px solid rgba(107,142,35,0.5); border-radius:4px; color:var(--sand); font-size:0.85rem;">
+                    <option value="">All Categories</option>
+                    <% categories.forEach(cat => { %>
+                        <option value="<%= cat.name.toLowerCase() %>"><%= cat.name %></option>
+                    <% }) %>
+                </select>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="admin-table" id="itemsTable">
+                <thead>
+                    <tr>
+                        <th>Class Name</th>
+                        <th>Display Name</th>
+                        <th>Category</th>
+                        <th>Type</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th>Active</th>
+                        <th>Actions</th>
                     </tr>
-                    <tr id="item-edit-<%= item.id %>" class="edit-row" style="display:none">
-                        <td colspan="8">
-                            <form method="POST" action="/admin/store/items/<%= item.id %>/edit" class="inline-edit-form">
-                                <div class="edit-grid">
-                                    <div class="edit-field">
-                                        <label>Category</label>
-                                        <select name="category_id">
-                                            <% categories.forEach(cat => { %>
-                                                <option value="<%= cat.id %>" <%= item.category_id === cat.id ? 'selected' : '' %>><%= cat.name %></option>
-                                            <% }) %>
-                                        </select>
+                </thead>
+                <tbody>
+                    <% items.forEach(item => { %>
+                        <tr id="item-row-<%= item.id %>" data-category="<%= item.category_name.toLowerCase() %>">
+                            <td><code><%= item.class_name %></code></td>
+                            <td><%= item.display_name %></td>
+                            <td><%= item.category_name %></td>
+                            <td><span class="type-badge type-<%= item.item_type %>"><%= item.item_type %></span></td>
+                            <td><%= item.base_price.toLocaleString() %>¢</td>
+                            <td><%= item.stock === -1 ? '∞' : item.stock %></td>
+                            <td><%= item.is_active ? '✅' : '❌' %></td>
+                            <td>
+                                <button class="act act-edit" onclick="toggleEdit(<%= item.id %>)"><i class="fas fa-edit"></i></button>
+                                <form method="POST" action="/admin/store/items/<%= item.id %>/delete" style="display:inline" onsubmit="return confirm('Delete this item?')">
+                                    <button type="submit" class="act act-del"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr id="item-edit-<%= item.id %>" class="edit-row" style="display:none">
+                            <td colspan="8">
+                                <form method="POST" action="/admin/store/items/<%= item.id %>/edit" class="inline-edit-form">
+                                    <div class="edit-grid">
+                                        <div class="edit-field">
+                                            <label>Category</label>
+                                            <select name="category_id">
+                                                <% categories.forEach(cat => { %>
+                                                    <option value="<%= cat.id %>" <%= item.category_id === cat.id ? 'selected' : '' %>><%= cat.name %></option>
+                                                <% }) %>
+                                            </select>
+                                        </div>
+                                        <div class="edit-field">
+                                            <label>Type</label>
+                                            <select name="item_type">
+                                                <% ['weapon','magazine','attachment','uniform','vest','helmet','backpack','item','grenade','explosive','misc'].forEach(t => { %>
+                                                    <option value="<%= t %>" <%= item.item_type === t ? 'selected' : '' %>><%= t %></option>
+                                                <% }) %>
+                                            </select>
+                                        </div>
+                                        <div class="edit-field">
+                                            <label>Class Name</label>
+                                            <input type="text" name="class_name" value="<%= item.class_name %>" required>
+                                        </div>
+                                        <div class="edit-field">
+                                            <label>Display Name</label>
+                                            <input type="text" name="display_name" value="<%= item.display_name %>" required>
+                                        </div>
+                                        <div class="edit-field" style="flex:2">
+                                            <label>Description</label>
+                                            <input type="text" name="description" value="<%= item.description || '' %>">
+                                        </div>
+                                        <div class="edit-field">
+                                            <label>Price (¢)</label>
+                                            <input type="number" name="base_price" value="<%= item.base_price %>" min="0" required>
+                                        </div>
+                                        <div class="edit-field">
+                                            <label>Stock</label>
+                                            <input type="number" name="stock" value="<%= item.stock %>">
+                                        </div>
+                                        <div class="edit-field">
+                                            <label>Max/Player</label>
+                                            <input type="number" name="max_per_player" value="<%= item.max_per_player %>">
+                                        </div>
+                                        <div class="edit-field">
+                                            <label>Active</label>
+                                            <select name="is_active">
+                                                <option value="1" <%= item.is_active ? 'selected' : '' %>>Yes</option>
+                                                <option value="0" <%= !item.is_active ? 'selected' : '' %>>No</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div class="edit-field">
-                                        <label>Type</label>
-                                        <select name="item_type">
-                                            <% ['weapon','magazine','attachment','uniform','vest','helmet','backpack','item','grenade','explosive','misc'].forEach(t => { %>
-                                                <option value="<%= t %>" <%= item.item_type === t ? 'selected' : '' %>><%= t %></option>
-                                            <% }) %>
-                                        </select>
+                                    <div class="form-actions">
+                                        <button type="submit" class="btn"><i class="fas fa-save"></i> Save</button>
+                                        <button type="button" class="btn btn-danger" onclick="toggleEdit(<%= item.id %>)">Cancel</button>
                                     </div>
-                                    <div class="edit-field">
-                                        <label>Class Name</label>
-                                        <input type="text" name="class_name" value="<%= item.class_name %>" required>
-                                    </div>
-                                    <div class="edit-field">
-                                        <label>Display Name</label>
-                                        <input type="text" name="display_name" value="<%= item.display_name %>" required>
-                                    </div>
-                                    <div class="edit-field" style="flex:2">
-                                        <label>Description</label>
-                                        <input type="text" name="description" value="<%= item.description || '' %>">
-                                    </div>
-                                    <div class="edit-field">
-                                        <label>Price (¢)</label>
-                                        <input type="number" name="base_price" value="<%= item.base_price %>" min="0" required>
-                                    </div>
-                                    <div class="edit-field">
-                                        <label>Stock</label>
-                                        <input type="number" name="stock" value="<%= item.stock %>">
-                                    </div>
-                                    <div class="edit-field">
-                                        <label>Max/Player</label>
-                                        <input type="number" name="max_per_player" value="<%= item.max_per_player %>">
-                                    </div>
-                                    <div class="edit-field">
-                                        <label>Active</label>
-                                        <select name="is_active">
-                                            <option value="1" <%= item.is_active ? 'selected' : '' %>>Yes</option>
-                                            <option value="0" <%= !item.is_active ? 'selected' : '' %>>No</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="edit-actions">
-                                    <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-save"></i> Save</button>
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleEdit(<%= item.id %>)">Cancel</button>
-                                </div>
-                            </form>
-                        </td>
-                    </tr>
-                <% }) %>
-            </tbody>
-        </table>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
 <style>
-.admin-card {
-    background: var(--card-bg, #1e1e2e);
-    border: 1px solid var(--border-color, #333);
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-}
-.item-form { max-width: 700px; }
-.form-row { display: flex; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
-.form-group { flex: 1; min-width: 150px; }
-.form-group label { display: block; font-size: 0.85rem; color: var(--text-secondary, #999); margin-bottom: 0.25rem; }
-.form-group input, .form-group select, .form-group textarea {
-    width: 100%;
-    padding: 0.5rem;
-    background: #2a2a3a;
-    border: 1px solid #444;
-    border-radius: 4px;
-    color: #e0e0e0;
-    box-sizing: border-box;
-}
-.btn-primary { background: #8b6914; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
-.btn-danger { background: #c62828; color: #fff; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; }
-.btn-sm { font-size: 0.85rem; }
-.back-link { color: var(--text-secondary, #999); text-decoration: none; display: inline-block; margin-bottom: 1rem; }
-.back-link:hover { color: #ffd700; }
-.alert-error { background: #c62828; color: #fff; padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; }
-.alert-success { background: #2e7d32; color: #fff; padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; }
-.admin-actions { margin-bottom: 1rem; }
-.admin-actions .btn { text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; }
-code { background: #2a2a3a; padding: 2px 6px; border-radius: 3px; font-size: 0.85rem; }
 .type-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; font-weight: 600; }
 .type-weapon { background: #4a0000; color: #ff6b6b; }
 .type-magazine { background: #003d1a; color: #6bff8a; }
@@ -213,14 +198,11 @@ code { background: #2a2a3a; padding: 2px 6px; border-radius: 3px; font-size: 0.8
 .type-grenade { background: #2e2e00; color: #ffff6b; }
 .type-explosive { background: #2e0000; color: #ff4444; }
 .type-misc { background: #1a1a2e; color: #888; }
-.edit-row { background: #1a1a2e; }
+.edit-row { background: rgba(0,0,0,0.3); }
 .edit-grid { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
 .edit-field { flex: 1; min-width: 140px; }
-.edit-field label { display: block; font-size: 0.75rem; color: #999; margin-bottom: 0.2rem; }
-.edit-field input, .edit-field select { width: 100%; padding: 0.4rem; background: #2a2a3a; border: 1px solid #444; border-radius: 4px; color: #e0e0e0; box-sizing: border-box; }
-.edit-actions { display: flex; gap: 0.5rem; }
-.btn-success { background: #2e7d32; color: #fff; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; }
-.btn-secondary { background: #555; color: #fff; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; }
+.edit-field label { display: block; font-size: 0.75rem; color: var(--khaki); margin-bottom: 0.2rem; }
+.edit-field input, .edit-field select { width: 100%; padding: 0.4rem; background: rgba(0,0,0,0.4); border: 1px solid rgba(107,142,35,0.5); border-radius: 4px; color: var(--sand); box-sizing: border-box; }
 </style>
 
 <script>
@@ -228,6 +210,25 @@ function toggleEdit(id) {
     const row = document.getElementById('item-edit-' + id);
     row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
 }
+
+// Category filter + search
+const itemSearch = document.getElementById('itemSearch');
+const categoryFilter = document.getElementById('categoryFilter');
+
+function filterItems() {
+    const q = itemSearch.value.toLowerCase();
+    const cat = categoryFilter.value;
+    document.querySelectorAll('#itemsTable tbody tr:not(.edit-row)').forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const rowCat = row.dataset.category || '';
+        const matchSearch = !q || text.includes(q);
+        const matchCat = !cat || rowCat === cat;
+        row.style.display = matchSearch && matchCat ? '' : 'none';
+    });
+}
+
+itemSearch.addEventListener('input', filterItems);
+categoryFilter.addEventListener('change', filterItems);
 </script>
 
 <%- include('../../partials/footer') %>

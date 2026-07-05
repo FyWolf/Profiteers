@@ -1,22 +1,26 @@
 <%- include('../../partials/header') %>
 
 <div class="container">
-    <h1><i class="fas fa-upload"></i> Bulk Import Items</h1>
-    <a href="/admin/store/items" class="back-link">&larr; Back to Items</a>
+    <header>
+        <h1><i class="fas fa-upload"></i> Bulk Import Items</h1>
+        <div class="subtitle">Import Arma 3 class names in bulk</div>
+    </header>
 
     <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
-    <div class="admin-card">
-        <h2>Paste Class Names</h2>
-        <p class="help-text">
+    <div class="section">
+        <div class="top-row">
+            <h2>Paste Class Names</h2>
+        </div>
+        <p style="color: var(--khaki); font-size: 0.9rem; margin-bottom: 1.5rem; line-height: 1.5;">
             Paste Arma 3 class names, one per line. Lines starting with <code>//</code> or <code>#</code> are ignored.
             Display names will be auto-generated from class names (e.g. <code>arifle_MX_F</code> → <code>Arifle Mx F</code>).
             You can edit them afterward.
         </p>
 
-        <form method="POST" class="import-form">
-            <div class="form-row">
-                <div class="form-group">
+        <form method="POST" class="form-wrap" style="max-width: 800px;">
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <div class="field" style="flex: 1; min-width: 150px;">
                     <label for="category_id">Category</label>
                     <select name="category_id" id="category_id" required>
                         <% categories.forEach(cat => { %>
@@ -24,7 +28,7 @@
                         <% }) %>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="field" style="flex: 1; min-width: 150px;">
                     <label for="item_type">Item Type</label>
                     <select name="item_type" id="item_type">
                         <option value="weapon">Weapon</option>
@@ -40,31 +44,33 @@
                         <option value="misc">Misc</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="field" style="flex: 1; min-width: 150px;">
                     <label for="base_price">Default Price (¢)</label>
                     <input type="number" name="base_price" id="base_price" value="0" min="0">
                 </div>
             </div>
 
-            <div class="form-group">
+            <div class="field">
                 <label for="class_names">Class Names (one per line)</label>
-                <textarea name="class_names" id="class_names" rows="20" placeholder="arifle_MX_F&#10;arifle_MXC_F&#10;arifle_MX_GL_F&#10;arifle_MX_SW_F&#10;// This is a comment, will be ignored&#10;# This too" required></textarea>
+                <textarea name="class_names" id="class_names" rows="20" placeholder="arifle_MX_F&#10;arifle_MXC_F&#10;arifle_MX_GL_F&#10;arifle_MX_SW_F&#10;// This is a comment, will be ignored&#10;# This too" style="font-family: 'Consolas', 'Courier New', monospace; font-size: 0.85rem;" required></textarea>
             </div>
 
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn">
                     <i class="fas fa-upload"></i> Import Items
                 </button>
-                <button type="button" class="btn btn-secondary" onclick="document.getElementById('class_names').value = ''">
+                <button type="button" class="btn btn-danger" onclick="document.getElementById('class_names').value = ''">
                     <i class="fas fa-eraser"></i> Clear
                 </button>
             </div>
         </form>
     </div>
 
-    <div class="admin-card">
-        <h2>Tips</h2>
-        <ul class="tips-list">
+    <div class="section">
+        <div class="top-row">
+            <h2>Tips</h2>
+        </div>
+        <ul style="color: var(--khaki); line-height: 1.8; padding-left: 1.5rem;">
             <li>Get class names from the <strong>Arma 3 Config Browser</strong> (in-game with <code>-showScriptErrors</code>)</li>
             <li>Or use tools like <strong>Arma Config Viewer</strong> or <strong>ArmA 3 Class Name Finder</strong> online</li>
             <li>For mod items, check the mod's documentation or use <code>configFile</code> in the game's debug console</li>
@@ -74,84 +80,6 @@
     </div>
 </div>
 
-<style>
-.admin-card {
-    background: var(--card-bg, #1e1e2e);
-    border: 1px solid var(--border-color, #333);
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-}
-.help-text {
-    color: var(--text-secondary, #999);
-    font-size: 0.9rem;
-    margin-bottom: 1.5rem;
-    line-height: 1.5;
-}
-.help-text code {
-    background: #2a2a3a;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 0.85rem;
-}
-.import-form { max-width: 800px; }
-.form-row { display: flex; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
-.form-group { flex: 1; min-width: 150px; }
-.form-group label { display: block; font-size: 0.85rem; color: var(--text-secondary, #999); margin-bottom: 0.25rem; }
-.form-group input, .form-group select, .form-group textarea {
-    width: 100%;
-    padding: 0.5rem;
-    background: #2a2a3a;
-    border: 1px solid #444;
-    border-radius: 4px;
-    color: #e0e0e0;
-    box-sizing: border-box;
-    font-family: inherit;
-}
-.form-group textarea {
-    font-family: 'Consolas', 'Courier New', monospace;
-    font-size: 0.85rem;
-    line-height: 1.4;
-}
-.form-actions {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 1rem;
-}
-.btn-primary {
-    background: #8b6914;
-    color: #fff;
-    border: none;
-    padding: 0.6rem 1.2rem;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-.btn-primary:hover { background: #a07818; }
-.btn-secondary {
-    background: #333;
-    color: #ccc;
-    border: none;
-    padding: 0.6rem 1.2rem;
-    border-radius: 6px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-.btn-secondary:hover { background: #444; }
-.back-link { color: var(--text-secondary, #999); text-decoration: none; display: inline-block; margin-bottom: 1rem; }
-.back-link:hover { color: #ffd700; }
-.alert-error { background: #c62828; color: #fff; padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; }
-.tips-list {
-    color: var(--text-secondary, #ccc);
-    line-height: 1.8;
-    padding-left: 1.5rem;
-}
-.tips-list li { margin-bottom: 0.5rem; }
-</style>
+<%- include('../../partials/footer') %>
 
 <%- include('../../partials/footer') %>

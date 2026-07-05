@@ -255,35 +255,20 @@ passport.use('steam-link', new SteamStrategy({
     }
 
     try {
-        // Check if this Steam ID is already linked to another member
+        // Check if this Steam ID is already linked to another user
         const [existing] = await db.query(
-            `SELECT rm.discord_id FROM roster_members rm
-             JOIN users u ON u.discord_id = rm.discord_id
-             WHERE rm.steam_id = ? AND u.id != ?`,
+            'SELECT id FROM users WHERE steam_id = ? AND id != ?',
             [steamId, req.session.userId]
         );
         if (existing.length > 0) {
             return done(null, false, { message: 'This Steam account is already linked to another user.' });
         }
 
-        // Update the roster member's steam_id
-        const [result] = await db.query(
-            `UPDATE roster_members rm
-             JOIN users u ON u.discord_id = rm.discord_id
-             SET rm.steam_id = ?
-             WHERE u.id = ?`,
-            [steamId, req.session.userId]
-        );
-
-        // Also store steam_id directly on users table (persists even if roster sync breaks)
+        // Store steam_id directly on users table (persists across roster syncs)
         await db.query(
-            `UPDATE users SET steam_id = ? WHERE id = ?`,
+            'UPDATE users SET steam_id = ? WHERE id = ?',
             [steamId, req.session.userId]
         );
-
-        if (result.affectedRows === 0) {
-            return done(null, false, { message: 'Could not link Steam account. Make sure your Discord account is synced with the roster.' });
-        }
 
         return done(null, req.user);
     } catch (error) {

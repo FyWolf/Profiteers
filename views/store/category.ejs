@@ -17,7 +17,25 @@
         </div>
     </div>
 
-    <div class="items-grid">
+    <div style="display:flex; gap:0.75rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+        <input type="text" id="storeSearch" placeholder="Search items..." style="flex:1; min-width:200px; padding:0.6rem 1rem; background:rgba(0,0,0,0.4); border:2px solid var(--khaki); border-radius:8px; color:var(--sand); font-size:0.9rem;">
+        <select id="storeTypeFilter" style="padding:0.6rem 1rem; background:rgba(0,0,0,0.4); border:2px solid var(--khaki); border-radius:8px; color:var(--sand); font-size:0.9rem;">
+            <option value="">All Types</option>
+            <option value="weapon">Weapons</option>
+            <option value="magazine">Magazines</option>
+            <option value="attachment">Attachments</option>
+            <option value="uniform">Uniforms</option>
+            <option value="vest">Vests</option>
+            <option value="helmet">Helmets</option>
+            <option value="backpack">Backpacks</option>
+            <option value="item">Items</option>
+            <option value="grenade">Grenades</option>
+            <option value="explosive">Explosives</option>
+            <option value="misc">Misc</option>
+        </select>
+    </div>
+
+    <div class="items-grid" id="storeItemsGrid">
         <% if (items.length === 0) { %>
             <div class="empty-state">
                 <i class="fas fa-box-open"></i>
@@ -26,7 +44,7 @@
         <% } %>
 
         <% items.forEach(item => { %>
-            <div class="item-card" data-item-id="<%= item.id %>" data-price="<%= item.base_price %>">
+            <div class="item-card" data-item-id="<%= item.id %>" data-price="<%= item.base_price %>" data-type="<%= item.item_type %>">
                 <div class="item-image">
                     <% if (item.image_url) { %>
                         <img src="<%= item.image_url %>" alt="<%= item.display_name %>">
@@ -320,6 +338,25 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const toast = document.getElementById('walletBalance');
+
+    // Search & filter
+    const storeSearch = document.getElementById('storeSearch');
+    const storeTypeFilter = document.getElementById('storeTypeFilter');
+    if (storeSearch && storeTypeFilter) {
+        function filterStoreItems() {
+            const q = storeSearch.value.toLowerCase();
+            const type = storeTypeFilter.value;
+            document.querySelectorAll('#storeItemsGrid .item-card').forEach(card => {
+                const text = card.textContent.toLowerCase();
+                const cardType = card.dataset.type || '';
+                const matchSearch = !q || text.includes(q);
+                const matchType = !type || cardType === type;
+                card.style.display = matchSearch && matchType ? '' : 'none';
+            });
+        }
+        storeSearch.addEventListener('input', filterStoreItems);
+        storeTypeFilter.addEventListener('change', filterStoreItems);
+    }
 
     function showToast(message, type = 'success') {
         const el = document.getElementById('toast');

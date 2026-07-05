@@ -46,11 +46,9 @@ async function requireSteamLink(req, res, next) {
     }
 
     try {
-        // Check if the user has a steam_id linked via their roster_members record
+        // Check if the user has a steam_id linked on their account
         const [rows] = await db.query(
-            `SELECT rm.steam_id FROM users u
-             JOIN roster_members rm ON rm.discord_id = u.discord_id
-             WHERE u.id = ?`,
+            'SELECT steam_id FROM users WHERE id = ?',
             [req.session.userId]
         );
 

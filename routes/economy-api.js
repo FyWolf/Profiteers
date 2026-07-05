@@ -36,22 +36,13 @@ function sqfError(res, message) {
     res.type('text/plain').send(`[0,"${message.replace(/"/g, '""')}"]`);
 }
 
-// ─── Helper: Get users.id from steam_id via discord_id link ─
+// ─── Helper: Get users.id from steam_id ────────────────────
 async function getUserIdBySteamId(steamId) {
-    // Look up steam_id directly from users table (persists across roster syncs)
-    const [rows] = await db.query(`
-        SELECT id FROM users WHERE steam_id = ?
-    `, [steamId]);
-    if (rows.length) return rows[0].id;
-
-    // Fallback: linked Steam account via roster_members
-    const [fallback] = await db.query(`
-        SELECT u.id
-        FROM users u
-        JOIN roster_members rm ON rm.discord_id = u.discord_id
-        WHERE rm.steam_id = ?
-    `, [steamId]);
-    return fallback.length ? fallback[0].id : null;
+    const [rows] = await db.query(
+        'SELECT id FROM users WHERE steam_id = ?',
+        [steamId]
+    );
+    return rows.length ? rows[0].id : null;
 }
 
 // ─── Main Endpoint ─────────────────────────────────────────

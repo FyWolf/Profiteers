@@ -1,15 +1,20 @@
 <%- include('../../partials/header') %>
 
 <div class="container">
-    <h1><i class="fas fa-coins"></i> Currency Management</h1>
-    <a href="/admin/store" class="back-link">&larr; Back to Store Admin</a>
+    <header>
+        <h1><i class="fas fa-coins"></i> Currency Management</h1>
+        <div class="subtitle">Grant or remove player currency</div>
+    </header>
 
     <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
-    <div class="admin-card">
-        <h2>Grant Currency</h2>
-        <form method="POST" action="/admin/store/currency/grant" class="inline-form">
-            <div class="player-select-wrapper">
+    <div class="section">
+        <div class="top-row">
+            <h2>Grant Currency</h2>
+        </div>
+        <form method="POST" action="/admin/store/currency/grant" class="form-wrap">
+            <div class="field">
+                <label>Player</label>
                 <input type="text" class="player-search" placeholder="Search player..." oninput="filterPlayers(this)">
                 <select name="user_id" required size="5">
                     <option value="" disabled selected>— Select Player —</option>
@@ -18,16 +23,27 @@
                     <% }) %>
                 </select>
             </div>
-            <input type="number" name="amount" placeholder="Amount" min="1" required>
-            <input type="text" name="reason" placeholder="Reason (optional)">
-            <button type="submit" class="btn btn-success">Grant</button>
+            <div class="field">
+                <label>Amount</label>
+                <input type="number" name="amount" placeholder="Amount" min="1" required>
+            </div>
+            <div class="field">
+                <label>Reason</label>
+                <input type="text" name="reason" placeholder="Reason (optional)">
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn">Grant Currency</button>
+            </div>
         </form>
     </div>
 
-    <div class="admin-card">
-        <h2>Remove Currency</h2>
-        <form method="POST" action="/admin/store/currency/remove" class="inline-form">
-            <div class="player-select-wrapper">
+    <div class="section">
+        <div class="top-row">
+            <h2>Remove Currency</h2>
+        </div>
+        <form method="POST" action="/admin/store/currency/remove" class="form-wrap">
+            <div class="field">
+                <label>Player</label>
                 <input type="text" class="player-search" placeholder="Search player..." oninput="filterPlayers(this)">
                 <select name="user_id" required size="5">
                     <option value="" disabled selected>— Select Player —</option>
@@ -36,83 +52,68 @@
                     <% }) %>
                 </select>
             </div>
-            <input type="number" name="amount" placeholder="Amount" min="1" required>
-            <input type="text" name="reason" placeholder="Reason (optional)">
-            <button type="submit" class="btn btn-danger">Remove</button>
+            <div class="field">
+                <label>Amount</label>
+                <input type="number" name="amount" placeholder="Amount" min="1" required>
+            </div>
+            <div class="field">
+                <label>Reason</label>
+                <input type="text" name="reason" placeholder="Reason (optional)">
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-danger">Remove Currency</button>
+            </div>
         </form>
     </div>
 
-    <h2>Player Balances</h2>
-    <div class="table-responsive">
-        <table class="admin-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Player</th>
-                    <th>Balance</th>
-                    <th>Lifetime Earned</th>
-                    <th>Lifetime Spent</th>
-                </tr>
-            </thead>
-            <tbody>
-                <% balances.forEach(b => { %>
+    <div class="section">
+        <div class="top-row">
+            <h2>Player Balances</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead>
                     <tr>
-                        <td><%= b.user_id %></td>
-                        <td><%= b.discord_global_name || b.discord_username %></td>
-                        <td><strong><%= b.balance.toLocaleString() %>¢</strong></td>
-                        <td><%= b.lifetime_earned.toLocaleString() %>¢</td>
-                        <td><%= b.lifetime_spent.toLocaleString() %>¢</td>
+                        <th>ID</th>
+                        <th>Player</th>
+                        <th>Balance</th>
+                        <th>Lifetime Earned</th>
+                        <th>Lifetime Spent</th>
                     </tr>
-                <% }) %>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <% balances.forEach(b => { %>
+                        <tr>
+                            <td><%= b.user_id %></td>
+                            <td><%= b.discord_global_name || b.discord_username %></td>
+                            <td><strong><%= b.balance.toLocaleString() %>¢</strong></td>
+                            <td><%= b.lifetime_earned.toLocaleString() %>¢</td>
+                            <td><%= b.lifetime_spent.toLocaleString() %>¢</td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
 <style>
-.admin-card {
-    background: var(--card-bg, #1e1e2e);
-    border: 1px solid var(--border-color, #333);
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-}
-.inline-form {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    align-items: flex-end;
-}
-.inline-form input,
-.inline-form select {
-    padding: 0.5rem;
-    background: #2a2a3a;
-    border: 1px solid #444;
-    border-radius: 4px;
-    color: #e0e0e0;
-}
-.inline-form select {
-    min-width: 250px;
-    cursor: pointer;
-}
-.player-select-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
 .player-search {
+    width: 100%;
     padding: 0.5rem;
-    background: #2a2a3a;
-    border: 1px solid #444;
-    border-radius: 4px;
-    color: #e0e0e0;
-    min-width: 250px;
+    margin-bottom: 0.5rem;
+    border: 2px solid var(--khaki);
+    border-radius: 6px;
+    background: rgba(0,0,0,0.3);
+    color: var(--sand);
+    font-size: 0.9rem;
+    box-sizing: border-box;
 }
 .player-search:focus {
-    border-color: #ffd700;
     outline: none;
+    border-color: var(--accent);
 }
-.player-select-wrapper select {
+.field select {
     min-width: 250px;
 }
 </style>
@@ -120,7 +121,7 @@
 <script>
 function filterPlayers(input) {
     const q = input.value.toLowerCase();
-    const select = input.closest('.player-select-wrapper').querySelector('select');
+    const select = input.closest('.field').querySelector('select');
     for (const opt of select.options) {
         if (!opt.value) continue; // skip placeholder
         opt.style.display = opt.dataset.name.includes(q) ? '' : 'none';

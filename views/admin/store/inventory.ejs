@@ -1,17 +1,22 @@
 <%- include('../../partials/header') %>
 
 <div class="container">
-    <h1><i class="fas fa-warehouse"></i> Inventory Management</h1>
-    <a href="/admin/store" class="back-link">&larr; Back to Store Admin</a>
+    <header>
+        <h1><i class="fas fa-warehouse"></i> Inventory Management</h1>
+        <div class="subtitle">View and manage player inventories</div>
+    </header>
 
     <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
 
     <!-- Player Selector -->
-    <div class="admin-card">
-        <h2>Select Player</h2>
-        <form method="GET" action="/admin/store/inventory" class="inline-form">
-            <div class="player-select-wrapper">
+    <div class="section">
+        <div class="top-row">
+            <h2>Select Player</h2>
+        </div>
+        <form method="GET" action="/admin/store/inventory" class="form-wrap">
+            <div class="field">
+                <label>Player</label>
                 <input type="text" class="player-search" placeholder="Search player..." oninput="filterPlayers(this)">
                 <select name="user_id" required size="5">
                     <option value="" disabled <%= !selectedPlayer ? 'selected' : '' %>>— Select Player —</option>
@@ -23,17 +28,21 @@
                     <% }) %>
                 </select>
             </div>
-            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> View Inventory</button>
+            <div class="form-actions">
+                <button type="submit" class="btn"><i class="fas fa-search"></i> View Inventory</button>
+            </div>
         </form>
     </div>
 
     <% if (selectedPlayer) { %>
         <!-- Grant Item -->
-        <div class="admin-card">
-            <h2><i class="fas fa-gift"></i> Grant Item to <%= selectedPlayer.discord_global_name || selectedPlayer.discord_username %></h2>
-            <form method="POST" action="/admin/store/inventory/grant" class="inline-form">
+        <div class="section">
+            <div class="top-row">
+                <h2><i class="fas fa-gift"></i> Grant Item to <%= selectedPlayer.discord_global_name || selectedPlayer.discord_username %></h2>
+            </div>
+            <form method="POST" action="/admin/store/inventory/grant" class="form-wrap">
                 <input type="hidden" name="user_id" value="<%= selectedPlayer.id %>">
-                <div class="form-group">
+                <div class="field">
                     <label>Item</label>
                     <select name="item_id" required>
                         <option value="" disabled selected>— Select Item —</option>
@@ -42,19 +51,26 @@
                         <% }) %>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="field">
                     <label>Quantity</label>
                     <input type="number" name="quantity" value="1" min="1" required>
                 </div>
-                <button type="submit" class="btn btn-success"><i class="fas fa-plus"></i> Grant</button>
+                <div class="form-actions">
+                    <button type="submit" class="btn"><i class="fas fa-plus"></i> Grant</button>
+                </div>
             </form>
         </div>
 
         <!-- Current Inventory -->
-        <div class="admin-card">
-            <h2><i class="fas fa-boxes"></i> <%= selectedPlayer.discord_global_name || selectedPlayer.discord_username %>'s Inventory</h2>
+        <div class="section">
+            <div class="top-row">
+                <h2><i class="fas fa-boxes"></i> <%= selectedPlayer.discord_global_name || selectedPlayer.discord_username %>'s Inventory</h2>
+            </div>
             <% if (playerInventory.length === 0) { %>
-                <p class="empty-state">This player has no items in their inventory.</p>
+                <div class="empty-state">
+                    <div class="empty-icon">📦</div>
+                    <p>This player has no items in their inventory.</p>
+                </div>
             <% } else { %>
                 <div class="table-responsive">
                     <table class="admin-table">
@@ -81,11 +97,11 @@
                                     <td><span class="badge badge-<%= inv.source %>"><%= inv.source %></span></td>
                                     <td><%= new Date(inv.acquired_at).toLocaleDateString() %></td>
                                     <td>
-                                        <form method="POST" action="/admin/store/inventory/remove" class="inline-form" style="display:flex; gap:0.25rem; align-items:center;">
+                                        <form method="POST" action="/admin/store/inventory/remove" style="display:flex; gap:0.25rem; align-items:center;">
                                             <input type="hidden" name="user_id" value="<%= selectedPlayer.id %>">
                                             <input type="hidden" name="inventory_id" value="<%= inv.inventory_id %>">
-                                            <input type="number" name="quantity" value="1" min="1" max="<%= inv.quantity %>" style="width:60px; padding:0.25rem;">
-                                            <button type="submit" class="btn btn-danger btn-sm" <%= inv.quantity === 0 ? 'disabled' : '' %>>
+                                            <input type="number" name="quantity" value="1" min="1" max="<%= inv.quantity %>" style="width:60px; padding:0.25rem; background:rgba(0,0,0,0.4); border:1px solid rgba(107,142,35,0.5); border-radius:4px; color:var(--sand);">
+                                            <button type="submit" class="act act-del" <%= inv.quantity === 0 ? 'disabled' : '' %>>
                                                 <i class="fas fa-trash"></i> Remove
                                             </button>
                                         </form>
@@ -101,9 +117,6 @@
 </div>
 
 <style>
-.player-select-wrapper {
-    margin-bottom: 0.75rem;
-}
 .player-search {
     width: 100%;
     padding: 0.5rem;
@@ -119,69 +132,25 @@
     outline: none;
     border-color: var(--accent);
 }
-.player-select-wrapper select {
+.field select {
     width: 100%;
     background: rgba(0,0,0,0.3);
     color: var(--sand);
     border: 2px solid var(--khaki);
     border-radius: 6px;
-    padding: 0.25rem;
+    padding: 0.5rem;
     box-sizing: border-box;
 }
-.player-select-wrapper select option {
+.field select option {
     background: #1a1a2e;
     color: var(--sand);
-}
-.inline-form {
-    display: flex;
-    gap: 0.75rem;
-    align-items: flex-end;
-    flex-wrap: wrap;
-}
-.inline-form .form-group {
-    flex: 1;
-    min-width: 200px;
-}
-.inline-form .form-group label {
-    display: block;
-    font-size: 0.8rem;
-    color: var(--khaki);
-    margin-bottom: 0.25rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-.inline-form .form-group select,
-.inline-form .form-group input {
-    width: 100%;
-    padding: 0.5rem;
-    border: 2px solid var(--khaki);
-    border-radius: 6px;
-    background: rgba(0,0,0,0.3);
-    color: var(--sand);
-    font-size: 0.9rem;
-    box-sizing: border-box;
-}
-.inline-form .form-group select:focus,
-.inline-form .form-group input:focus {
-    outline: none;
-    border-color: var(--accent);
-}
-.btn-sm {
-    padding: 0.35rem 0.6rem;
-    font-size: 0.8rem;
-}
-.empty-state {
-    text-align: center;
-    padding: 2rem;
-    color: var(--khaki);
-    font-style: italic;
 }
 </style>
 
 <script>
 function filterPlayers(input) {
     const val = input.value.toLowerCase();
-    const select = input.closest('.player-select-wrapper').querySelector('select');
+    const select = input.closest('.field').querySelector('select');
     Array.from(select.options).forEach(opt => {
         if (!opt.value) return;
         const name = opt.getAttribute('data-name') || '';
