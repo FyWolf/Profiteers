@@ -38,13 +38,20 @@ function sqfError(res, message) {
 
 // ─── Helper: Get users.id from steam_id via discord_id link ─
 async function getUserIdBySteamId(steamId) {
+    // Look up steam_id directly from users table (persists across roster syncs)
     const [rows] = await db.query(`
+        SELECT id FROM users WHERE steam_id = ?
+    `, [steamId]);
+    if (rows.length) return rows[0].id;
+
+    // Fallback: linked Steam account via roster_members
+    const [fallback] = await db.query(`
         SELECT u.id
         FROM users u
         JOIN roster_members rm ON rm.discord_id = u.discord_id
         WHERE rm.steam_id = ?
     `, [steamId]);
-    return rows.length ? rows[0].id : null;
+    return fallback.length ? fallback[0].id : null;
 }
 
 // ─── Main Endpoint ─────────────────────────────────────────
@@ -161,21 +168,34 @@ router.post('/', requireApiKey, async (req, res) => {
                     // Auto-create category if needed
                     if (targetCategoryId === 0) {
                         const now = new Date();
-                        const catName = `Imported ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
-                        const catSlug = `imported_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+                        const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+                        const catSlug = `imported_${dateStr}`;
 
-                        await conn.query(
-                            'INSERT INTO store_categories (name, slug, icon) VALUES (?, ?, ?)',
-                            [catName, catSlug, 'box']
-                        );
-
-                        const [catRows] = await conn.query(
+                        // Check if today's category already exists
+                        const [existing] = await conn.query(
                             'SELECT id FROM store_categories WHERE slug = ? LIMIT 1',
                             [catSlug]
                         );
 
-                        targetCategoryId = catRows.length ? catRows[0].id : 1;
-                        console.log(`[Economy API] Created category: ${catName} (ID: ${targetCategoryId})`);
+                        if (existing.length) {
+                            targetCategoryId = existing[0].id;
+                            console.log(`[Economy API] Reusing existing category ID: ${targetCategoryId}`);
+                        } else {
+                            const catName = `Imported ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+
+                            await conn.query(
+                                'INSERT INTO store_categories (name, slug, icon) VALUES (?, ?, ?)',
+                                [catName, catSlug, 'box']
+                            );
+
+                            const [catRows] = await conn.query(
+                                'SELECT id FROM store_categories WHERE slug = ? LIMIT 1',
+                                [catSlug]
+                            );
+
+                            targetCategoryId = catRows.length ? catRows[0].id : 1;
+                            console.log(`[Economy API] Created category: ${catName} (ID: ${targetCategoryId})`);
+                        }
                     }
 
                     // Insert items

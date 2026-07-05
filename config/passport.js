@@ -275,6 +275,12 @@ passport.use('steam-link', new SteamStrategy({
             [steamId, req.session.userId]
         );
 
+        // Also store steam_id directly on users table (persists even if roster sync breaks)
+        await db.query(
+            `UPDATE users SET steam_id = ? WHERE id = ?`,
+            [steamId, req.session.userId]
+        );
+
         if (result.affectedRows === 0) {
             return done(null, false, { message: 'Could not link Steam account. Make sure your Discord account is synced with the roster.' });
         }

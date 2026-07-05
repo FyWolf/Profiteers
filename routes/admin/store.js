@@ -306,4 +306,128 @@ router.get('/transactions', async (req, res) => {
     }
 });
 
+// ─── Inventory Management ──────────────────────────────────
+router.get('/inventory', async (req, res) => {
+    try {
+        const [players] = await db.query(`
+            SELECT u.id, u.discord_username, u.discord_global_name
+            FROM users u
+            WHERE u.discord_id IS NOT NULL
+            ORDER BY u.discord_global_name ASC
+        `);
+        const [items] = await db.query(`
+            SELECT si.id, si.display_name, si.class_name, si.item_type, sc.name AS category_name
+            FROM store_items si
+            JOIN store_categories sc ON sc.id = si.category_id
+            WHERE si.is_active = 1
+            ORDER BY sc.name, si.display_name
+        `);
+
+        let playerInventory = [];
+        let selectedPlayer = null;
+        if (req.query.user_id) {
+            const [playersFound] = await db.query(
+                'SELECT id, discord_username, discord_global_name FROM users WHERE id = ?',
+                [req.query.user_id]
+            );
+            if (playersFound.length) {
+                selectedPlayer = playersFound[0];
+                [playerInventory] = await db.query(`
+                    SELECT pi.id AS inventory_id, pi.quantity, pi.source, pi.acquired_at,
+                           si.id AS item_id, si.display_name, si.class_name, si.item_type, si.base_price,
+                           sc.name AS category_name
+                    FROM player_inventory pi
+                    JOIN store_items si ON si.id = pi.item_id
+                    JOIN store_categories sc ON sc.id = si.category_id
+                    WHERE pi.user_id = ?
+                    ORDER BY sc.name, si.display_name
+                `, [req.query.user_id]);
+            }
+        }
+
+        res.render('admin/store/inventory', {
+            title: 'Inventory Management',
+            players,
+            items,
+            selectedPlayer,
+            playerInventory,
+            user: res.locals.user,
+            error: req.query.error || null,
+            success: req.query.success || null
+        });
+    } catch (err) {
+        console.error('Admin inventory error:', err);
+        res.status(500).render('error', { title: 'Error', message: 'Failed to load inventory management', user: res.locals.user });
+    }
+});
+
+router.post('/inventory/grant', async (req, res) => {
+    const { user_id, item_id, quantity } = req.body;
+    if (!user_id || !item_id || !quantity || quantity < 1) {
+        return res.redirect('/admin/store/inventory?error=Invalid request');
+    }
+
+    try {
+        const [items] = await db.query('SELECT display_name FROM store_items WHERE id = ?', [item_id]);
+        if (!items.length) {
+            return res.redirect('/admin/store/inventory?error=Item not found');
+        }
+
+        await db.query(`
+            INSERT INTO player_inventory (user_id, item_id, quantity, source)
+            VALUES (?, ?, ?, 'grant')
+            ON DUPLICATE KEY UPDATE quantity = quantity + ?
+        `, [user_id, item_id, parseInt(quantity), parseInt(quantity)]);
+
+        await db.query(`
+            INSERT INTO store_transactions (user_id, item_id, quantity, unit_price, total_price, transaction_type)
+            VALUES (?, ?, ?, 0, 0, 'grant')
+        `, [user_id, item_id, parseInt(quantity)]);
+
+        res.redirect(`/admin/store/inventory?user_id=${user_id}&success=Granted ${quantity}x ${items[0].display_name}`);
+    } catch (err) {
+        console.error('Grant inventory error:', err);
+        res.redirect(`/admin/store/inventory?user_id=${user_id}&error=Failed to grant item`);
+    }
+});
+
+router.post('/inventory/remove', async (req, res) => {
+    const { user_id, inventory_id, quantity } = req.body;
+    if (!user_id || !inventory_id || !quantity || quantity < 1) {
+        return res.redirect(`/admin/store/inventory?user_id=${user_id}&error=Invalid request`);
+    }
+
+    try {
+        const [rows] = await db.query(
+            'SELECT pi.quantity, si.display_name FROM player_inventory pi JOIN store_items si ON si.id = pi.item_id WHERE pi.id = ? AND pi.user_id = ?',
+            [inventory_id, user_id]
+        );
+        if (!rows.length) {
+            return res.redirect(`/admin/store/inventory?user_id=${user_id}&error=Inventory entry not found`);
+        }
+
+        const currentQty = rows[0].quantity;
+        const removeQty = Math.min(parseInt(quantity), currentQty);
+
+        if (removeQty >= currentQty) {
+            await db.query('DELETE FROM player_inventory WHERE id = ? AND user_id = ?', [inventory_id, user_id]);
+        } else {
+            await db.query(
+                'UPDATE player_inventory SET quantity = quantity - ? WHERE id = ? AND user_id = ?',
+                [removeQty, inventory_id, user_id]
+            );
+        }
+
+        await db.query(`
+            INSERT INTO store_transactions (user_id, item_id, quantity, unit_price, total_price, transaction_type)
+            VALUES (?, (SELECT item_id FROM player_inventory WHERE id = ?), ?, 0, 0, 'refund')
+        `, [user_id, inventory_id, -removeQty]);
+
+        res.redirect(`/admin/store/inventory?user_id=${user_id}&success=Removed ${removeQty}x ${rows[0].display_name}`);
+    } catch (err) {
+        console.error('Remove inventory error:', err);
+        res.redirect(`/admin/store/inventory?user_id=${user_id}&error=Failed to remove item`);
+    }
+});
+
 module.exports = router;

@@ -172,13 +172,20 @@ router.post('/api/buy', requireAuth, async (req, res) => {
 
 // ─── Helper: Get users.id from steam_id via discord_id link ─
 async function getUserIdBySteamId(steamId) {
+    // Look up steam_id directly from users table (persists across roster syncs)
     const [rows] = await db.query(`
+        SELECT id FROM users WHERE steam_id = ?
+    `, [steamId]);
+    if (rows.length) return rows[0].id;
+
+    // Fallback: linked Steam account via roster_members
+    const [fallback] = await db.query(`
         SELECT u.id
         FROM users u
         JOIN roster_members rm ON rm.discord_id = u.discord_id
         WHERE rm.steam_id = ?
     `, [steamId]);
-    return rows.length ? rows[0].id : null;
+    return fallback.length ? fallback[0].id : null;
 }
 
 // ─── API: Get Player Inventory (used by Arma addon) ─────────

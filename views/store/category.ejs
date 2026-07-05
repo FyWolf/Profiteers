@@ -1,16 +1,18 @@
 <%- include('../partials/header') %>
 
-<div class="store-container">
-    <div class="store-header">
-        <div class="store-title-section">
-            <a href="/store" class="back-link"><i class="fas fa-arrow-left"></i> Back to Store</a>
-            <h1><i class="fas fa-<%= category.icon %>"></i> <%= category.name %></h1>
-        </div>
-        <div class="wallet-card">
-            <div class="wallet-icon"><i class="fas fa-coins"></i></div>
-            <div class="wallet-info">
-                <span class="wallet-label">Your Balance</span>
-                <span class="wallet-balance" id="walletBalance"><%= balance.toLocaleString() %> <small>¢</small></span>
+<div class="container">
+    <header>
+        <a href="/store" class="back-link"><i class="fas fa-arrow-left"></i> Back to Store</a>
+        <h1><i class="fas fa-<%= category.icon %>"></i> <%= category.name %></h1>
+        <div class="subtitle">Browse and purchase gear</div>
+    </header>
+
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 2rem;">
+        <div class="card" style="display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem; min-width: 200px;">
+            <div style="font-size: 2rem; color: var(--accent);"><i class="fas fa-coins"></i></div>
+            <div style="display: flex; flex-direction: column;">
+                <span style="font-size: 0.8rem; color: var(--olive-light); text-transform: uppercase; letter-spacing: 1px;">Your Balance</span>
+                <span style="font-size: 1.5rem; font-weight: 700; color: var(--accent);" id="walletBalance"><%= balance.toLocaleString() %> <small style="font-size: 0.9rem; opacity: 0.7;">¢</small></span>
             </div>
         </div>
     </div>
@@ -63,7 +65,7 @@
                             <input type="number" class="qty-input" value="1" min="1" max="99" readonly>
                             <button class="qty-btn qty-plus"><i class="fas fa-plus"></i></button>
                         </div>
-                        <button class="buy-btn" <%= balance < item.base_price ? 'disabled' : '' %>>
+                        <button class="btn buy-btn" <%= balance < item.base_price ? 'disabled' : '' %>>
                             <i class="fas fa-shopping-cart"></i> Buy
                         </button>
                     </div>
@@ -77,56 +79,17 @@
 <div id="toast" class="toast"></div>
 
 <style>
-.store-container {
-    max-width: 1100px;
-    margin: 2rem auto;
-    padding: 0 1rem;
-}
-
 .back-link {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    color: var(--text-secondary, #999);
+    color: var(--khaki);
     text-decoration: none;
     font-size: 0.9rem;
     margin-bottom: 0.5rem;
     transition: color 0.2s;
 }
-
-.back-link:hover { color: #ffd700; }
-
-.store-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 2rem;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-
-.store-title-section h1 {
-    font-size: 2rem;
-    color: var(--text-primary, #e0e0e0);
-    margin: 0;
-}
-
-.wallet-card {
-    background: linear-gradient(135deg, #2d1b00, #4a2a00);
-    border: 1px solid #8b6914;
-    border-radius: 12px;
-    padding: 1rem 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    min-width: 200px;
-}
-
-.wallet-icon { font-size: 2rem; color: #ffd700; }
-.wallet-info { display: flex; flex-direction: column; }
-.wallet-label { font-size: 0.8rem; color: #b8860b; text-transform: uppercase; letter-spacing: 1px; }
-.wallet-balance { font-size: 1.5rem; font-weight: 700; color: #ffd700; }
-.wallet-balance small { font-size: 0.9rem; opacity: 0.7; }
+.back-link:hover { color: var(--accent); }
 
 .items-grid {
     display: grid;
@@ -135,21 +98,22 @@
 }
 
 .item-card {
-    background: var(--card-bg, #1e1e2e);
-    border: 1px solid var(--border-color, #333);
-    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(10,20,10,0.5) 100%);
+    border: 2px solid var(--olive);
+    border-radius: 12px;
     overflow: hidden;
-    transition: all 0.2s ease;
+    transition: all 0.3s;
 }
 
 .item-card:hover {
-    border-color: #555;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    border-color: var(--accent);
+    box-shadow: 0 8px 24px rgba(252,176,13,0.2);
+    transform: translateY(-2px);
 }
 
 .item-image {
     height: 120px;
-    background: #151520;
+    background: rgba(0,0,0,0.4);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -164,7 +128,8 @@
 
 .item-placeholder {
     font-size: 3rem;
-    color: #444;
+    color: var(--khaki);
+    opacity: 0.5;
 }
 
 .item-details {
@@ -174,12 +139,13 @@
 .item-name {
     margin: 0 0 0.25rem 0;
     font-size: 1rem;
-    color: var(--text-primary, #e0e0e0);
+    color: var(--sand);
 }
 
 .item-class {
     font-size: 0.75rem;
-    color: #666;
+    color: var(--khaki);
+    opacity: 0.6;
     font-family: monospace;
     display: block;
     margin-bottom: 0.5rem;
@@ -215,7 +181,7 @@
 
 .owned-badge {
     font-size: 0.75rem;
-    color: #4caf50;
+    color: var(--olive-light);
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
@@ -223,14 +189,14 @@
 
 .item-description {
     font-size: 0.8rem;
-    color: var(--text-secondary, #888);
+    color: var(--khaki);
     margin: 0.5rem 0 0 0;
     line-height: 1.4;
 }
 
 .item-actions {
     padding: 0.75rem 1rem;
-    border-top: 1px solid var(--border-color, #333);
+    border-top: 2px solid var(--olive);
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -245,17 +211,17 @@
 .price-value {
     font-size: 1.3rem;
     font-weight: 700;
-    color: #ffd700;
+    color: var(--accent);
 }
 
 .price-currency {
     font-size: 0.9rem;
-    color: #b8860b;
+    color: var(--olive-light);
 }
 
 .stock-info {
     font-size: 0.75rem;
-    color: #888;
+    color: var(--khaki);
 }
 
 .buy-controls {
@@ -267,15 +233,15 @@
 .qty-selector {
     display: flex;
     align-items: center;
-    border: 1px solid #444;
-    border-radius: 6px;
+    border: 2px solid var(--khaki);
+    border-radius: 8px;
     overflow: hidden;
 }
 
 .qty-btn {
-    background: #2a2a3a;
+    background: rgba(0,0,0,0.3);
     border: none;
-    color: #ccc;
+    color: var(--sand);
     width: 30px;
     height: 30px;
     cursor: pointer;
@@ -283,7 +249,7 @@
     transition: background 0.2s;
 }
 
-.qty-btn:hover:not(:disabled) { background: #3a3a4a; }
+.qty-btn:hover:not(:disabled) { background: rgba(107,142,35,0.3); }
 .qty-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 .qty-input {
@@ -291,10 +257,10 @@
     height: 30px;
     text-align: center;
     border: none;
-    border-left: 1px solid #444;
-    border-right: 1px solid #444;
-    background: #1e1e2e;
-    color: #e0e0e0;
+    border-left: 2px solid var(--khaki);
+    border-right: 2px solid var(--khaki);
+    background: rgba(0,0,0,0.3);
+    color: var(--sand);
     font-size: 0.85rem;
     -moz-appearance: textfield;
 }
@@ -304,34 +270,21 @@
 .buy-btn {
     flex: 1;
     padding: 0.5rem 1rem;
-    background: linear-gradient(135deg, #8b6914, #b8860b);
-    border: none;
-    border-radius: 6px;
-    color: #fff;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-}
-
-.buy-btn:hover:not(:disabled) {
-    background: linear-gradient(135deg, #a07818, #d4a04a);
-    transform: translateY(-1px);
+    font-size: 0.9rem;
+    text-align: center;
 }
 
 .buy-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+    transform: none !important;
 }
 
 .empty-state {
     grid-column: 1 / -1;
     text-align: center;
     padding: 4rem 2rem;
-    color: #666;
+    color: var(--khaki);
 }
 
 .empty-state i {
@@ -360,7 +313,7 @@
     transform: translateY(0);
 }
 
-.toast.success { background: #2e7d32; }
+.toast.success { background: var(--olive); }
 .toast.error { background: #c62828; }
 </style>
 
