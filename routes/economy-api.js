@@ -100,29 +100,52 @@ router.post('/upload-picture', requireApiKey, fileUpload({
         // Read the PAA file buffer
         const paaBuffer = uploadedFile.data;
 
+        // Optional: dump the raw upload for offline inspection (set PAA_DEBUG=1).
+        if (process.env.PAA_DEBUG === '1') {
+            try {
+                const dbgDir = path.join(__dirname, '..', 'storage', 'paa-debug');
+                fs.mkdirSync(dbgDir, { recursive: true });
+                fs.writeFileSync(path.join(dbgDir, `${className}.paa`), paaBuffer);
+            } catch (_) { /* best effort */ }
+        }
+
         // Convert PAA → PNG using @bis-toolkit/paa + sharp
         await loadPaaModule();
 
         const paa = new Paa();
         paa.read(new Uint8Array(paaBuffer));
 
-        // Get RGBA pixel data from the first mipmap
-        const pixelData = paa.getArgb32PixelData(new Uint8Array(paaBuffer), 0);
-        const width = paa.mipmaps[0].width;
-        const height = paa.mipmaps[0].height;
-
-        // Convert ARGB32 → raw RGBA (sharp expects RGBA)
-        const rgbaData = Buffer.alloc(pixelData.length);
-        for (let i = 0; i < pixelData.length; i += 4) {
-            const a = pixelData[i];     // ARGB: A
-            const r = pixelData[i + 1]; // ARGB: R
-            const g = pixelData[i + 2]; // ARGB: G
-            const b = pixelData[i + 3]; // ARGB: B
-            rgbaData[i] = r;
-            rgbaData[i + 1] = g;
-            rgbaData[i + 2] = b;
-            rgbaData[i + 3] = a;
+        if (!paa.mipmaps || paa.mipmaps.length === 0) {
+            throw new Error('PAA has no mipmaps');
         }
+
+        // Don't assume mipmap 0 is the biggest — pick the largest by area.
+        let level = 0;
+        for (let i = 1; i < paa.mipmaps.length; i++) {
+            if (paa.mipmaps[i].width * paa.mipmaps[i].height >
+                paa.mipmaps[level].width * paa.mipmaps[level].height) {
+                level = i;
+            }
+        }
+        const width = paa.mipmaps[level].width;
+        const height = paa.mipmaps[level].height;
+
+        // The library returns BGRA byte order (FormatConverter.setColor writes
+        // b,g,r,a); sharp raw expects RGBA — so swap B<->R.
+        const src = paa.getArgb32PixelData(new Uint8Array(paaBuffer), level);
+        const expected = width * height * 4;
+        const rgbaData = Buffer.alloc(expected);
+        for (let i = 0; i + 3 < src.length && i + 3 < expected; i += 4) {
+            rgbaData[i]     = src[i + 2]; // R
+            rgbaData[i + 1] = src[i + 1]; // G
+            rgbaData[i + 2] = src[i];     // B
+            rgbaData[i + 3] = src[i + 3]; // A
+        }
+
+        // Diagnostics — how the PAA decoded (helps catch blank/truncated data).
+        let nonZero = 0;
+        for (let i = 0; i < src.length; i++) { if (src[i] !== 0) { nonZero++; } }
+        console.log(`[Economy API] PAA ${originalName}: bytes=${paaBuffer.length} type=0x${(paa.type || 0).toString(16)} mips=${paa.mipmaps.length} level=${level} dims=${width}x${height} decoded=${src.length}/${expected} nonzero=${nonZero}`);
 
         // Generate a unique filename
         const hash = crypto.createHash('md5').update(paaBuffer).digest('hex').substring(0, 8);
