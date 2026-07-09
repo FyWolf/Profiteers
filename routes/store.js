@@ -69,10 +69,11 @@ router.get('/category/:slug', requireAuth, async (req, res) => {
 
 // ─── API: Purchase Item ─────────────────────────────────────
 router.post('/api/buy', requireAuth, async (req, res) => {
-    const { itemId, quantity = 1 } = req.body;
+    const { itemId } = req.body;
+    const quantity = parseInt(req.body.quantity ?? 1, 10);
     const userId = res.locals.user.id;
 
-    if (!itemId || quantity < 1) {
+    if (!itemId || !Number.isInteger(quantity) || quantity < 1) {
         return res.status(400).json({ success: false, error: 'Invalid request' });
     }
 
@@ -170,52 +171,6 @@ router.post('/api/buy', requireAuth, async (req, res) => {
     }
 });
 
-// ─── Helper: Get users.id from steam_id ────────────────────
-async function getUserIdBySteamId(steamId) {
-    const [rows] = await db.query(
-        'SELECT id FROM users WHERE steam_id = ?',
-        [steamId]
-    );
-    return rows.length ? rows[0].id : null;
-}
-
-// ─── API: Get Player Inventory (used by Arma addon) ─────────
-router.get('/api/inventory/:steamId', async (req, res) => {
-    try {
-        const userId = await getUserIdBySteamId(req.params.steamId);
-        if (!userId) return res.json({ items: [] });
-
-        const [items] = await db.query(`
-            SELECT si.class_name, si.item_type, pi.quantity
-            FROM player_inventory pi
-            JOIN store_items si ON si.id = pi.item_id
-            WHERE pi.user_id = ? AND pi.quantity > 0 AND si.is_active = 1
-        `, [userId]);
-
-        res.json({ items });
-    } catch (err) {
-        console.error('Inventory API error:', err);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// ─── API: Get Player Balance (used by Arma addon) ───────────
-router.get('/api/balance/:steamId', async (req, res) => {
-    try {
-        const userId = await getUserIdBySteamId(req.params.steamId);
-        if (!userId) return res.json({ balance: 0 });
-
-        const [currency] = await db.query(
-            'SELECT balance FROM player_currency WHERE user_id = ?',
-            [userId]
-        );
-        res.json({ balance: currency?.[0]?.balance ?? 0 });
-    } catch (err) {
-        console.error('Balance API error:', err);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
 // ─── API: Save Loadout ──────────────────────────────────────
 router.post('/api/loadout/save', requireAuth, async (req, res) => {
     const { name, loadoutData, isDefault } = req.body;
@@ -238,23 +193,6 @@ router.post('/api/loadout/save', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Save loadout error:', err);
         res.status(500).json({ success: false, error: 'Failed to save loadout' });
-    }
-});
-
-// ─── API: Get Loadouts ──────────────────────────────────────
-router.get('/api/loadouts/:steamId', async (req, res) => {
-    try {
-        const userId = await getUserIdBySteamId(req.params.steamId);
-        if (!userId) return res.json({ loadouts: [] });
-
-        const [loadouts] = await db.query(
-            'SELECT id, name, loadout_data, is_default FROM player_loadouts WHERE user_id = ? ORDER BY is_default DESC, updated_at DESC',
-            [userId]
-        );
-        res.json({ loadouts });
-    } catch (err) {
-        console.error('Loadouts API error:', err);
-        res.status(500).json({ error: 'Server error' });
     }
 });
 

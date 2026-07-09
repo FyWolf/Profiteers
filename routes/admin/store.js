@@ -234,18 +234,22 @@ router.get('/currency', async (req, res) => {
 });
 
 router.post('/currency/grant', async (req, res) => {
-    const { user_id, amount, reason } = req.body;
+    const { user_id, reason } = req.body;
+    const amount = parseInt(req.body.amount, 10);
     if (!user_id) {
         return res.redirect('/admin/store/currency?error=Please select a player');
+    }
+    if (!Number.isInteger(amount) || amount <= 0) {
+        return res.redirect('/admin/store/currency?error=Enter a positive amount');
     }
     try {
         await db.query(
             'INSERT INTO player_currency (user_id, balance, lifetime_earned) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE balance = balance + ?, lifetime_earned = lifetime_earned + ?',
-            [user_id, parseInt(amount), parseInt(amount), parseInt(amount), parseInt(amount)]
+            [user_id, amount, amount, amount, amount]
         );
         await db.query(
             'INSERT INTO currency_transactions (user_id, amount, balance_after, reason, source) VALUES (?, ?, (SELECT balance FROM player_currency WHERE user_id = ?), ?, ?)',
-            [user_id, parseInt(amount), user_id, reason || 'Admin grant', 'admin_grant']
+            [user_id, amount, user_id, reason || 'Admin grant', 'admin_grant']
         );
         res.redirect('/admin/store/currency');
     } catch (err) {
@@ -255,18 +259,22 @@ router.post('/currency/grant', async (req, res) => {
 });
 
 router.post('/currency/remove', async (req, res) => {
-    const { user_id, amount, reason } = req.body;
+    const { user_id, reason } = req.body;
+    const amount = parseInt(req.body.amount, 10);
     if (!user_id) {
         return res.redirect('/admin/store/currency?error=Please select a player');
+    }
+    if (!Number.isInteger(amount) || amount <= 0) {
+        return res.redirect('/admin/store/currency?error=Enter a positive amount');
     }
     try {
         await db.query(
             'UPDATE player_currency SET balance = GREATEST(balance - ?, 0) WHERE user_id = ?',
-            [parseInt(amount), user_id]
+            [amount, user_id]
         );
         await db.query(
             'INSERT INTO currency_transactions (user_id, amount, balance_after, reason, source) VALUES (?, ?, (SELECT balance FROM player_currency WHERE user_id = ?), ?, ?)',
-            [user_id, -parseInt(amount), user_id, reason || 'Admin removal', 'admin_remove']
+            [user_id, -amount, user_id, reason || 'Admin removal', 'admin_remove']
         );
         res.redirect('/admin/store/currency');
     } catch (err) {
@@ -399,13 +407,14 @@ router.post('/inventory/remove', async (req, res) => {
 
     try {
         const [rows] = await db.query(
-            'SELECT pi.quantity, si.display_name FROM player_inventory pi JOIN store_items si ON si.id = pi.item_id WHERE pi.id = ? AND pi.user_id = ?',
+            'SELECT pi.item_id, pi.quantity, si.display_name FROM player_inventory pi JOIN store_items si ON si.id = pi.item_id WHERE pi.id = ? AND pi.user_id = ?',
             [inventory_id, user_id]
         );
         if (!rows.length) {
             return res.redirect(`/admin/store/inventory?user_id=${user_id}&error=Inventory entry not found`);
         }
 
+        const itemId = rows[0].item_id;
         const currentQty = rows[0].quantity;
         const removeQty = Math.min(parseInt(quantity), currentQty);
 
@@ -418,10 +427,11 @@ router.post('/inventory/remove', async (req, res) => {
             );
         }
 
+        // Capture item_id before the DELETE above so the refund log never records NULL.
         await db.query(`
             INSERT INTO store_transactions (user_id, item_id, quantity, unit_price, total_price, transaction_type)
-            VALUES (?, (SELECT item_id FROM player_inventory WHERE id = ?), ?, 0, 0, 'refund')
-        `, [user_id, inventory_id, -removeQty]);
+            VALUES (?, ?, ?, 0, 0, 'refund')
+        `, [user_id, itemId, -removeQty]);
 
         res.redirect(`/admin/store/inventory?user_id=${user_id}&success=Removed ${removeQty}x ${rows[0].display_name}`);
     } catch (err) {

@@ -72,6 +72,7 @@ app.use(express.json());
 // their own per-route fileUpload middleware with different limits.
 const FILE_UPLOAD_EXCEPTIONS = [
     '/admin/map-plans/terrains/import',
+    '/api/economy/upload-picture', // Arma PAA upload: mounts its own 5 MB uploader
 ];
 // Dynamic-path exceptions (route params can't be matched by the static list above).
 // Mission file/attachment uploads mount their own large-upload middleware.

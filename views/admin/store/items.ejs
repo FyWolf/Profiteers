@@ -2,7 +2,7 @@
 
 <div class="container">
     <header>
-        <h1><i class="fas fa-box"></i> Store Items</h1>
+        <h1>📦 Store Items</h1>
         <div class="subtitle">Manage store inventory items</div>
     </header>
 
@@ -12,7 +12,7 @@
     <div class="section">
         <div class="top-row">
             <h2>Add Item</h2>
-            <a href="/admin/store/import" class="btn"><i class="fas fa-upload"></i> Bulk Import</a>
+            <a href="/admin/store/import" class="btn">📤 Bulk Import</a>
         </div>
         <form method="POST" class="form-wrap" style="max-width: 700px;">
             <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
@@ -106,6 +106,7 @@
             <table class="admin-table" id="itemsTable">
                 <thead>
                     <tr>
+                        <th>Image</th>
                         <th>Class Name</th>
                         <th>Display Name</th>
                         <th>Category</th>
@@ -119,6 +120,13 @@
                 <tbody>
                     <% items.forEach(item => { %>
                         <tr id="item-row-<%= item.id %>" data-category="<%= item.category_name.toLowerCase() %>" data-type="<%= item.item_type %>">
+                            <td class="item-img-cell">
+                                <% if (item.image_url) { %>
+                                    <img src="<%= item.image_url %>" alt="<%= item.class_name %>" class="item-thumb">
+                                <% } else { %>
+                                    <span class="no-img">🖼️</span>
+                                <% } %>
+                            </td>
                             <td><code><%= item.class_name %></code></td>
                             <td><%= item.display_name %></td>
                             <td><%= item.category_name %></td>
@@ -127,14 +135,14 @@
                             <td><%= item.stock === -1 ? '∞' : item.stock %></td>
                             <td><%= item.is_active ? '✅' : '❌' %></td>
                             <td>
-                                <button class="act act-edit" onclick="toggleEdit(<%= item.id %>)"><i class="fas fa-edit"></i></button>
+                                <button class="act act-edit" onclick="toggleEdit(<%= item.id %>)">✏️</button>
                                 <form method="POST" action="/admin/store/items/<%= item.id %>/delete" style="display:inline" onsubmit="return confirm('Delete this item?')">
-                                    <button type="submit" class="act act-del"><i class="fas fa-trash"></i></button>
+                                    <button type="submit" class="act act-del">🗑️</button>
                                 </form>
                             </td>
                         </tr>
                         <tr id="item-edit-<%= item.id %>" class="edit-row" style="display:none">
-                            <td colspan="8">
+                            <td colspan="9">
                                 <form method="POST" action="/admin/store/items/<%= item.id %>/edit" class="inline-edit-form">
                                     <div class="edit-grid">
                                         <div class="edit-field">
@@ -186,7 +194,7 @@
                                         </div>
                                     </div>
                                     <div class="form-actions">
-                                        <button type="submit" class="btn"><i class="fas fa-save"></i> Save</button>
+                                        <button type="submit" class="btn">💾 Save</button>
                                         <button type="button" class="btn btn-danger" onclick="toggleEdit(<%= item.id %>)">Cancel</button>
                                     </div>
                                 </form>
@@ -198,26 +206,6 @@
         </div>
     </div>
 </div>
-
-<style>
-.type-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; font-weight: 600; }
-.type-weapon { background: #4a0000; color: #ff6b6b; }
-.type-magazine { background: #003d1a; color: #6bff8a; }
-.type-attachment { background: #002b4a; color: #6bc5ff; }
-.type-uniform { background: #2d1b00; color: #d4a04a; }
-.type-vest { background: #1a1a2e; color: #8b8bff; }
-.type-helmet { background: #1a2e1a; color: #8bff8b; }
-.type-backpack { background: #2e1a1a; color: #ff8b8b; }
-.type-item { background: #1a1a1a; color: #aaa; }
-.type-grenade { background: #2e2e00; color: #ffff6b; }
-.type-explosive { background: #2e0000; color: #ff4444; }
-.type-misc { background: #1a1a2e; color: #888; }
-.edit-row { background: rgba(0,0,0,0.3); }
-.edit-grid { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
-.edit-field { flex: 1; min-width: 140px; }
-.edit-field label { display: block; font-size: 0.75rem; color: var(--khaki); margin-bottom: 0.2rem; }
-.edit-field input, .edit-field select { width: 100%; padding: 0.4rem; background: rgba(0,0,0,0.4); border: 1px solid rgba(107,142,35,0.5); border-radius: 4px; color: var(--sand); box-sizing: border-box; }
-</style>
 
 <script>
 function toggleEdit(id) {

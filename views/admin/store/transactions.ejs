@@ -2,7 +2,7 @@
 
 <div class="container">
     <header>
-        <h1><i class="fas fa-receipt"></i> Store Transactions</h1>
+        <h1>🧾 Store Transactions</h1>
         <div class="subtitle">Purchase and grant history</div>
     </header>
 
@@ -46,21 +46,11 @@
         <% if (totalPages > 1) { %>
             <div class="pagination">
                 <% for (let p = 1; p <= totalPages; p++) { %>
-                    <a href="/admin/store/transactions?page=<%= p %>" class="page-link <%= p === page ? 'active' : '' %>"><%= p %></a>
+                    <a href="/admin/store/transactions?page=<%= p %>" class="page-btn <%= p === page ? 'current' : '' %>"><%= p %></a>
                 <% } %>
             </div>
         <% } %>
     </div>
 </div>
-
-<style>
-.badge-purchase { background: #2e7d32; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
-.badge-grant { background: #1565c0; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
-.badge-refund { background: #6a1b9a; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
-.badge-admin { background: #c62828; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
-.pagination { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1.5rem; }
-.page-link { padding: 0.4rem 0.75rem; background: rgba(0,0,0,0.4); border: 1px solid rgba(107,142,35,0.5); border-radius: 4px; color: var(--khaki); text-decoration: none; }
-.page-link.active { background: var(--accent); border-color: var(--accent); color: var(--camo-dark); }
-</style>
 
 <%- include('../../partials/footer') %>

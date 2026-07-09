@@ -2,14 +2,14 @@
 
 <div class="container">
     <header>
-        <a href="/store" class="back-link"><i class="fas fa-arrow-left"></i> Back to Store</a>
-        <h1><i class="fas fa-<%= category.icon %>"></i> <%= category.name %></h1>
+        <a href="/store" class="back-link">← Back to Store</a>
+        <h1><%= category.icon || '🎖️' %> <%= category.name %></h1>
         <div class="subtitle">Browse and purchase gear</div>
     </header>
 
     <div style="display: flex; justify-content: flex-end; margin-bottom: 2rem;">
         <div class="card" style="display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem; min-width: 200px;">
-            <div style="font-size: 2rem; color: var(--accent);"><i class="fas fa-coins"></i></div>
+            <div style="font-size: 2rem; color: var(--accent);">💰</div>
             <div style="display: flex; flex-direction: column;">
                 <span style="font-size: 0.8rem; color: var(--olive-light); text-transform: uppercase; letter-spacing: 1px;">Your Balance</span>
                 <span style="font-size: 1.5rem; font-weight: 700; color: var(--accent);" id="walletBalance"><%= balance.toLocaleString() %> <small style="font-size: 0.9rem; opacity: 0.7;">¢</small></span>
@@ -38,19 +38,19 @@
     <div class="items-grid" id="storeItemsGrid">
         <% if (items.length === 0) { %>
             <div class="empty-state">
-                <i class="fas fa-box-open"></i>
+                <div class="empty-icon">📦</div>
                 <p>No items available in this category yet.</p>
             </div>
         <% } %>
 
         <% items.forEach(item => { %>
-            <div class="item-card" data-item-id="<%= item.id %>" data-price="<%= item.base_price %>" data-type="<%= item.item_type %>">
+            <div class="store-item-card" data-item-id="<%= item.id %>" data-price="<%= item.base_price %>" data-type="<%= item.item_type %>">
                 <div class="item-image">
                     <% if (item.image_url) { %>
                         <img src="<%= item.image_url %>" alt="<%= item.display_name %>">
                     <% } else { %>
                         <div class="item-placeholder">
-                            <i class="fas fa-<%= item.item_type === 'weapon' ? 'crosshairs' : item.item_type === 'uniform' ? 'tshirt' : item.item_type === 'vest' ? 'vest' : item.item_type === 'helmet' ? 'hard-hat' : item.item_type === 'backpack' ? 'bag' : item.item_type === 'attachment' ? 'search-plus' : 'cube' %>"></i>
+                            <%= item.item_type === 'weapon' ? '🔫' : item.item_type === 'uniform' ? '👕' : item.item_type === 'vest' ? '🦺' : item.item_type === 'helmet' ? '⛑️' : item.item_type === 'backpack' ? '🎒' : item.item_type === 'attachment' ? '🔭' : item.item_type === 'grenade' ? '💣' : item.item_type === 'explosive' ? '🧨' : '📦' %>
                         </div>
                     <% } %>
                 </div>
@@ -60,7 +60,7 @@
                     <div class="item-meta">
                         <span class="item-type-badge type-<%= item.item_type %>"><%= item.item_type %></span>
                         <% if (item.owned_qty > 0) { %>
-                            <span class="owned-badge"><i class="fas fa-check"></i> Owned: <%= item.owned_qty %></span>
+                            <span class="owned-badge">✅ Owned: <%= item.owned_qty %></span>
                         <% } %>
                     </div>
                     <% if (item.description) { %>
@@ -79,12 +79,12 @@
                     <% } %>
                     <div class="buy-controls">
                         <div class="qty-selector">
-                            <button class="qty-btn qty-minus" disabled><i class="fas fa-minus"></i></button>
+                            <button class="qty-btn qty-minus" disabled>−</button>
                             <input type="number" class="qty-input" value="1" min="1" max="99" readonly>
-                            <button class="qty-btn qty-plus"><i class="fas fa-plus"></i></button>
+                            <button class="qty-btn qty-plus">+</button>
                         </div>
                         <button class="btn buy-btn" <%= balance < item.base_price ? 'disabled' : '' %>>
-                            <i class="fas fa-shopping-cart"></i> Buy
+                            🛒 Buy
                         </button>
                     </div>
                 </div>
@@ -96,249 +96,8 @@
 <!-- Toast notification -->
 <div id="toast" class="toast"></div>
 
-<style>
-.back-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--khaki);
-    text-decoration: none;
-    font-size: 0.9rem;
-    margin-bottom: 0.5rem;
-    transition: color 0.2s;
-}
-.back-link:hover { color: var(--accent); }
-
-.items-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 1rem;
-}
-
-.item-card {
-    background: linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(10,20,10,0.5) 100%);
-    border: 2px solid var(--olive);
-    border-radius: 12px;
-    overflow: hidden;
-    transition: all 0.3s;
-}
-
-.item-card:hover {
-    border-color: var(--accent);
-    box-shadow: 0 8px 24px rgba(252,176,13,0.2);
-    transform: translateY(-2px);
-}
-
-.item-image {
-    height: 120px;
-    background: rgba(0,0,0,0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-}
-
-.item-image img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-}
-
-.item-placeholder {
-    font-size: 3rem;
-    color: var(--khaki);
-    opacity: 0.5;
-}
-
-.item-details {
-    padding: 0.75rem 1rem;
-}
-
-.item-name {
-    margin: 0 0 0.25rem 0;
-    font-size: 1rem;
-    color: var(--sand);
-}
-
-.item-class {
-    font-size: 0.75rem;
-    color: var(--khaki);
-    opacity: 0.6;
-    font-family: monospace;
-    display: block;
-    margin-bottom: 0.5rem;
-}
-
-.item-meta {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.item-type-badge {
-    font-size: 0.7rem;
-    padding: 2px 8px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-}
-
-.type-weapon { background: #4a0000; color: #ff6b6b; }
-.type-magazine { background: #003d1a; color: #6bff8a; }
-.type-attachment { background: #002b4a; color: #6bc5ff; }
-.type-uniform { background: #2d1b00; color: #d4a04a; }
-.type-vest { background: #1a1a2e; color: #8b8bff; }
-.type-helmet { background: #1a2e1a; color: #8bff8b; }
-.type-backpack { background: #2e1a1a; color: #ff8b8b; }
-.type-item { background: #1a1a1a; color: #aaa; }
-.type-grenade { background: #2e2e00; color: #ffff6b; }
-.type-explosive { background: #2e0000; color: #ff4444; }
-.type-misc { background: #1a1a2e; color: #888; }
-
-.owned-badge {
-    font-size: 0.75rem;
-    color: var(--olive-light);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.item-description {
-    font-size: 0.8rem;
-    color: var(--khaki);
-    margin: 0.5rem 0 0 0;
-    line-height: 1.4;
-}
-
-.item-actions {
-    padding: 0.75rem 1rem;
-    border-top: 2px solid var(--olive);
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.item-price {
-    display: flex;
-    align-items: baseline;
-    gap: 0.25rem;
-}
-
-.price-value {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: var(--accent);
-}
-
-.price-currency {
-    font-size: 0.9rem;
-    color: var(--olive-light);
-}
-
-.stock-info {
-    font-size: 0.75rem;
-    color: var(--khaki);
-}
-
-.buy-controls {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-}
-
-.qty-selector {
-    display: flex;
-    align-items: center;
-    border: 2px solid var(--khaki);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.qty-btn {
-    background: rgba(0,0,0,0.3);
-    border: none;
-    color: var(--sand);
-    width: 30px;
-    height: 30px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    transition: background 0.2s;
-}
-
-.qty-btn:hover:not(:disabled) { background: rgba(107,142,35,0.3); }
-.qty-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-.qty-input {
-    width: 36px;
-    height: 30px;
-    text-align: center;
-    border: none;
-    border-left: 2px solid var(--khaki);
-    border-right: 2px solid var(--khaki);
-    background: rgba(0,0,0,0.3);
-    color: var(--sand);
-    font-size: 0.85rem;
-    -moz-appearance: textfield;
-}
-
-.qty-input::-webkit-inner-spin-button { -webkit-appearance: none; }
-
-.buy-btn {
-    flex: 1;
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-    text-align: center;
-}
-
-.buy-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    transform: none !important;
-}
-
-.empty-state {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 4rem 2rem;
-    color: var(--khaki);
-}
-
-.empty-state i {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-    display: block;
-}
-
-.toast {
-    position: fixed;
-    bottom: 2rem;
-    right: 2rem;
-    padding: 1rem 1.5rem;
-    border-radius: 8px;
-    color: #fff;
-    font-weight: 500;
-    z-index: 9999;
-    opacity: 0;
-    transform: translateY(20px);
-    transition: all 0.3s ease;
-    pointer-events: none;
-}
-
-.toast.show {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.toast.success { background: var(--olive); }
-.toast.error { background: #c62828; }
-</style>
-
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const toast = document.getElementById('walletBalance');
-
     // Search & filter
     const storeSearch = document.getElementById('storeSearch');
     const storeTypeFilter = document.getElementById('storeTypeFilter');
@@ -346,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
         function filterStoreItems() {
             const q = storeSearch.value.toLowerCase();
             const type = storeTypeFilter.value;
-            document.querySelectorAll('#storeItemsGrid .item-card').forEach(card => {
+            document.querySelectorAll('#storeItemsGrid .store-item-card').forEach(card => {
                 const text = card.textContent.toLowerCase();
                 const cardType = card.dataset.type || '';
                 const matchSearch = !q || text.includes(q);
@@ -392,13 +151,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Buy buttons
     document.querySelectorAll('.buy-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-            const card = btn.closest('.item-card');
+            const card = btn.closest('.store-item-card');
             const itemId = card.dataset.itemId;
             const qty = parseInt(card.querySelector('.qty-input').value);
             const price = parseInt(card.dataset.price) * qty;
 
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buying...';
+            btn.innerHTML = '⏳ Buying...';
 
             try {
                 const res = await fetch('/store/api/buy', {
@@ -416,11 +175,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const meta = card.querySelector('.item-meta');
                     if (badge) {
                         const match = badge.textContent.match(/\d+/);
-                        if (match) badge.innerHTML = `<i class="fas fa-check"></i> Owned: ${parseInt(match[0]) + qty}`;
+                        if (match) badge.innerHTML = `✅ Owned: ${parseInt(match[0]) + qty}`;
                     } else if (meta) {
                         const newBadge = document.createElement('span');
                         newBadge.className = 'owned-badge';
-                        newBadge.innerHTML = `<i class="fas fa-check"></i> Owned: ${qty}`;
+                        newBadge.innerHTML = `✅ Owned: ${qty}`;
                         meta.appendChild(newBadge);
                     }
                 } else {
@@ -430,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast('Network error', 'error');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-shopping-cart"></i> Buy';
+                btn.innerHTML = '🛒 Buy';
             }
         });
     });

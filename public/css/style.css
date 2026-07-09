@@ -2162,3 +2162,105 @@ th[onclick]:hover { color: var(--accent) !important; }
     .mission-grid { grid-template-columns: 1fr; }
     .mission-form-row { grid-template-columns: 1fr; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   STORE / ECONOMY FEATURE
+   Component styles for the player store, admin store management, and the
+   Steam-link banner. Consolidated here (previously inline <style> blocks in
+   the store views) and de-duplicated. Uses the site design tokens.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Item-type badges (store category + admin items) ── */
+.type-badge, .item-type-badge { display:inline-block; font-size:0.7rem; padding:2px 8px; border-radius:4px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px; }
+.type-weapon     { background:#4a0000; color:#ff6b6b; }
+.type-magazine   { background:#003d1a; color:#6bff8a; }
+.type-attachment { background:#002b4a; color:#6bc5ff; }
+.type-uniform    { background:#2d1b00; color:#d4a04a; }
+.type-vest       { background:#1a1a2e; color:#8b8bff; }
+.type-helmet     { background:#1a2e1a; color:#8bff8b; }
+.type-backpack   { background:#2e1a1a; color:#ff8b8b; }
+.type-item       { background:#1a1a1a; color:#aaa; }
+.type-grenade    { background:#2e2e00; color:#ffff6b; }
+.type-explosive  { background:#2e0000; color:#ff4444; }
+.type-misc       { background:#1a1a2e; color:#888; }
+
+/* ── Transaction / inventory-source badges (admin) ── */
+.badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:0.75rem; color:#fff; text-transform:capitalize; }
+.badge-purchase { background:#2e7d32; }
+.badge-grant    { background:#1565c0; }
+.badge-refund   { background:#6a1b9a; }
+.badge-admin    { background:#c62828; }
+
+/* ── Player search box (admin currency / inventory) ── */
+.player-search { width:100%; padding:0.5rem; margin-bottom:0.5rem; border:1px solid rgba(107,142,35,0.5); border-radius:6px; background:rgba(0,0,0,0.3); color:var(--sand); font-size:0.9rem; box-sizing:border-box; }
+.player-search:focus { outline:none; border-color:var(--accent); }
+
+/* ── Admin items: thumbnails + inline edit grid ── */
+.item-img-cell { text-align:center; vertical-align:middle; }
+.item-thumb { width:48px; height:48px; object-fit:contain; border-radius:4px; background:rgba(0,0,0,0.3); border:1px solid rgba(107,142,35,0.3); }
+.no-img { color:var(--khaki); opacity:0.4; font-size:1.2rem; }
+.edit-row { background:rgba(0,0,0,0.3); }
+.edit-grid { display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.75rem; }
+.edit-field { flex:1; min-width:140px; }
+.edit-field label { display:block; font-size:0.75rem; color:var(--khaki); margin-bottom:0.2rem; }
+.edit-field input, .edit-field select { width:100%; padding:0.4rem; background:rgba(0,0,0,0.4); border:1px solid rgba(107,142,35,0.5); border-radius:4px; color:var(--sand); box-sizing:border-box; }
+
+/* ── Store landing: category cards ── */
+.store-categories { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1rem; }
+.category-card { background:linear-gradient(135deg,rgba(0,0,0,0.5) 0%,rgba(10,20,10,0.5) 100%); border:2px solid var(--olive); border-radius:12px; padding:1.25rem; display:flex; align-items:center; gap:1rem; text-decoration:none; color:inherit; transition:all 0.3s; }
+.category-card:hover { border-color:var(--accent); transform:translateY(-4px); box-shadow:0 8px 24px rgba(252,176,13,0.2); }
+.category-icon { width:50px; height:50px; background:rgba(107,142,35,0.15); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:var(--accent); flex-shrink:0; }
+.category-info { flex:1; }
+.category-info h3 { margin:0 0 0.25rem 0; font-size:1.1rem; color:var(--sand); }
+.item-count { font-size:0.85rem; color:var(--khaki); }
+.category-arrow { color:var(--khaki); font-size:1.2rem; }
+
+/* ── Store category page: item grid + cards ── */
+.back-link { display:inline-flex; align-items:center; gap:0.5rem; color:var(--khaki); text-decoration:none; font-size:0.9rem; margin-bottom:0.5rem; transition:color 0.2s; }
+.back-link:hover { color:var(--accent); }
+.items-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:1rem; }
+.items-grid .empty-state { grid-column:1 / -1; }
+.store-item-card { background:linear-gradient(135deg,rgba(0,0,0,0.5) 0%,rgba(10,20,10,0.5) 100%); border:2px solid var(--olive); border-radius:12px; overflow:hidden; transition:all 0.3s; }
+.store-item-card:hover { border-color:var(--accent); box-shadow:0 8px 24px rgba(252,176,13,0.2); transform:translateY(-2px); }
+.item-image { height:120px; background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.item-image img { max-width:100%; max-height:100%; object-fit:contain; }
+.item-placeholder { font-size:3rem; color:var(--khaki); opacity:0.5; }
+.item-details { padding:0.75rem 1rem; }
+.item-name { margin:0 0 0.25rem 0; font-size:1rem; color:var(--sand); }
+.item-class { font-size:0.75rem; color:var(--khaki); opacity:0.6; font-family:monospace; display:block; margin-bottom:0.5rem; }
+.item-meta { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; }
+.owned-badge { font-size:0.75rem; color:var(--olive-light); display:inline-flex; align-items:center; gap:0.25rem; }
+.item-description { font-size:0.8rem; color:var(--khaki); margin:0.5rem 0 0 0; line-height:1.4; }
+.item-actions { padding:0.75rem 1rem; border-top:2px solid var(--olive); display:flex; flex-direction:column; gap:0.5rem; }
+.item-price { display:flex; align-items:baseline; gap:0.25rem; }
+.price-value { font-size:1.3rem; font-weight:700; color:var(--accent); }
+.price-currency { font-size:0.9rem; color:var(--olive-light); }
+.stock-info { font-size:0.75rem; color:var(--khaki); }
+.buy-controls { display:flex; gap:0.5rem; align-items:center; }
+.qty-selector { display:flex; align-items:center; border:2px solid var(--khaki); border-radius:8px; overflow:hidden; }
+.qty-btn { background:rgba(0,0,0,0.3); border:none; color:var(--sand); width:30px; height:30px; cursor:pointer; font-size:0.75rem; transition:background 0.2s; }
+.qty-btn:hover:not(:disabled) { background:rgba(107,142,35,0.3); }
+.qty-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.qty-input { width:36px; height:30px; text-align:center; border:none; border-left:2px solid var(--khaki); border-right:2px solid var(--khaki); background:rgba(0,0,0,0.3); color:var(--sand); font-size:0.85rem; -moz-appearance:textfield; }
+.qty-input::-webkit-inner-spin-button { -webkit-appearance:none; }
+.buy-btn { flex:1; padding:0.5rem 1rem; font-size:0.9rem; text-align:center; }
+.buy-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none !important; }
+
+/* ── Toast notification (store purchase feedback) ── */
+.toast { position:fixed; bottom:2rem; right:2rem; padding:1rem 1.5rem; border-radius:8px; color:#fff; font-weight:500; z-index:9999; opacity:0; transform:translateY(20px); transition:all 0.3s ease; pointer-events:none; }
+.toast.show { opacity:1; transform:translateY(0); }
+.toast.success { background:var(--olive); }
+.toast.error { background:#c62828; }
+
+/* ── Steam-link banner (shown when a user has no linked Steam ID) ── */
+.steam-link-banner { background:linear-gradient(135deg,rgba(10,20,10,0.97) 0%,rgba(20,30,15,0.97) 100%); border-bottom:2px solid var(--accent); position:fixed; top:0; left:0; right:0; z-index:1000; }
+.steam-link-banner-content { max-width:1200px; margin:0 auto; padding:10px 20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.steam-link-banner-icon { font-size:1.4em; flex-shrink:0; }
+.steam-link-banner-text { flex:1; min-width:200px; color:var(--sand); font-size:0.85em; line-height:1.4; }
+.steam-link-banner-text strong { color:var(--accent); }
+.steam-link-banner-btn { background:var(--accent); color:var(--camo-dark); padding:6px 16px; border-radius:4px; text-decoration:none; font-weight:700; font-size:0.82em; white-space:nowrap; flex-shrink:0; transition:background 0.2s; }
+.steam-link-banner-btn:hover { background:var(--sand); }
+.steam-link-banner-close { background:transparent; border:none; color:var(--khaki); cursor:pointer; font-size:1.1em; padding:2px 6px; opacity:0.6; flex-shrink:0; }
+.steam-link-banner-close:hover { opacity:1; }
+/* Push nav down only when the fixed banner is present. */
+#main-nav.has-steam-banner { margin-top:44px; }

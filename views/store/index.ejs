@@ -2,13 +2,13 @@
 
 <div class="container">
     <header>
-        <h1><i class="fas fa-store"></i> Equipment Store</h1>
+        <h1>🏪 Equipment Store</h1>
         <div class="subtitle">Browse and purchase gear for upcoming operations</div>
     </header>
 
     <div style="display: flex; justify-content: flex-end; margin-bottom: 2rem;">
         <div class="card" style="display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem; min-width: 200px;">
-            <div style="font-size: 2rem; color: var(--accent);"><i class="fas fa-coins"></i></div>
+            <div style="font-size: 2rem; color: var(--accent);">💰</div>
             <div style="display: flex; flex-direction: column;">
                 <span style="font-size: 0.8rem; color: var(--olive-light); text-transform: uppercase; letter-spacing: 1px;">Your Balance</span>
                 <span style="font-size: 1.5rem; font-weight: 700; color: var(--accent);" id="walletBalance"><%= balance.toLocaleString() %> <small style="font-size: 0.9rem; opacity: 0.7;">¢</small></span>
@@ -20,78 +20,16 @@
         <% categories.forEach(cat => { %>
             <a href="/store/category/<%= cat.slug %>" class="category-card">
                 <div class="category-icon">
-                    <i class="fas fa-<%= cat.icon %>"></i>
+                    <%= cat.icon || '🎖️' %>
                 </div>
                 <div class="category-info">
                     <h3 style="margin: 0 0 0.25rem 0;"><%= cat.name %></h3>
                     <span class="item-count"><%= cat.item_count %> items</span>
                 </div>
-                <div class="category-arrow">
-                    <i class="fas fa-chevron-right"></i>
-                </div>
+                <div class="category-arrow">›</div>
             </a>
         <% }) %>
     </div>
 </div>
-
-<style>
-.store-categories {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1rem;
-}
-
-.category-card {
-    background: linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(10,20,10,0.5) 100%);
-    border: 2px solid var(--olive);
-    border-radius: 12px;
-    padding: 1.25rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    text-decoration: none;
-    color: inherit;
-    transition: all 0.3s;
-}
-
-.category-card:hover {
-    border-color: var(--accent);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(252,176,13,0.2);
-}
-
-.category-icon {
-    width: 50px;
-    height: 50px;
-    background: rgba(107,142,35,0.15);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    color: var(--accent);
-    flex-shrink: 0;
-}
-
-.category-info {
-    flex: 1;
-}
-
-.category-info h3 {
-    margin: 0 0 0.25rem 0;
-    font-size: 1.1rem;
-    color: var(--sand);
-}
-
-.item-count {
-    font-size: 0.85rem;
-    color: var(--khaki);
-}
-
-.category-arrow {
-    color: var(--khaki);
-    font-size: 1.2rem;
-}
-</style>
 
 <%- include('../partials/footer') %>

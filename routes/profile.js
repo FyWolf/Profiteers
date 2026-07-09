@@ -128,35 +128,9 @@ router.post('/link-steam', isAuthenticated, async (req, res) => {
         }
     }
 
-    // If steam_id is provided, validate and link manually (fallback)
-    if (!/^7656\d{12,13}$/.test(steam_id.trim())) {
-        return res.redirect('/profile?error=Invalid+Steam+ID.+Please+enter+a+valid+Steam+64+ID');
-    }
-
-    try {
-        // Check if this Steam ID is already linked to another user
-        const [existing] = await db.query(
-            'SELECT id FROM users WHERE steam_id = ? AND id != ?',
-            [steam_id.trim(), req.session.userId]
-        );
-        if (existing.length > 0) {
-            return res.redirect('/profile?error=This+Steam+ID+is+already+linked+to+another+account');
-        }
-
-        // Store steam_id directly on users table
-        await db.query(
-            'UPDATE users SET steam_id = ? WHERE id = ?',
-            [steam_id.trim(), req.session.userId]
-        );
-
-        res.redirect('/profile?success=Steam+ID+linked+successfully');
-    } catch (err) {
-        console.error('Steam link error:', err);
-        if (err.code === 'ER_DUP_ENTRY') {
-            return res.redirect('/profile?error=This+Steam+ID+is+already+linked+to+another+account');
-        }
-        res.redirect('/profile?error=Failed+to+link+Steam+ID');
-    }
+    // Manual entry is not accepted: account ownership must be proven through
+    // the Steam OpenID flow. Send the user there instead of trusting a raw ID.
+    res.redirect('/auth/steam');
 });
 
 router.get('/:userId', async (req, res) => {

@@ -13,12 +13,27 @@ router.get('/', async (req, res) => {
                 (SELECT COUNT(*) FROM medals)          as medals,
                 (SELECT COUNT(*) FROM trainings)       as trainings,
                 (SELECT COUNT(*) FROM slot_types)       as slot_types,
-                (SELECT COUNT(*) FROM orbat_attendance) as attendance_records,
-                (SELECT COUNT(*) FROM store_items)      as store_items,
-                (SELECT COUNT(*) FROM store_categories) as store_categories,
-                (SELECT COUNT(*) FROM player_currency)  as store_players,
-                (SELECT COALESCE(SUM(balance), 0) FROM player_currency) as store_currency
+                (SELECT COUNT(*) FROM orbat_attendance) as attendance_records
         `);
+
+        // Store/economy stats — isolated so a missing store schema can't take
+        // down the whole dashboard (mirrors the analytics resilience below).
+        stats.store_items = 0;
+        stats.store_categories = 0;
+        stats.store_players = 0;
+        stats.store_currency = 0;
+        try {
+            const [[storeStats]] = await db.query(`
+                SELECT
+                    (SELECT COUNT(*) FROM store_items)      as store_items,
+                    (SELECT COUNT(*) FROM store_categories) as store_categories,
+                    (SELECT COUNT(*) FROM player_currency)  as store_players,
+                    (SELECT COALESCE(SUM(balance), 0) FROM player_currency) as store_currency
+            `);
+            Object.assign(stats, storeStats);
+        } catch (storeErr) {
+            console.warn('Store stats query failed (store tables may not exist yet):', storeErr.message);
+        }
 
         let analytics = {
             views_today: 0, views_week: 0, views_month: 0,

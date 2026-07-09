@@ -2,7 +2,7 @@
 
 <div class="container">
     <header>
-        <h1><i class="fas fa-folder"></i> Store Categories</h1>
+        <h1>📁 Store Categories</h1>
         <div class="subtitle">Manage item categories</div>
     </header>
 
@@ -23,7 +23,8 @@
             </div>
             <div class="field">
                 <label>Icon</label>
-                <input type="text" name="icon" placeholder="fontawesome icon name (e.g. crosshairs)" value="box">
+                <input type="text" name="icon" placeholder="emoji (e.g. 🔫)" value="🎖️">
+                <small>A single emoji shown next to the category.</small>
             </div>
             <div class="field">
                 <label>Display Order</label>
@@ -54,13 +55,13 @@
                 <tbody>
                     <% categories.forEach(cat => { %>
                         <tr>
-                            <td><i class="fas fa-<%= cat.icon %>"></i></td>
+                            <td><%= cat.icon || '🎖️' %></td>
                             <td><%= cat.name %></td>
                             <td><code><%= cat.slug %></code></td>
                             <td><%= cat.display_order %></td>
                             <td>
                                 <form method="POST" action="/admin/store/categories/<%= cat.id %>/delete" style="display:inline" onsubmit="return confirm('Delete this category and all its items?')">
-                                    <button type="submit" class="act act-del"><i class="fas fa-trash"></i> Delete</button>
+                                    <button type="submit" class="act act-del">🗑️ Delete</button>
                                 </form>
                             </td>
                         </tr>
@@ -79,7 +80,5 @@ document.getElementById('catSearch').addEventListener('input', function() {
     });
 });
 </script>
-
-<%- include('../../partials/footer') %>
 
 <%- include('../../partials/footer') %>

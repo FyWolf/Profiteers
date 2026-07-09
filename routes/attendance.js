@@ -263,15 +263,20 @@ router.post('/', isAuthenticated, async (req, res) => {
             (async () => {
                 for (const uid of presentUserIds) {
                     try {
-                        // Ensure player_currency row exists
-                        await db.query(
-                            'INSERT INTO player_currency (user_id, balance, lifetime_earned) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE user_id = user_id',
-                            [uid, ECONOMY_PER_OP, ECONOMY_PER_OP]
+                        // Idempotency: re-saving attendance must not re-credit. Skip anyone
+                        // who was already paid for this operation. (Small race window on
+                        // concurrent saves of the same op — acceptable for an admin action.)
+                        const [existing] = await db.query(
+                            'SELECT id FROM currency_transactions WHERE user_id = ? AND operation_id = ? AND source = ? LIMIT 1',
+                            [uid, opId, 'op_attendance']
                         );
-                        // Credit the currency
+                        if (existing.length) continue;
+
+                        // Credit in one statement: seed the row on first credit, otherwise
+                        // add to the existing balance (same pattern as admin currency grant).
                         await db.query(
-                            'UPDATE player_currency SET balance = balance + ?, lifetime_earned = lifetime_earned + ? WHERE user_id = ?',
-                            [ECONOMY_PER_OP, ECONOMY_PER_OP, uid]
+                            'INSERT INTO player_currency (user_id, balance, lifetime_earned) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE balance = balance + ?, lifetime_earned = lifetime_earned + ?',
+                            [uid, ECONOMY_PER_OP, ECONOMY_PER_OP, ECONOMY_PER_OP, ECONOMY_PER_OP]
                         );
                         // Log the currency transaction
                         await db.query(
@@ -282,7 +287,6 @@ router.post('/', isAuthenticated, async (req, res) => {
                         console.error(`[ECONOMY] Failed to credit user ${uid} for operation ${opId}:`, econErr.message);
                     }
                 }
-                console.log(`[ECONOMY] Credited ${presentUserIds.length} players ${ECONOMY_PER_OP}¢ each for operation #${opId}`);
             })();
         }
 

@@ -16,11 +16,44 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
+const fileUpload = require('express-fileupload');
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
+
+// ─── PAA → PNG conversion ──────────────────────────────────
+let Paa, sharp;
+async function loadPaaModule() {
+    if (!Paa) {
+        const mod = await import('@bis-toolkit/paa');
+        Paa = mod.Paa;
+    }
+    if (!sharp) {
+        sharp = (await import('sharp')).default;
+    }
+}
+loadPaaModule();
+
+const STORE_IMAGES_DIR = path.join(__dirname, '..', 'public', 'images', 'store', 'items');
+
+// Ensure the images directory exists
+if (!fs.existsSync(STORE_IMAGES_DIR)) {
+    fs.mkdirSync(STORE_IMAGES_DIR, { recursive: true });
+}
 
 // ─── API Key Authentication ─────────────────────────────────
+function constantTimeEqual(a, b) {
+    const bufA = Buffer.from(String(a));
+    const bufB = Buffer.from(String(b));
+    if (bufA.length !== bufB.length) return false;
+    return crypto.timingSafeEqual(bufA, bufB);
+}
+
 function requireApiKey(req, res, next) {
     const key = req.headers['x-api-key'];
-    if (!key || key !== process.env.ARMA_API_KEY) {
+    const expected = process.env.ARMA_API_KEY;
+    // Fail closed when the key is missing or the server has no key configured.
+    if (!key || !expected || !constantTimeEqual(key, expected)) {
         return res.status(401).send('[0,"Unauthorized: invalid or missing API key"]');
     }
     next();
@@ -33,6 +66,10 @@ function sqfSuccess(res, data) {
 }
 
 function sqfError(res, message) {
+    // NOTE: `message` MUST be a static/trusted string. This only escapes double
+    // quotes for SQF; it is not a general-purpose escaper. If you ever need to
+    // include user- or DB-supplied text in an error, run it through
+    // JSON.stringify (as sqfSuccess does) instead of interpolating it here.
     res.type('text/plain').send(`[0,"${message.replace(/"/g, '""')}"]`);
 }
 
@@ -45,12 +82,77 @@ async function getUserIdBySteamId(steamId) {
     return rows.length ? rows[0].id : null;
 }
 
+// ─── PAA Upload & Conversion Endpoint ─────────────────────
+// Called by the Arma 3 extension (UPLOADPIC command) via curl -F
+router.post('/upload-picture', requireApiKey, fileUpload({
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+    abortOnLimit: true
+}), async (req, res) => {
+    try {
+        if (!req.files || !req.files.file) {
+            return res.status(400).send('0:No file uploaded');
+        }
+
+        const uploadedFile = req.files.file;
+        const originalName = path.basename(uploadedFile.name || 'unknown.paa');
+        const className = originalName.replace(/\.paa$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+        // Read the PAA file buffer
+        const paaBuffer = uploadedFile.data;
+
+        // Convert PAA → PNG using @bis-toolkit/paa + sharp
+        await loadPaaModule();
+
+        const paa = new Paa();
+        paa.read(new Uint8Array(paaBuffer));
+
+        // Get RGBA pixel data from the first mipmap
+        const pixelData = paa.getArgb32PixelData(new Uint8Array(paaBuffer), 0);
+        const width = paa.mipmaps[0].width;
+        const height = paa.mipmaps[0].height;
+
+        // Convert ARGB32 → raw RGBA (sharp expects RGBA)
+        const rgbaData = Buffer.alloc(pixelData.length);
+        for (let i = 0; i < pixelData.length; i += 4) {
+            const a = pixelData[i];     // ARGB: A
+            const r = pixelData[i + 1]; // ARGB: R
+            const g = pixelData[i + 2]; // ARGB: G
+            const b = pixelData[i + 3]; // ARGB: B
+            rgbaData[i] = r;
+            rgbaData[i + 1] = g;
+            rgbaData[i + 2] = b;
+            rgbaData[i + 3] = a;
+        }
+
+        // Generate a unique filename
+        const hash = crypto.createHash('md5').update(paaBuffer).digest('hex').substring(0, 8);
+        const pngFilename = `${className}_${hash}.png`;
+        const pngPath = path.join(STORE_IMAGES_DIR, pngFilename);
+
+        // Write PNG using sharp
+        await sharp(rgbaData, {
+            raw: {
+                width,
+                height,
+                channels: 4
+            }
+        }).png().toFile(pngPath);
+
+        // Return the URL path
+        const imageUrl = `/images/store/items/${pngFilename}`;
+        console.log(`[Economy API] PAA converted: ${originalName} → ${imageUrl}`);
+        res.type('text/plain').send(imageUrl);
+
+    } catch (err) {
+        console.error(`[Economy API] PAA conversion error:`, err);
+        res.status(500).send(`0:Conversion failed: ${err.message}`);
+    }
+});
+
 // ─── Main Endpoint ─────────────────────────────────────────
 router.post('/', requireApiKey, async (req, res) => {
     try {
         const { action } = req.body;
-
-        console.log(`[Economy API] Request received - action: ${action}, body keys: ${Object.keys(req.body).join(', ')}`);
 
         if (!action) {
             return sqfError(res, 'Missing action field');

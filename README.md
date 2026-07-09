@@ -79,6 +79,10 @@ DISCORD_ENABLE_REMINDERS=false
 # Steam Web API key (for modpack mod metadata fetching)
 STEAM_API_KEY=your_steam_api_key
 
+# Store / Economy (arsenal store + Arma 3 extension API)
+ARMA_API_KEY=change_this_to_a_long_random_string   # required: X-API-Key for /api/economy calls from the Arma server; requests are rejected if unset
+ECONOMY_PER_OP=500                                 # currency awarded to each present player when post-op attendance is saved (default: 500)
+
 # File upload size limit in bytes (default: 10MB)
 MAX_FILE_SIZE=10485760
 ```

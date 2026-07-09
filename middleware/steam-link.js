@@ -1,6 +1,4 @@
-const db = require('../config/database');
-
-// Routes that are exempt from the Steam link requirement
+// Routes that are exempt from the Steam link nudge
 const EXEMPT_PATHS = [
     '/profile',
     '/logout',
@@ -18,14 +16,15 @@ const EXEMPT_PREFIXES = [
 ];
 
 /**
- * Middleware that checks if the authenticated user has linked their
- * Steam account. If not, they are redirected to their profile page
- * with a message explaining why linking is required.
+ * Flags authenticated users who have not linked their Steam account by
+ * setting res.locals.needsSteamLink, so the header can show a persistent
+ * "link your Steam account" banner. This is a soft nudge — it never blocks
+ * or redirects the request.
  *
- * This is applied AFTER attachUser so res.locals.user is available.
+ * Applied AFTER Passport/attachUser so req.user is populated.
  */
-async function requireSteamLink(req, res, next) {
-    // Only check for authenticated users
+function requireSteamLink(req, res, next) {
+    // Only nudge authenticated users
     if (!req.isAuthenticated()) {
         return next();
     }
@@ -45,25 +44,14 @@ async function requireSteamLink(req, res, next) {
         return next();
     }
 
-    try {
-        // Check if the user has a steam_id linked on their account
-        const [rows] = await db.query(
-            'SELECT steam_id FROM users WHERE id = ?',
-            [req.session.userId]
-        );
-
-        const hasSteamLinked = rows.length > 0 && rows[0].steam_id !== null && rows[0].steam_id !== '';
-
-        if (!hasSteamLinked) {
-            // Set a flag so the header can show a persistent notification
-            res.locals.needsSteamLink = true;
-        }
-
-        next();
-    } catch (err) {
-        console.error('Steam link check error:', err);
-        next();
+    // steam_id is already loaded onto req.user by passport.deserializeUser,
+    // so there's no need for a per-request query here.
+    const steamId = req.user && req.user.steam_id;
+    if (!steamId) {
+        res.locals.needsSteamLink = true;
     }
+
+    next();
 }
 
 module.exports = { requireSteamLink };
