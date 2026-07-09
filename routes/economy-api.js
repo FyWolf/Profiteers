@@ -59,6 +59,21 @@ function requireApiKey(req, res, next) {
     next();
 }
 
+// Upload endpoint accepts either the full economy key (ARMA_API_KEY, server) or
+// a scoped upload-only key (ARMA_UPLOAD_KEY). Image extraction runs on players'
+// clients, so the client config ships the upload-only key — if it leaks, the
+// worst it grants is PAA->PNG uploads, not access to the economy API.
+function requireUploadKey(req, res, next) {
+    const key = req.headers['x-api-key'];
+    const full = process.env.ARMA_API_KEY;
+    const upload = process.env.ARMA_UPLOAD_KEY;
+    if (key && ((full && constantTimeEqual(key, full)) ||
+                (upload && constantTimeEqual(key, upload)))) {
+        return next();
+    }
+    return res.status(401).send('0:Unauthorized: invalid or missing API key');
+}
+
 // ─── Helper: Send SQF-compatible response ──────────────────
 function sqfSuccess(res, data) {
     // data is converted to a string that SQF's call compile can parse
@@ -84,7 +99,7 @@ async function getUserIdBySteamId(steamId) {
 
 // ─── PAA Upload & Conversion Endpoint ─────────────────────
 // Called by the Arma 3 extension (UPLOADPIC command) via curl -F
-router.post('/upload-picture', requireApiKey, fileUpload({
+router.post('/upload-picture', requireUploadKey, fileUpload({
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
     abortOnLimit: true
 }), async (req, res) => {
