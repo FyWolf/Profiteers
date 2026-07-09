@@ -301,7 +301,7 @@ router.post('/', requireApiKey, async (req, res) => {
 
                             await conn.query(
                                 'INSERT INTO store_categories (name, slug, icon) VALUES (?, ?, ?)',
-                                [catName, catSlug, 'box']
+                                [catName, catSlug, '📦']
                             );
 
                             const [catRows] = await conn.query(
@@ -316,6 +316,7 @@ router.post('/', requireApiKey, async (req, res) => {
 
                     // Insert items
                     let inserted = 0;
+                    let updated = 0;
                     let skipped = 0;
 
                     for (const item of parsedItems) {
@@ -326,10 +327,15 @@ router.post('/', requireApiKey, async (req, res) => {
                             continue;
                         }
 
+                        // Refresh the image_url for items that already exist so a
+                        // re-export self-heals stale links (e.g. rows that stored
+                        // the raw .paa path from before uploads worked). Admin-set
+                        // fields (price, stock, is_active, display_name) are kept.
                         const [result] = await conn.query(`
-                            INSERT IGNORE INTO store_items
+                            INSERT INTO store_items
                                 (category_id, class_name, display_name, description, image_url, item_type, base_price, stock, is_active)
                             VALUES (?, ?, ?, ?, ?, ?, 0, -1, 1)
+                            ON DUPLICATE KEY UPDATE image_url = VALUES(image_url)
                         `, [
                             targetCategoryId,
                             className,
@@ -339,16 +345,19 @@ router.post('/', requireApiKey, async (req, res) => {
                             itemType || 'misc'
                         ]);
 
-                        if (result.affectedRows > 0) {
+                        // affectedRows: 1 = inserted, 2 = image updated, 0 = unchanged
+                        if (result.affectedRows === 1) {
                             inserted++;
+                        } else if (result.affectedRows === 2) {
+                            updated++;
                         } else {
                             skipped++;
                         }
                     }
 
                     await conn.commit();
-                    console.log(`[Economy API] Export complete: ${inserted} inserted, ${skipped} skipped`);
-                    return sqfSuccess(res, [inserted]);
+                    console.log(`[Economy API] Export complete: ${inserted} inserted, ${updated} updated, ${skipped} unchanged`);
+                    return sqfSuccess(res, [inserted + updated]);
 
                 } catch (err) {
                     await conn.rollback();
