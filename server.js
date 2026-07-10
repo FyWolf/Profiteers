@@ -66,13 +66,21 @@ app.use(helmet({
 }));
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
+// The Arma economy API sends large JSON bodies — a full arsenal export posts
+// every item's data (class/name/image URL/description) as one JSON payload, a
+// few hundred KB — which the 100 KB express.json() default rejects with
+// PayloadTooLargeError. Give just that path a large limit; the scoped parser
+// runs first and consumes the body, so the conservative global parser below
+// (which every other route keeps) sees it already parsed and skips it.
+app.use('/api/economy', express.json({ limit: '25mb' }));
 app.use(express.json());
 // Default file-upload middleware with a 10 MB cap. Routes that need to accept
 // larger uploads (e.g. terrain zips) are listed here as exceptions and mount
 // their own per-route fileUpload middleware with different limits.
 const FILE_UPLOAD_EXCEPTIONS = [
     '/admin/map-plans/terrains/import',
-    '/api/economy/upload-picture', // Arma PAA upload: mounts its own 5 MB uploader
+    '/api/economy/upload-picture',  // Arma PAA upload (single): mounts its own 5 MB uploader
+    '/api/economy/upload-pictures', // Arma PAA upload (batch): mounts its own 5 MB/500-file uploader
 ];
 // Dynamic-path exceptions (route params can't be matched by the static list above).
 // Mission file/attachment uploads mount their own large-upload middleware.
