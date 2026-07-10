@@ -97,93 +97,92 @@ async function getUserIdBySteamId(steamId) {
     return rows.length ? rows[0].id : null;
 }
 
-// ─── PAA Upload & Conversion Endpoint ─────────────────────
-// Called by the Arma 3 extension (UPLOADPIC command) via curl -F
+// ─── PAA → PNG conversion (shared by the single + batch endpoints) ─────────
+// Converts a PAA buffer to a PNG on disk and returns its public URL.
+async function convertPaaToPng(paaBuffer, originalName) {
+    const base = path.basename(originalName || 'unknown.paa');
+    const className = base.replace(/\.paa$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    // Optional: dump the raw upload for offline inspection (set PAA_DEBUG=1).
+    if (process.env.PAA_DEBUG === '1') {
+        try {
+            const dbgDir = path.join(__dirname, '..', 'storage', 'paa-debug');
+            fs.mkdirSync(dbgDir, { recursive: true });
+            fs.writeFileSync(path.join(dbgDir, `${className}.paa`), paaBuffer);
+        } catch (_) { /* best effort */ }
+    }
+
+    await loadPaaModule();
+    const paa = new Paa();
+    paa.read(new Uint8Array(paaBuffer));
+    if (!paa.mipmaps || paa.mipmaps.length === 0) throw new Error('PAA has no mipmaps');
+
+    // Pick the largest mipmap by area (index 0 isn't always the biggest).
+    let level = 0;
+    for (let i = 1; i < paa.mipmaps.length; i++) {
+        if (paa.mipmaps[i].width * paa.mipmaps[i].height >
+            paa.mipmaps[level].width * paa.mipmaps[level].height) level = i;
+    }
+    const width = paa.mipmaps[level].width;
+    const height = paa.mipmaps[level].height;
+
+    // The library returns BGRA (FormatConverter.setColor writes b,g,r,a);
+    // sharp raw expects RGBA — swap B<->R.
+    const src = paa.getArgb32PixelData(new Uint8Array(paaBuffer), level);
+    const expected = width * height * 4;
+    const rgbaData = Buffer.alloc(expected);
+    for (let i = 0; i + 3 < src.length && i + 3 < expected; i += 4) {
+        rgbaData[i]     = src[i + 2]; // R
+        rgbaData[i + 1] = src[i + 1]; // G
+        rgbaData[i + 2] = src[i];     // B
+        rgbaData[i + 3] = src[i + 3]; // A
+    }
+
+    const hash = crypto.createHash('md5').update(paaBuffer).digest('hex').substring(0, 8);
+    const pngFilename = `${className}_${hash}.png`;
+    const pngPath = path.join(STORE_IMAGES_DIR, pngFilename);
+    await sharp(rgbaData, { raw: { width, height, channels: 4 } }).png().toFile(pngPath);
+    return `/images/store/items/${pngFilename}`;
+}
+
+// ─── Single upload (UPLOADPIC) ─────────────────────────────
 router.post('/upload-picture', requireUploadKey, fileUpload({
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
     abortOnLimit: true
 }), async (req, res) => {
     try {
-        if (!req.files || !req.files.file) {
-            return res.status(400).send('0:No file uploaded');
-        }
-
-        const uploadedFile = req.files.file;
-        const originalName = path.basename(uploadedFile.name || 'unknown.paa');
-        const className = originalName.replace(/\.paa$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_');
-
-        // Read the PAA file buffer
-        const paaBuffer = uploadedFile.data;
-
-        // Optional: dump the raw upload for offline inspection (set PAA_DEBUG=1).
-        if (process.env.PAA_DEBUG === '1') {
-            try {
-                const dbgDir = path.join(__dirname, '..', 'storage', 'paa-debug');
-                fs.mkdirSync(dbgDir, { recursive: true });
-                fs.writeFileSync(path.join(dbgDir, `${className}.paa`), paaBuffer);
-            } catch (_) { /* best effort */ }
-        }
-
-        // Convert PAA → PNG using @bis-toolkit/paa + sharp
-        await loadPaaModule();
-
-        const paa = new Paa();
-        paa.read(new Uint8Array(paaBuffer));
-
-        if (!paa.mipmaps || paa.mipmaps.length === 0) {
-            throw new Error('PAA has no mipmaps');
-        }
-
-        // Don't assume mipmap 0 is the biggest — pick the largest by area.
-        let level = 0;
-        for (let i = 1; i < paa.mipmaps.length; i++) {
-            if (paa.mipmaps[i].width * paa.mipmaps[i].height >
-                paa.mipmaps[level].width * paa.mipmaps[level].height) {
-                level = i;
-            }
-        }
-        const width = paa.mipmaps[level].width;
-        const height = paa.mipmaps[level].height;
-
-        // The library returns BGRA byte order (FormatConverter.setColor writes
-        // b,g,r,a); sharp raw expects RGBA — so swap B<->R.
-        const src = paa.getArgb32PixelData(new Uint8Array(paaBuffer), level);
-        const expected = width * height * 4;
-        const rgbaData = Buffer.alloc(expected);
-        for (let i = 0; i + 3 < src.length && i + 3 < expected; i += 4) {
-            rgbaData[i]     = src[i + 2]; // R
-            rgbaData[i + 1] = src[i + 1]; // G
-            rgbaData[i + 2] = src[i];     // B
-            rgbaData[i + 3] = src[i + 3]; // A
-        }
-
-        // Diagnostics — how the PAA decoded (helps catch blank/truncated data).
-        let nonZero = 0;
-        for (let i = 0; i < src.length; i++) { if (src[i] !== 0) { nonZero++; } }
-        console.log(`[Economy API] PAA ${originalName}: bytes=${paaBuffer.length} type=0x${(paa.type || 0).toString(16)} mips=${paa.mipmaps.length} level=${level} dims=${width}x${height} decoded=${src.length}/${expected} nonzero=${nonZero}`);
-
-        // Generate a unique filename
-        const hash = crypto.createHash('md5').update(paaBuffer).digest('hex').substring(0, 8);
-        const pngFilename = `${className}_${hash}.png`;
-        const pngPath = path.join(STORE_IMAGES_DIR, pngFilename);
-
-        // Write PNG using sharp
-        await sharp(rgbaData, {
-            raw: {
-                width,
-                height,
-                channels: 4
-            }
-        }).png().toFile(pngPath);
-
-        // Return the URL path
-        const imageUrl = `/images/store/items/${pngFilename}`;
-        console.log(`[Economy API] PAA converted: ${originalName} → ${imageUrl}`);
-        res.type('text/plain').send(imageUrl);
-
+        if (!req.files || !req.files.file) return res.status(400).send('0:No file uploaded');
+        const url = await convertPaaToPng(req.files.file.data, req.files.file.name);
+        res.type('text/plain').send(url);
     } catch (err) {
         console.error(`[Economy API] PAA conversion error:`, err);
         res.status(500).send(`0:Conversion failed: ${err.message}`);
+    }
+});
+
+// ─── Batch upload (UPLOADBATCH) ────────────────────────────
+// Accepts many `file` fields in one request; returns one line per file, IN THE
+// SAME ORDER received — either a /images/... URL or "0:<error>".
+router.post('/upload-pictures', requireUploadKey, fileUpload({
+    limits: { fileSize: 5 * 1024 * 1024, files: 500 },
+    abortOnLimit: true
+}), async (req, res) => {
+    try {
+        if (!req.files || !req.files.file) return res.status(400).send('0:No files uploaded');
+        let files = req.files.file;
+        if (!Array.isArray(files)) files = [files];
+
+        const results = [];
+        let okc = 0, failc = 0;
+        for (const uf of files) {
+            try { results.push(await convertPaaToPng(uf.data, uf.name)); okc++; }
+            catch (e) { results.push('0:' + (e.message || 'conversion failed')); failc++; }
+        }
+        console.log(`[Economy API] Batch upload: ${okc} converted, ${failc} failed`);
+        res.type('text/plain').send(results.join('\n'));
+    } catch (err) {
+        console.error('[Economy API] Batch upload error:', err);
+        res.status(500).send('0:' + err.message);
     }
 });
 
