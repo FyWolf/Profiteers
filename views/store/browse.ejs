@@ -1,0 +1,281 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <a href="/store" class="back-link">← Store home</a>
+        <h1>🏪 Browse Store</h1>
+        <div class="subtitle"><%= total.toLocaleString() %> item<%= total === 1 ? '' : 's' %> match your filters</div>
+    </header>
+
+    <form method="get" action="/store/browse" id="browseForm">
+        <div class="browse-topbar">
+            <div class="browse-searchbox">
+                <input type="text" name="q" value="<%= filters.q %>" placeholder="Search by name or class name…" autocomplete="off">
+                <button type="submit" class="btn">Search</button>
+            </div>
+            <label class="browse-sort">Sort
+                <select name="sort" onchange="document.getElementById('browseForm').submit()">
+                    <option value="name"       <%= filters.sort === 'name' ? 'selected' : '' %>>Name (A–Z)</option>
+                    <option value="price_asc"  <%= filters.sort === 'price_asc' ? 'selected' : '' %>>Price: Low → High</option>
+                    <option value="price_desc" <%= filters.sort === 'price_desc' ? 'selected' : '' %>>Price: High → Low</option>
+                    <option value="newest"     <%= filters.sort === 'newest' ? 'selected' : '' %>>Newest</option>
+                </select>
+            </label>
+            <label class="browse-sort">Show
+                <select name="perPage" onchange="document.getElementById('browseForm').submit()">
+                    <% perPageOptions.forEach(n => { %>
+                        <option value="<%= n %>" <%= perPage === n ? 'selected' : '' %>><%= n %></option>
+                    <% }) %>
+                </select>
+            </label>
+            <div class="browse-balance card">💰 <span id="walletBalance"><%= balance.toLocaleString() %></span> ¢</div>
+        </div>
+
+        <div class="browse-layout">
+            <aside class="browse-sidebar">
+                <div class="facet-actions">
+                    <button type="submit" class="btn">Apply</button>
+                    <a href="/store/browse" class="facet-clear">Clear all</a>
+                </div>
+
+                <% if (catFacet.length) { %>
+                <div class="facet-group">
+                    <h3>Category</h3>
+                    <div class="facet-list">
+                        <% catFacet.forEach(c => { %>
+                            <label class="facet-row">
+                                <input type="checkbox" name="category" value="<%= c.id %>" <%= filters.cats.includes(c.id) ? 'checked' : '' %>>
+                                <span class="facet-name"><%= c.name %></span>
+                                <span class="facet-count"><%= c.cnt.toLocaleString() %></span>
+                            </label>
+                        <% }) %>
+                    </div>
+                </div>
+                <% } %>
+
+                <% if (typeFacet.length) { %>
+                <div class="facet-group">
+                    <h3>Type</h3>
+                    <div class="facet-list">
+                        <% typeFacet.forEach(t => { %>
+                            <label class="facet-row">
+                                <input type="checkbox" name="type" value="<%= t.item_type %>" <%= filters.types.includes(t.item_type) ? 'checked' : '' %>>
+                                <span class="facet-name"><span class="item-type-badge type-<%= t.item_type %>"><%= t.item_type %></span></span>
+                                <span class="facet-count"><%= t.cnt.toLocaleString() %></span>
+                            </label>
+                        <% }) %>
+                    </div>
+                </div>
+                <% } %>
+
+                <div class="facet-group">
+                    <h3>Price (¢)</h3>
+                    <div class="facet-price">
+                        <input type="number" name="min" min="0" placeholder="Min" value="<%= filters.min ?? '' %>">
+                        <span>–</span>
+                        <input type="number" name="max" min="0" placeholder="Max" value="<%= filters.max ?? '' %>">
+                    </div>
+                </div>
+
+                <div class="facet-group">
+                    <h3>Availability</h3>
+                    <label class="facet-row">
+                        <input type="checkbox" name="avail" value="in_stock" <%= filters.avail === 'in_stock' ? 'checked' : '' %>>
+                        <span class="facet-name">In stock only</span>
+                    </label>
+                    <label class="facet-sublabel">Ownership</label>
+                    <select name="owned" class="facet-select" onchange="document.getElementById('browseForm').submit()">
+                        <option value=""      <%= filters.owned === '' ? 'selected' : '' %>>Any</option>
+                        <option value="owned" <%= filters.owned === 'owned' ? 'selected' : '' %>>Owned</option>
+                        <option value="not"   <%= filters.owned === 'not' ? 'selected' : '' %>>Not owned</option>
+                    </select>
+                </div>
+
+                <% if (statFacets.length) { %>
+                <div class="facet-group">
+                    <h3>Refine by stats</h3>
+                    <div class="facet-stats">
+                        <% statFacets.forEach(sf => {
+                             const isInt = Number.isInteger(sf.min) && Number.isInteger(sf.max);
+                             const step = isInt ? 1 : 0.1;
+                             const curLo = sf.curMin === '' ? sf.min : sf.curMin;
+                             const curHi = sf.curMax === '' ? sf.max : sf.curMax;
+                        %>
+                            <div class="stat-filter" data-lo="<%= sf.min %>" data-hi="<%= sf.max %>">
+                                <div class="stat-filter-head">
+                                    <span class="facet-name"><%= sf.label %></span>
+                                    <span class="facet-count"><%= sf.cnt.toLocaleString() %></span>
+                                </div>
+                                <div class="range-values">
+                                    <span class="range-min-val"><%= curLo %></span>
+                                    <span class="range-max-val"><%= curHi %></span>
+                                </div>
+                                <div class="range-slider">
+                                    <div class="range-track"></div>
+                                    <div class="range-fill"></div>
+                                    <input type="range" class="range-lower" min="<%= sf.min %>" max="<%= sf.max %>" step="<%= step %>" value="<%= curLo %>" aria-label="<%= sf.label %> minimum">
+                                    <input type="range" class="range-upper" min="<%= sf.min %>" max="<%= sf.max %>" step="<%= step %>" value="<%= curHi %>" aria-label="<%= sf.label %> maximum">
+                                </div>
+                                <input type="hidden" name="<%= sf.slug %>Min" value="<%= sf.curMin %>">
+                                <input type="hidden" name="<%= sf.slug %>Max" value="<%= sf.curMax %>">
+                            </div>
+                        <% }) %>
+                    </div>
+                    <button type="submit" class="btn facet-apply-ranges">Apply ranges</button>
+                </div>
+                <% } %>
+            </aside>
+
+            <main class="browse-main">
+                <div class="browse-results-info">
+                    <% if (total) { %>
+                        Showing <strong><%= from.toLocaleString() %>–<%= to.toLocaleString() %></strong> of <strong><%= total.toLocaleString() %></strong>
+                    <% } else { %>
+                        No items match your filters. <a href="/store/browse">Clear all</a>
+                    <% } %>
+                </div>
+
+                <div class="items-grid">
+                    <% items.forEach(item => { %>
+                        <%- include('_card', { item: item, balance: balance }) %>
+                    <% }) %>
+                </div>
+            </main>
+        </div>
+    </form>
+
+    <% if (totalPages > 1) {
+        const pStart = Math.max(1, page - 2);
+        const pEnd = Math.min(totalPages, page + 2);
+        const sep = baseQs ? '&' : '';
+    %>
+        <nav class="pagination">
+            <% if (page > 1) { %><a class="page-btn" href="/store/browse?<%= baseQs %><%= sep %>page=<%= page - 1 %>">‹ Prev</a><% } %>
+            <% if (pStart > 1) { %>
+                <a class="page-btn" href="/store/browse?<%= baseQs %><%= sep %>page=1">1</a>
+                <% if (pStart > 2) { %><span class="page-dots">…</span><% } %>
+            <% } %>
+            <% for (let n = pStart; n <= pEnd; n++) { %>
+                <% if (n === page) { %><span class="page-btn current"><%= n %></span>
+                <% } else { %><a class="page-btn" href="/store/browse?<%= baseQs %><%= sep %>page=<%= n %>"><%= n %></a><% } %>
+            <% } %>
+            <% if (pEnd < totalPages) { %>
+                <% if (pEnd < totalPages - 1) { %><span class="page-dots">…</span><% } %>
+                <a class="page-btn" href="/store/browse?<%= baseQs %><%= sep %>page=<%= totalPages %>"><%= totalPages %></a>
+            <% } %>
+            <% if (page < totalPages) { %><a class="page-btn" href="/store/browse?<%= baseQs %><%= sep %>page=<%= page + 1 %>">Next ›</a><% } %>
+        </nav>
+    <% } %>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('browseForm');
+    // Snappy faceting: applying a checkbox reloads with it applied (page resets).
+    form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => form.submit());
+    });
+
+    // Two-ended stat range sliders. Handles can't cross; dragging an end to the
+    // extreme clears that side (empty hidden field = no bound). Values commit on
+    // "Apply ranges" so both handles can be set before the page reloads.
+    document.querySelectorAll('.stat-filter').forEach(sf => {
+        const lo = parseFloat(sf.dataset.lo), hi = parseFloat(sf.dataset.hi);
+        if (!(hi > lo)) return;
+        const lower = sf.querySelector('.range-lower');
+        const upper = sf.querySelector('.range-upper');
+        const fill  = sf.querySelector('.range-fill');
+        const minVal = sf.querySelector('.range-min-val');
+        const maxVal = sf.querySelector('.range-max-val');
+        const hMin = sf.querySelector('input[type="hidden"][name$="Min"]');
+        const hMax = sf.querySelector('input[type="hidden"][name$="Max"]');
+        const fmt = v => Number.isInteger(v) ? String(v) : v.toFixed(1);
+
+        function refresh() {
+            const a = parseFloat(lower.value), b = parseFloat(upper.value);
+            const pA = (a - lo) / (hi - lo) * 100;
+            const pB = (b - lo) / (hi - lo) * 100;
+            fill.style.left = pA + '%';
+            fill.style.width = Math.max(0, pB - pA) + '%';
+            minVal.textContent = fmt(a);
+            maxVal.textContent = fmt(b);
+            hMin.value = (a > lo) ? a : '';
+            hMax.value = (b < hi) ? b : '';
+            // Keep the far-end handle grabbable when the two meet.
+            lower.style.zIndex = (a >= hi) ? 4 : 3;
+            upper.style.zIndex = (a >= hi) ? 3 : 4;
+        }
+        lower.addEventListener('input', () => {
+            if (parseFloat(lower.value) > parseFloat(upper.value)) lower.value = upper.value;
+            refresh();
+        });
+        upper.addEventListener('input', () => {
+            if (parseFloat(upper.value) < parseFloat(lower.value)) upper.value = lower.value;
+            refresh();
+        });
+        refresh();
+    });
+
+    function showToast(message, type = 'success') {
+        const el = document.getElementById('toast');
+        el.textContent = message;
+        el.className = `toast ${type} show`;
+        setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    document.querySelectorAll('.qty-plus').forEach(btn => btn.addEventListener('click', () => {
+        const sel = btn.closest('.qty-selector');
+        const input = sel.querySelector('.qty-input');
+        const minus = sel.querySelector('.qty-minus');
+        const v = parseInt(input.value) + 1;
+        if (v <= 99) { input.value = v; minus.disabled = false; }
+    }));
+    document.querySelectorAll('.qty-minus').forEach(btn => btn.addEventListener('click', () => {
+        const input = btn.closest('.qty-selector').querySelector('.qty-input');
+        const v = parseInt(input.value) - 1;
+        if (v >= 1) { input.value = v; if (v === 1) btn.disabled = true; }
+    }));
+
+    document.querySelectorAll('.buy-btn').forEach(btn => btn.addEventListener('click', async () => {
+        const card = btn.closest('.store-item-card');
+        const itemId = card.dataset.itemId;
+        const qty = parseInt(card.querySelector('.qty-input').value);
+        btn.disabled = true;
+        btn.innerHTML = '⏳';
+        try {
+            const res = await fetch('/store/api/buy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ itemId, quantity: qty })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('walletBalance').textContent = data.balance.toLocaleString();
+                showToast(`Purchased ${qty}× ${card.querySelector('.item-name').textContent.trim()}!`);
+                let badge = card.querySelector('.owned-badge');
+                const meta = card.querySelector('.item-meta');
+                if (badge) {
+                    const m = badge.textContent.match(/\d+/);
+                    if (m) badge.innerHTML = '✅ ' + (parseInt(m[0]) + qty);
+                } else if (meta) {
+                    const b = document.createElement('span');
+                    b.className = 'owned-badge';
+                    b.innerHTML = '✅ ' + qty;
+                    meta.appendChild(b);
+                }
+            } else {
+                showToast(data.error || 'Purchase failed', 'error');
+            }
+        } catch (e) {
+            showToast('Network error', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '🛒 Buy';
+        }
+    }));
+});
+</script>
+
+<%- include('../partials/footer') %>

@@ -2,7 +2,7 @@
 
 <div class="container">
     <header>
-        <a href="/store/category/<%= item.category_slug %>" class="back-link">← Back to <%= item.category_name %></a>
+        <a href="/store/browse?category=<%= item.category_id %>" class="back-link">← Back to <%= item.category_name %></a>
         <h1><%= item.display_name %></h1>
         <div class="subtitle">
             <span class="item-type-badge type-<%= item.item_type %>"><%= item.item_type %></span>

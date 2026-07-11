@@ -16,9 +16,16 @@
         </div>
     </div>
 
+    <form action="/store/browse" method="get" class="browse-searchbox home-search">
+        <input type="text" name="q" placeholder="Search all items by name or class name…" autocomplete="off">
+        <button type="submit" class="btn">Search</button>
+        <a href="/store/browse" class="btn btn-secondary">Browse all →</a>
+    </form>
+
+    <h2 class="section-heading">Categories</h2>
     <div class="store-categories">
         <% categories.forEach(cat => { %>
-            <a href="/store/category/<%= cat.slug %>" class="category-card">
+            <a href="/store/browse?category=<%= cat.id %>" class="category-card">
                 <div class="category-icon">
                     <%= cat.icon || '🎖️' %>
                 </div>

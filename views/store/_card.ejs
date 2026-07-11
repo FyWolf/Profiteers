@@ -1,0 +1,32 @@
+<div class="store-item-card" data-item-id="<%= item.id %>" data-price="<%= item.base_price %>" data-type="<%= item.item_type %>">
+    <a class="item-image" href="/store/item/<%= item.id %>">
+        <% if (item.image_url) { %>
+            <img src="<%= item.image_url %>" alt="<%= item.display_name %>" loading="lazy">
+        <% } else { %>
+            <div class="item-placeholder"><%= item.item_type === 'weapon' ? '🔫' : item.item_type === 'uniform' ? '👕' : item.item_type === 'vest' ? '🦺' : item.item_type === 'helmet' ? '⛑️' : item.item_type === 'backpack' ? '🎒' : item.item_type === 'attachment' ? '🔭' : item.item_type === 'grenade' ? '💣' : item.item_type === 'explosive' ? '🧨' : '📦' %></div>
+        <% } %>
+    </a>
+    <div class="item-details">
+        <h3 class="item-name"><a href="/store/item/<%= item.id %>"><%= item.display_name %></a></h3>
+        <span class="item-class"><%= item.class_name %></span>
+        <div class="item-meta">
+            <span class="item-type-badge type-<%= item.item_type %>"><%= item.item_type %></span>
+            <% if (item.owned_qty > 0) { %><span class="owned-badge">✅ <%= item.owned_qty %></span><% } %>
+        </div>
+    </div>
+    <div class="item-actions">
+        <div class="item-price">
+            <span class="price-value"><%= item.base_price.toLocaleString() %></span>
+            <span class="price-currency">¢</span>
+        </div>
+        <% if (item.stock !== -1) { %><div class="stock-info">Stock: <%= item.stock %></div><% } %>
+        <div class="buy-controls">
+            <div class="qty-selector">
+                <button type="button" class="qty-btn qty-minus" disabled>−</button>
+                <input type="number" class="qty-input" value="1" min="1" max="99" readonly>
+                <button type="button" class="qty-btn qty-plus">+</button>
+            </div>
+            <button type="button" class="btn buy-btn" <%= balance < item.base_price ? 'disabled' : '' %>>🛒 Buy</button>
+        </div>
+    </div>
+</div>
