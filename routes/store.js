@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
+const { getMainOrbatId } = require('../helpers/mainOrbat');
+const { getUserPlatoon } = require('../helpers/platoons');
 
 // ─── Middleware ──────────────────────────────────────────────
 function requireAuth(req, res, next) {
@@ -106,7 +108,9 @@ router.get('/browse', requireAuth, async (req, res) => {
         // Build a parameterized WHERE from the active filters. `omit` lets a
         // facet-count query drop its own group so those counts stay meaningful.
         const buildWhere = (omit = {}) => {
-            const clauses = ['si.is_active = 1'];
+            // Vehicles are platoon assets bought from the shared fund — they live
+            // in the dedicated /store/vehicles page, never the personal browse.
+            const clauses = ['si.is_active = 1', "si.item_type <> 'vehicle'"];
             const params = [];
             if (q) {
                 clauses.push('(si.display_name LIKE ? OR si.class_name LIKE ?)');
@@ -275,6 +279,12 @@ router.get('/item/:id', requireAuth, async (req, res) => {
         if (!items.length) return res.redirect('/store');
         const item = items[0];
 
+        // Gallery: the auto preview + any in-game screenshots (mostly vehicles).
+        const [gallery] = await db.query(
+            'SELECT url, kind, angle FROM store_item_images WHERE item_id = ? ORDER BY kind = "preview" DESC, sort ASC, id ASC',
+            [itemId]
+        );
+
         // stats is a JSON column — mysql2 returns it already parsed, but guard
         // for a string, then flatten to an array of [label, value] for the view.
         let stats = item.stats;
@@ -292,12 +302,161 @@ router.get('/item/:id', requireAuth, async (req, res) => {
             title: item.display_name,
             item,
             statEntries,
+            gallery,
             balance: currency?.[0]?.balance ?? 0,
             user: res.locals.user
         });
     } catch (err) {
         console.error('Store item error:', err);
         res.status(500).render('error', { title: 'Error', message: 'Failed to load item', user: res.locals.user });
+    }
+});
+
+// ─── Platoon Vehicle Store ──────────────────────────────────
+// Vehicles are platoon-wide assets: the viewer's platoon (a root squad of the
+// Main ORBAT) owns a shared fund and an inventory. Anyone can view; only members
+// with store.vehicles.purchase can buy, and always for their own platoon.
+router.get('/vehicles', requireAuth, async (req, res) => {
+    try {
+        const userId = res.locals.user.id;
+        const canBuy = Array.isArray(res.locals.user.permissions)
+            && res.locals.user.permissions.includes('store.vehicles.purchase');
+
+        const mainOrbatId = await getMainOrbatId();
+        const platoon = mainOrbatId ? await getUserPlatoon(userId, mainOrbatId) : null;
+
+        let fund = null;
+        let owned = [];
+        if (platoon) {
+            const [funds] = await db.query(
+                'SELECT * FROM platoon_funds WHERE platoon_squad_id = ?',
+                [platoon.id]
+            );
+            fund = funds[0] || { platoon_squad_id: platoon.id, balance: 0, lifetime_earned: 0, lifetime_spent: 0 };
+
+            const [ownedRows] = await db.query(`
+                SELECT pv.quantity, pv.acquired_at, si.*
+                FROM platoon_vehicles pv
+                JOIN store_items si ON si.id = pv.item_id
+                WHERE pv.platoon_squad_id = ?
+                ORDER BY si.display_name
+            `, [platoon.id]);
+            owned = ownedRows;
+        }
+
+        const [vehicles] = await db.query(`
+            SELECT si.*, sc.name AS category_name, sc.slug AS category_slug
+            FROM store_items si
+            JOIN store_categories sc ON sc.id = si.category_id
+            WHERE si.is_active = 1 AND si.item_type = 'vehicle'
+            ORDER BY si.display_name
+        `);
+
+        res.render('store/vehicles', {
+            title: 'Platoon Vehicles',
+            platoon, fund, owned, vehicles, canBuy,
+            balance: fund ? fund.balance : 0,
+            user: res.locals.user
+        });
+    } catch (err) {
+        console.error('Platoon vehicles error:', err);
+        res.status(500).render('error', { title: 'Error', message: 'Failed to load platoon vehicles', user: res.locals.user });
+    }
+});
+
+// ─── API: Buy Platoon Vehicle (shared fund) ─────────────────
+router.post('/api/vehicles/buy', requireAuth, async (req, res) => {
+    const perms = res.locals.user.permissions || [];
+    if (!perms.includes('store.vehicles.purchase')) {
+        return res.status(403).json({ success: false, error: 'You do not have permission to buy platoon vehicles' });
+    }
+
+    const { itemId } = req.body;
+    const quantity = parseInt(req.body.quantity ?? 1, 10);
+    const userId = res.locals.user.id;
+
+    if (!itemId || !Number.isInteger(quantity) || quantity < 1) {
+        return res.status(400).json({ success: false, error: 'Invalid request' });
+    }
+
+    // Buyers always purchase for their own platoon (derived from the Main ORBAT),
+    // which is what ties the fund/inventory to a platoon and enforces membership.
+    const mainOrbatId = await getMainOrbatId();
+    const platoon = mainOrbatId ? await getUserPlatoon(userId, mainOrbatId) : null;
+    if (!platoon) {
+        return res.status(400).json({ success: false, error: 'You are not assigned to a platoon in the Main ORBAT' });
+    }
+
+    const conn = await db.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [items] = await conn.query(
+            "SELECT * FROM store_items WHERE id = ? AND is_active = 1 AND item_type = 'vehicle' FOR UPDATE",
+            [itemId]
+        );
+        if (!items.length) {
+            await conn.rollback();
+            return res.status(404).json({ success: false, error: 'Vehicle not found' });
+        }
+        const item = items[0];
+
+        if (item.stock !== -1 && item.stock < quantity) {
+            await conn.rollback();
+            return res.status(400).json({ success: false, error: 'Not enough stock' });
+        }
+
+        // Get or create the platoon fund, locked for the balance check.
+        let [funds] = await conn.query(
+            'SELECT * FROM platoon_funds WHERE platoon_squad_id = ? FOR UPDATE',
+            [platoon.id]
+        );
+        if (!funds.length) {
+            await conn.query('INSERT INTO platoon_funds (platoon_squad_id, balance) VALUES (?, 0)', [platoon.id]);
+            funds = [{ balance: 0 }];
+        }
+        const fund = funds[0];
+        const totalPrice = item.base_price * quantity;
+
+        if (fund.balance < totalPrice) {
+            await conn.rollback();
+            return res.status(400).json({ success: false, error: 'Insufficient platoon funds' });
+        }
+
+        await conn.query(
+            'UPDATE platoon_funds SET balance = balance - ?, lifetime_spent = lifetime_spent + ? WHERE platoon_squad_id = ?',
+            [totalPrice, totalPrice, platoon.id]
+        );
+
+        await conn.query(`
+            INSERT INTO platoon_vehicles (platoon_squad_id, item_id, quantity, acquired_by)
+            VALUES (?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE quantity = quantity + ?
+        `, [platoon.id, itemId, quantity, userId, quantity]);
+
+        // Unified purchase log (buyer = user) → referenced by the fund audit row.
+        const [txn] = await conn.query(`
+            INSERT INTO store_transactions (user_id, item_id, quantity, unit_price, total_price, transaction_type)
+            VALUES (?, ?, ?, ?, ?, 'purchase')
+        `, [userId, itemId, quantity, item.base_price, totalPrice]);
+
+        await conn.query(`
+            INSERT INTO platoon_fund_transactions (platoon_squad_id, amount, balance_after, reason, source, reference_id, created_by)
+            VALUES (?, ?, ?, ?, 'purchase', ?, ?)
+        `, [platoon.id, -totalPrice, fund.balance - totalPrice, `Purchased ${quantity}x ${item.display_name}`, txn.insertId, userId]);
+
+        if (item.stock !== -1) {
+            await conn.query('UPDATE store_items SET stock = stock - ? WHERE id = ?', [quantity, itemId]);
+        }
+
+        await conn.commit();
+        res.json({ success: true, balance: fund.balance - totalPrice });
+    } catch (err) {
+        await conn.rollback();
+        console.error('Vehicle purchase error:', err);
+        res.status(500).json({ success: false, error: 'Transaction failed' });
+    } finally {
+        conn.release();
     }
 });
 

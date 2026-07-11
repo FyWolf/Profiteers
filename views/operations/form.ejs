@@ -454,12 +454,19 @@ async function loadOrbatTemplates() {
         const select = document.getElementById('orbat_template_id');
         select.innerHTML = '<option value="">-- Select Template --</option>';
         
+        const mainOrbatId = <%= (typeof mainOrbatId !== 'undefined' && mainOrbatId) ? mainOrbatId : 'null' %>;
         templates.forEach(template => {
             const option = document.createElement('option');
             option.value = template.id;
-            option.textContent = `${template.name} (${template.squad_count} squads)`;
+            const isMain = mainOrbatId && template.id === mainOrbatId;
+            option.textContent = `${template.name} (${template.squad_count} squads)` + (isMain ? ' — Main ORBAT' : '');
             <% if (operation && operation.orbat_template_id) { %>
             if (template.id === <%= operation.orbat_template_id %>) {
+                option.selected = true;
+            }
+            <% } else { %>
+            // New operation: default to the Main ORBAT.
+            if (isMain) {
                 option.selected = true;
             }
             <% } %>

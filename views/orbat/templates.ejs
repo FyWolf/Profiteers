@@ -42,8 +42,11 @@
                     <div class="card">
                         <h3 style="color: var(--accent); margin-bottom: 12px;">
                             <%= template.name %>
+                            <% if (template.is_main) { %>
+                                <span class="badge" style="background: var(--olive); color: #fff; font-size: 0.6em; vertical-align: middle; padding: 3px 8px; border-radius: 4px; margin-left: 6px;">★ MAIN ORBAT</span>
+                            <% } %>
                         </h3>
-                        
+
                         <% if (template.description) { %>
                             <p style="color: var(--khaki); margin-bottom: 15px;">
                                 <%= template.description %>
@@ -59,6 +62,14 @@
                             </div>
                         </div>
                         
+                        <% if (!template.is_main) { %>
+                            <form method="POST" action="/orbat/templates/<%= template.id %>/main" style="margin-bottom: 10px;" onsubmit="return confirm('Make \'<%= template.name %>\' the Main ORBAT? Platoon economy, 360° feedback defaults and the nav link will run off it.')">
+                                <button type="submit" class="btn" style="width: 100%; border: 1px solid var(--olive); color: var(--olive-light);">
+                                    ★ Set as Main ORBAT
+                                </button>
+                            </form>
+                        <% } %>
+
                         <div style="display: flex; gap: 10px;">
                             <a href="/orbat/templates/edit/<%= template.id %>" class="btn" style="flex: 1; text-align: center;">
                                 ✏️ Edit

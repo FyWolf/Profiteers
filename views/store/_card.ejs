@@ -3,7 +3,7 @@
         <% if (item.image_url) { %>
             <img src="<%= item.image_url %>" alt="<%= item.display_name %>" loading="lazy">
         <% } else { %>
-            <div class="item-placeholder"><%= item.item_type === 'weapon' ? '🔫' : item.item_type === 'uniform' ? '👕' : item.item_type === 'vest' ? '🦺' : item.item_type === 'helmet' ? '⛑️' : item.item_type === 'backpack' ? '🎒' : item.item_type === 'attachment' ? '🔭' : item.item_type === 'grenade' ? '💣' : item.item_type === 'explosive' ? '🧨' : '📦' %></div>
+            <div class="item-placeholder"><%= item.item_type === 'weapon' ? '🔫' : item.item_type === 'uniform' ? '👕' : item.item_type === 'vest' ? '🦺' : item.item_type === 'helmet' ? '⛑️' : item.item_type === 'backpack' ? '🎒' : item.item_type === 'attachment' ? '🔭' : item.item_type === 'grenade' ? '💣' : item.item_type === 'explosive' ? '🧨' : item.item_type === 'vehicle' ? '🚙' : '📦' %></div>
         <% } %>
     </a>
     <div class="item-details">

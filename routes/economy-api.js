@@ -108,7 +108,20 @@ async function getUserIdBySteamId(steamId) {
 // Converts a PAA buffer to a PNG on disk and returns its public URL.
 async function convertPaaToPng(paaBuffer, originalName) {
     const base = path.basename(originalName || 'unknown.paa');
-    const className = base.replace(/\.paa$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const className = base.replace(/\.(paa|jpe?g|png)$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    await loadPaaModule();
+
+    // Non-PAA images (e.g. a vehicle's .jpg editorPreview, or an in-game
+    // screenshot) don't need the PAA mipmap decode — sharp can re-encode the
+    // bytes straight to PNG.
+    if (!/\.paa$/i.test(base)) {
+        const hash = crypto.createHash('md5').update(paaBuffer).digest('hex').substring(0, 8);
+        const pngFilename = `${className}_${hash}.png`;
+        const pngPath = path.join(STORE_IMAGES_DIR, pngFilename);
+        await sharp(paaBuffer).png().toFile(pngPath);
+        return `/images/store/items/${pngFilename}`;
+    }
 
     // Optional: dump the raw upload for offline inspection (set PAA_DEBUG=1).
     if (process.env.PAA_DEBUG === '1') {
@@ -119,7 +132,6 @@ async function convertPaaToPng(paaBuffer, originalName) {
         } catch (_) { /* best effort */ }
     }
 
-    await loadPaaModule();
     const paa = new Paa();
     paa.read(new Uint8Array(paaBuffer));
     if (!paa.mipmaps || paa.mipmaps.length === 0) throw new Error('PAA has no mipmaps');
@@ -190,6 +202,92 @@ router.post('/upload-pictures', requireUploadKey, fileUpload({
     } catch (err) {
         console.error('[Economy API] Batch upload error:', err);
         res.status(500).send('0:' + err.message);
+    }
+});
+
+// Decode the exact 24/32-bit uncompressed BMP the Windows extension writes
+// (BITMAPFILEHEADER + BITMAPINFOHEADER, bottom-up BGR) to raw RGBA for sharp —
+// libvips has no BMP reader. Returns null if it isn't a BMP we recognize.
+function decodeBmpToRaw(buf) {
+    if (buf.length < 54 || buf[0] !== 0x42 || buf[1] !== 0x4D) return null; // 'BM'
+    const dataOffset = buf.readUInt32LE(10);
+    const width = buf.readInt32LE(18);
+    let height = buf.readInt32LE(22);
+    const bpp = buf.readUInt16LE(28);
+    const compression = buf.readUInt32LE(30);
+    if (compression !== 0 || (bpp !== 24 && bpp !== 32)) return null;
+    const bottomUp = height > 0;
+    height = Math.abs(height);
+    if (width <= 0 || height <= 0) return null;
+    const bytesPP = bpp / 8;
+    const rowSize = Math.floor((bpp * width + 31) / 32) * 4; // padded to 4 bytes
+    if (dataOffset + rowSize * height > buf.length) return null;
+    const out = Buffer.alloc(width * height * 4);
+    for (let y = 0; y < height; y++) {
+        const srcY = bottomUp ? (height - 1 - y) : y;
+        let src = dataOffset + srcY * rowSize;
+        let dst = y * width * 4;
+        for (let x = 0; x < width; x++) {
+            out[dst]     = buf[src + 2]; // R
+            out[dst + 1] = buf[src + 1]; // G
+            out[dst + 2] = buf[src];     // B
+            out[dst + 3] = 255;          // A
+            src += bytesPP;
+            dst += 4;
+        }
+    }
+    return { data: out, width, height };
+}
+
+// ─── Vehicle screenshot saver ──────────────────────────────
+// Saves an already-rendered image (BMP from the Windows CAPTURE, or PNG/JPG)
+// to the store images dir, normalized to PNG. Returns the public URL.
+async function saveScreenshot(buffer, className, angle) {
+    await loadPaaModule();
+    const safeClass = String(className || 'vehicle').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeAngle = String(angle || 'shot').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const hash = crypto.createHash('md5').update(buffer).digest('hex').substring(0, 8);
+    const filename = `${safeClass}_${safeAngle}_${hash}.png`;
+    const outPath = path.join(STORE_IMAGES_DIR, filename);
+
+    const bmp = decodeBmpToRaw(buffer);
+    const img = bmp
+        ? sharp(bmp.data, { raw: { width: bmp.width, height: bmp.height, channels: 4 } })
+        : sharp(buffer);
+    await img.png().toFile(outPath);
+    return `/images/store/items/${filename}`;
+}
+
+// ─── Vehicle screenshot upload (CAPTURE) ───────────────────
+// One multi-angle screenshot per call: `file` = image bytes, `class_name` =
+// the vehicle's Arma class, `angle` = front/side/rear/interior/etc. Links the
+// saved image into store_item_images so the item page gallery shows it.
+router.post('/upload-screenshot', requireUploadKey, fileUpload({
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+    abortOnLimit: true
+}), async (req, res) => {
+    try {
+        if (!req.files || !req.files.file) return res.status(400).send('0:No file uploaded');
+        const className = (req.body.class_name || req.body.className || '').trim();
+        const angle = (req.body.angle || '').trim();
+        if (!className) return res.status(400).send('0:Missing class_name');
+
+        const url = await saveScreenshot(req.files.file.data, className, angle);
+
+        // Link to the store item (by class name) if one exists; harmless no-op
+        // if the vehicle hasn't been exported into the store yet.
+        const [items] = await db.query('SELECT id FROM store_items WHERE class_name = ? LIMIT 1', [className]);
+        if (items.length) {
+            await db.query(`
+                INSERT INTO store_item_images (item_id, url, kind, angle, sort)
+                VALUES (?, ?, 'screenshot', ?, 0)
+                ON DUPLICATE KEY UPDATE angle = VALUES(angle)
+            `, [items[0].id, url, angle || null]);
+        }
+        res.type('text/plain').send(url);
+    } catch (err) {
+        console.error('[Economy API] Screenshot upload error:', err);
+        res.status(500).send('0:' + (err.message || 'upload failed'));
     }
 });
 

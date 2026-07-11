@@ -10,6 +10,7 @@ const fs = require('fs');
 
 const { createCardBuilder } = require('../helpers/orbatCard');
 const { logOrbatChange, resolveOrbatContext } = require('../helpers/orbatChangeLog');
+const { invalidate: invalidateMainOrbat } = require('../helpers/mainOrbat');
 const { fetchGuildRoles } = require('../helpers/discordRoles');
 const { assignSquadRole, removeSquadRole, swapSquadRole } = require('../helpers/squadDiscordRoles');
 
@@ -441,6 +442,28 @@ router.post('/templates/delete/:id', isAdmin, async (req, res) => {
     } catch (error) {
         console.error('Error deleting template:', error);
         res.redirect('/orbat/templates?error=Failed to delete template');
+    }
+});
+
+// Designate this template as the canonical "Main ORBAT". Exactly one template
+// carries is_main = 1, so we clear it everywhere else in the same transaction.
+// Downstream systems (nav link, feedback default, platoon economy) read it via
+// helpers/mainOrbat; invalidate the cache so the switch is immediate.
+router.post('/templates/:id/main', isAdmin, async (req, res) => {
+    const conn = await db.getConnection();
+    try {
+        await conn.beginTransaction();
+        await conn.query('UPDATE orbat_templates SET is_main = 0 WHERE is_main = 1');
+        await conn.query('UPDATE orbat_templates SET is_main = 1 WHERE id = ?', [req.params.id]);
+        await conn.commit();
+        invalidateMainOrbat();
+        res.redirect('/orbat/templates?success=Main ORBAT updated');
+    } catch (error) {
+        await conn.rollback();
+        console.error('Error setting main ORBAT template:', error);
+        res.redirect('/orbat/templates?error=Failed to set Main ORBAT');
+    } finally {
+        conn.release();
     }
 });
 

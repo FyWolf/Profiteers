@@ -1,4 +1,5 @@
 const displayName = require('../helpers/displayName');
+const { getMainOrbatId } = require('../helpers/mainOrbat');
 
 function isAuthenticated(req, res, next) {
     if (req.isAuthenticated()) {
@@ -68,6 +69,16 @@ async function attachUser(req, res, next) {
     } else {
         res.locals.user = null;
     }
+
+    // The canonical Main ORBAT id — used by the nav link and any view that needs
+    // to point at the standing structure. Cached in helpers/mainOrbat, so this is
+    // cheap per request; never let a lookup failure break the page.
+    try {
+        res.locals.mainOrbatId = await getMainOrbatId();
+    } catch (err) {
+        res.locals.mainOrbatId = null;
+    }
+
     next();
 }
 

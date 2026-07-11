@@ -37,10 +37,10 @@
                         <label for="template_id">Command structure (ORBAT template) *</label>
                         <select id="template_id" name="template_id" required>
                             <% templates.forEach(t => { %>
-                                <option value="<%= t.id %>"><%= t.name %></option>
+                                <option value="<%= t.id %>" <%= (typeof mainOrbatId !== 'undefined' && mainOrbatId === t.id) ? 'selected' : '' %>><%= t.name %><%= (typeof mainOrbatId !== 'undefined' && mainOrbatId === t.id) ? ' (Main ORBAT)' : '' %></option>
                             <% }) %>
                         </select>
-                        <small>Superior / peer / subordinate relationships are derived from this template's slot assignments and frozen for the round.</small>
+                        <small>Superior / peer / subordinate relationships are derived from this template's slot assignments and frozen for the round. Defaults to the Main ORBAT.</small>
                     </div>
                     <div class="field">
                         <label for="deadline">Deadline (optional)</label>

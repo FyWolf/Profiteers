@@ -109,7 +109,9 @@ const __articleMod   = locals.articleModified  || null;
                     <div class="dropdown-content">
                         <a href="/operations/upcoming">Upcoming Operations</a>
                         <a href="/operations/all">All Operations</a>
-                        <a href="/orbat/view/2">Main ORBAT</a>
+                        <% if (typeof mainOrbatId !== 'undefined' && mainOrbatId) { %>
+                            <a href="/orbat/view/<%= mainOrbatId %>">Main ORBAT</a>
+                        <% } %>
                         <a href="/orbat/view-all">ORBAT Templates</a>
                         <a href="/plans">Map Plans</a>
                         <a href="/modpacks">Modpacks</a>

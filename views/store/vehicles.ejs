@@ -1,0 +1,159 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <a href="/store" class="back-link">← Store home</a>
+        <h1>🚙 Platoon Vehicles</h1>
+        <div class="subtitle">Shared platoon assets — bought from the platoon fund</div>
+    </header>
+
+    <% if (!platoon) { %>
+        <div class="card" style="padding: 1.5rem; border-left: 4px solid var(--accent);">
+            <h3 style="margin-top: 0;">No platoon</h3>
+            <p style="margin-bottom: 0; color: var(--khaki);">
+                You aren't assigned to a platoon in the Main ORBAT, so there's no shared fund
+                to browse. Vehicles are owned by platoons — ask an admin to place you in the
+                Main ORBAT structure.
+            </p>
+        </div>
+    <% } else { %>
+        <div class="platoon-fund-bar">
+            <div class="card platoon-fund-card">
+                <div style="font-size: 2rem;"><%= platoon.icon || '🛡️' %></div>
+                <div>
+                    <span class="platoon-fund-label"><%= platoon.name %> — Platoon Fund</span>
+                    <span class="platoon-fund-value">💰 <span id="fundBalance"><%= (fund.balance || 0).toLocaleString() %></span> <small>¢</small></span>
+                </div>
+            </div>
+            <% if (!canBuy) { %>
+                <div class="platoon-fund-note">You can view the platoon's assets, but only members with the vehicle-purchase permission can buy.</div>
+            <% } %>
+        </div>
+
+        <% if (owned.length) { %>
+            <h2 class="section-heading">Owned by <%= platoon.name %></h2>
+            <div class="items-grid">
+                <% owned.forEach(v => { %>
+                    <div class="store-item-card">
+                        <a class="item-image" href="/store/item/<%= v.id %>">
+                            <% if (v.image_url) { %>
+                                <img src="<%= v.image_url %>" alt="<%= v.display_name %>" loading="lazy">
+                            <% } else { %>
+                                <div class="item-placeholder">🚙</div>
+                            <% } %>
+                        </a>
+                        <div class="item-details">
+                            <h3 class="item-name"><a href="/store/item/<%= v.id %>"><%= v.display_name %></a></h3>
+                            <span class="item-class"><%= v.class_name %></span>
+                            <div class="item-meta">
+                                <span class="item-type-badge type-vehicle">vehicle</span>
+                                <span class="owned-badge">✅ <%= v.quantity %></span>
+                            </div>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        <% } %>
+
+        <h2 class="section-heading">Available Vehicles</h2>
+        <% if (!vehicles.length) { %>
+            <div class="card" style="padding: 1.5rem;">
+                <p style="margin: 0; color: var(--khaki);">No vehicles in the store yet. Export vehicles from the game to stock the motor pool.</p>
+            </div>
+        <% } else { %>
+            <div class="items-grid">
+                <% vehicles.forEach(item => { %>
+                    <div class="store-item-card" data-item-id="<%= item.id %>" data-price="<%= item.base_price %>" data-type="vehicle">
+                        <a class="item-image" href="/store/item/<%= item.id %>">
+                            <% if (item.image_url) { %>
+                                <img src="<%= item.image_url %>" alt="<%= item.display_name %>" loading="lazy">
+                            <% } else { %>
+                                <div class="item-placeholder">🚙</div>
+                            <% } %>
+                        </a>
+                        <div class="item-details">
+                            <h3 class="item-name"><a href="/store/item/<%= item.id %>"><%= item.display_name %></a></h3>
+                            <span class="item-class"><%= item.class_name %></span>
+                            <div class="item-meta">
+                                <span class="item-type-badge type-vehicle">vehicle</span>
+                            </div>
+                        </div>
+                        <div class="item-actions">
+                            <div class="item-price">
+                                <span class="price-value"><%= item.base_price.toLocaleString() %></span>
+                                <span class="price-currency">¢</span>
+                            </div>
+                            <% if (item.stock !== -1) { %><div class="stock-info">Stock: <%= item.stock %></div><% } %>
+                            <% if (canBuy) { %>
+                                <div class="buy-controls">
+                                    <div class="qty-selector">
+                                        <button type="button" class="qty-btn qty-minus" disabled>−</button>
+                                        <input type="number" class="qty-input" value="1" min="1" max="99" readonly>
+                                        <button type="button" class="qty-btn qty-plus">+</button>
+                                    </div>
+                                    <button type="button" class="btn buy-btn">🛒 Buy</button>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        <% } %>
+    <% } %>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    function showToast(message, type = 'success') {
+        const el = document.getElementById('toast');
+        el.textContent = message;
+        el.className = `toast ${type} show`;
+        setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    document.querySelectorAll('.qty-plus').forEach(btn => btn.addEventListener('click', () => {
+        const sel = btn.closest('.qty-selector');
+        const input = sel.querySelector('.qty-input');
+        const minus = sel.querySelector('.qty-minus');
+        const v = parseInt(input.value) + 1;
+        if (v <= 99) { input.value = v; minus.disabled = false; }
+    }));
+    document.querySelectorAll('.qty-minus').forEach(btn => btn.addEventListener('click', () => {
+        const input = btn.closest('.qty-selector').querySelector('.qty-input');
+        const v = parseInt(input.value) - 1;
+        if (v >= 1) { input.value = v; if (v === 1) btn.disabled = true; }
+    }));
+
+    document.querySelectorAll('.buy-btn').forEach(btn => btn.addEventListener('click', async () => {
+        const card = btn.closest('.store-item-card');
+        const itemId = card.dataset.itemId;
+        const qty = parseInt(card.querySelector('.qty-input').value);
+        btn.disabled = true;
+        btn.innerHTML = '⏳';
+        try {
+            const res = await fetch('/store/api/vehicles/buy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ itemId, quantity: qty })
+            });
+            const data = await res.json();
+            if (data.success) {
+                const fb = document.getElementById('fundBalance');
+                if (fb) fb.textContent = data.balance.toLocaleString();
+                showToast(`Bought ${qty}× ${card.querySelector('.item-name').textContent.trim()} for the platoon!`);
+            } else {
+                showToast(data.error || 'Purchase failed', 'error');
+            }
+        } catch (e) {
+            showToast('Network error', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '🛒 Buy';
+        }
+    }));
+});
+</script>
+
+<%- include('../partials/footer') %>

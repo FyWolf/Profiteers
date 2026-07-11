@@ -51,7 +51,9 @@
                 <select id="orbat_template_id" name="orbat_template_id">
                     <option value="">— No ORBAT —</option>
                     <% orbats.forEach(o => { %>
-                        <option value="<%= o.id %>" <%= plan && parseInt(plan.orbat_template_id) === o.id ? 'selected' : '' %>><%= o.name %></option>
+                        <% const selForPlan = plan && parseInt(plan.orbat_template_id) === o.id;
+                           const selForNew  = !plan && typeof mainOrbatId !== 'undefined' && mainOrbatId === o.id; %>
+                        <option value="<%= o.id %>" <%= (selForPlan || selForNew) ? 'selected' : '' %>><%= o.name %><%= (typeof mainOrbatId !== 'undefined' && mainOrbatId === o.id) ? ' (Main ORBAT)' : '' %></option>
                     <% }); %>
                 </select>
                 <small style="color:var(--khaki);margin-top:5px;display:block;">

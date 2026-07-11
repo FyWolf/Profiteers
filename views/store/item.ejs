@@ -14,11 +14,33 @@
 
     <div class="item-page">
         <div class="item-page-media card">
-            <% if (item.image_url) { %>
-                <img src="<%= item.image_url %>" alt="<%= item.display_name %>">
+            <%
+                // Build the gallery: primary image first (item.image_url), then any
+                // extra shots from store_item_images that aren't the same URL.
+                const shots = [];
+                if (item.image_url) shots.push({ url: item.image_url, angle: 'main' });
+                (typeof gallery !== 'undefined' ? gallery : []).forEach(g => {
+                    if (g.url && g.url !== item.image_url) shots.push({ url: g.url, angle: g.angle || g.kind });
+                });
+            %>
+            <% if (shots.length) { %>
+                <div class="item-gallery">
+                    <div class="item-gallery-main">
+                        <img id="galleryMain" src="<%= shots[0].url %>" alt="<%= item.display_name %>">
+                    </div>
+                    <% if (shots.length > 1) { %>
+                        <div class="item-gallery-thumbs">
+                            <% shots.forEach((s, i) => { %>
+                                <button type="button" class="item-gallery-thumb <%= i === 0 ? 'active' : '' %>" data-src="<%= s.url %>">
+                                    <img src="<%= s.url %>" alt="<%= s.angle %>" loading="lazy">
+                                </button>
+                            <% }) %>
+                        </div>
+                    <% } %>
+                </div>
             <% } else { %>
                 <div class="item-placeholder">
-                    <%= item.item_type === 'weapon' ? '🔫' : item.item_type === 'uniform' ? '👕' : item.item_type === 'vest' ? '🦺' : item.item_type === 'helmet' ? '⛑️' : item.item_type === 'backpack' ? '🎒' : item.item_type === 'attachment' ? '🔭' : item.item_type === 'grenade' ? '💣' : item.item_type === 'explosive' ? '🧨' : '📦' %>
+                    <%= item.item_type === 'weapon' ? '🔫' : item.item_type === 'uniform' ? '👕' : item.item_type === 'vest' ? '🦺' : item.item_type === 'helmet' ? '⛑️' : item.item_type === 'backpack' ? '🎒' : item.item_type === 'attachment' ? '🔭' : item.item_type === 'grenade' ? '💣' : item.item_type === 'explosive' ? '🧨' : item.item_type === 'vehicle' ? '🚙' : '📦' %>
                 </div>
             <% } %>
         </div>
@@ -94,6 +116,16 @@ document.addEventListener('DOMContentLoaded', () => {
         el.className = `toast ${type} show`;
         setTimeout(() => el.classList.remove('show'), 3000);
     }
+
+    // Gallery: clicking a thumbnail swaps the main image.
+    const galleryMain = document.getElementById('galleryMain');
+    document.querySelectorAll('.item-gallery-thumb').forEach(thumb => {
+        thumb.addEventListener('click', () => {
+            if (galleryMain) galleryMain.src = thumb.dataset.src;
+            document.querySelectorAll('.item-gallery-thumb').forEach(t => t.classList.remove('active'));
+            thumb.classList.add('active');
+        });
+    });
 
     const box = document.querySelector('.item-page-buy');
     if (!box) return;

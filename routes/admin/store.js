@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/database');
+const { getMainOrbatId } = require('../../helpers/mainOrbat');
+const { getPlatoons } = require('../../helpers/platoons');
 
 // ─── Store Dashboard ────────────────────────────────────────
 router.get('/', async (req, res) => {
@@ -280,6 +282,137 @@ router.post('/currency/remove', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.redirect('/admin/store/currency?error=Failed to remove currency');
+    }
+});
+
+// ─── Platoon Fund Management ────────────────────────────────
+// Platoons are the root squads of the Main ORBAT; each owns a shared fund that
+// vehicle purchases draw from. Admins top up / adjust those funds here.
+router.get('/platoon-funds', async (req, res) => {
+    try {
+        const mainOrbatId = await getMainOrbatId();
+        const platoons = await getPlatoons(mainOrbatId);
+
+        let funds = [];
+        if (platoons.length) {
+            const ids = platoons.map(p => p.id);
+            const [fundRows] = await db.query(
+                'SELECT * FROM platoon_funds WHERE platoon_squad_id IN (?)',
+                [ids]
+            );
+            const byId = {};
+            fundRows.forEach(f => { byId[f.platoon_squad_id] = f; });
+            funds = platoons.map(p => ({
+                id: p.id,
+                name: p.name,
+                balance: byId[p.id]?.balance ?? 0,
+                lifetime_earned: byId[p.id]?.lifetime_earned ?? 0,
+                lifetime_spent: byId[p.id]?.lifetime_spent ?? 0
+            }));
+        }
+
+        const [recent] = await db.query(`
+            SELECT pft.*, os.name AS platoon_name, u.discord_global_name AS by_username
+            FROM platoon_fund_transactions pft
+            JOIN orbat_squads os ON os.id = pft.platoon_squad_id
+            LEFT JOIN users u ON u.id = pft.created_by
+            ORDER BY pft.created_at DESC
+            LIMIT 20
+        `);
+
+        res.render('admin/store/platoon-funds', {
+            title: 'Platoon Funds',
+            hasMainOrbat: !!mainOrbatId,
+            funds,
+            recent,
+            user: res.locals.user,
+            error: req.query.error || null,
+            success: req.query.success || null
+        });
+    } catch (err) {
+        console.error('Admin platoon funds error:', err);
+        res.status(500).render('error', { title: 'Error', message: 'Failed to load platoon funds', user: res.locals.user });
+    }
+});
+
+// Shared helper: adjust a platoon fund by `delta` (signed) and log it.
+async function adjustPlatoonFund(platoonId, delta, reason, source, createdBy) {
+    const conn = await db.getConnection();
+    try {
+        await conn.beginTransaction();
+        let [funds] = await conn.query(
+            'SELECT balance FROM platoon_funds WHERE platoon_squad_id = ? FOR UPDATE',
+            [platoonId]
+        );
+        if (!funds.length) {
+            await conn.query('INSERT INTO platoon_funds (platoon_squad_id, balance) VALUES (?, 0)', [platoonId]);
+            funds = [{ balance: 0 }];
+        }
+        const current = funds[0].balance;
+        // Never let a removal push the balance below zero.
+        const newBalance = Math.max(current + delta, 0);
+        const applied = newBalance - current; // the actual signed change
+
+        if (applied >= 0) {
+            await conn.query(
+                'UPDATE platoon_funds SET balance = ?, lifetime_earned = lifetime_earned + ? WHERE platoon_squad_id = ?',
+                [newBalance, applied, platoonId]
+            );
+        } else {
+            await conn.query(
+                'UPDATE platoon_funds SET balance = ?, lifetime_spent = lifetime_spent + ? WHERE platoon_squad_id = ?',
+                [newBalance, -applied, platoonId]
+            );
+        }
+
+        await conn.query(
+            'INSERT INTO platoon_fund_transactions (platoon_squad_id, amount, balance_after, reason, source, created_by) VALUES (?, ?, ?, ?, ?, ?)',
+            [platoonId, applied, newBalance, reason, source, createdBy]
+        );
+        await conn.commit();
+    } catch (err) {
+        await conn.rollback();
+        throw err;
+    } finally {
+        conn.release();
+    }
+}
+
+router.post('/platoon-funds/grant', async (req, res) => {
+    const platoonId = parseInt(req.body.platoon_id, 10);
+    const amount = parseInt(req.body.amount, 10);
+    const reason = req.body.reason;
+    if (!Number.isInteger(platoonId)) {
+        return res.redirect('/admin/store/platoon-funds?error=Please select a platoon');
+    }
+    if (!Number.isInteger(amount) || amount <= 0) {
+        return res.redirect('/admin/store/platoon-funds?error=Enter a positive amount');
+    }
+    try {
+        await adjustPlatoonFund(platoonId, amount, reason || 'Admin grant', 'admin_grant', res.locals.user.id);
+        res.redirect('/admin/store/platoon-funds?success=Fund topped up');
+    } catch (err) {
+        console.error('Grant platoon fund error:', err);
+        res.redirect('/admin/store/platoon-funds?error=Failed to grant funds');
+    }
+});
+
+router.post('/platoon-funds/remove', async (req, res) => {
+    const platoonId = parseInt(req.body.platoon_id, 10);
+    const amount = parseInt(req.body.amount, 10);
+    const reason = req.body.reason;
+    if (!Number.isInteger(platoonId)) {
+        return res.redirect('/admin/store/platoon-funds?error=Please select a platoon');
+    }
+    if (!Number.isInteger(amount) || amount <= 0) {
+        return res.redirect('/admin/store/platoon-funds?error=Enter a positive amount');
+    }
+    try {
+        await adjustPlatoonFund(platoonId, -amount, reason || 'Admin removal', 'admin_remove', res.locals.user.id);
+        res.redirect('/admin/store/platoon-funds?success=Fund adjusted');
+    } catch (err) {
+        console.error('Remove platoon fund error:', err);
+        res.redirect('/admin/store/platoon-funds?error=Failed to remove funds');
     }
 });
 

@@ -1,0 +1,135 @@
+<%- include('../../partials/header') %>
+
+<div class="container">
+    <header>
+        <h1>🛡️ Platoon Funds</h1>
+        <div class="subtitle">Top up or adjust the shared vehicle funds — one per Main ORBAT platoon</div>
+    </header>
+
+    <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+    <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
+
+    <% if (!hasMainOrbat) { %>
+        <div class="alert alert-error">
+            No Main ORBAT is set. Pick one under <a href="/orbat/templates">ORBAT Templates</a> → “Set as Main ORBAT”, then platoons (its root squads) will appear here.
+        </div>
+    <% } else if (!funds.length) { %>
+        <div class="alert alert-error">
+            The Main ORBAT has no platoons (root squads) yet. Add a top-level squad to the Main ORBAT template first.
+        </div>
+    <% } else { %>
+        <div class="section">
+            <div class="top-row"><h2>Add Funds</h2></div>
+            <form method="POST" action="/admin/store/platoon-funds/grant" class="form-wrap">
+                <div class="field">
+                    <label>Platoon</label>
+                    <select name="platoon_id" required>
+                        <option value="" disabled selected>— Select Platoon —</option>
+                        <% funds.forEach(f => { %>
+                            <option value="<%= f.id %>"><%= f.name %> — <%= f.balance.toLocaleString() %>¢</option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Amount</label>
+                    <input type="number" name="amount" placeholder="Amount" min="1" required>
+                </div>
+                <div class="field">
+                    <label>Reason</label>
+                    <input type="text" name="reason" placeholder="Reason (optional)">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn">Add Funds</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="section">
+            <div class="top-row"><h2>Remove Funds</h2></div>
+            <form method="POST" action="/admin/store/platoon-funds/remove" class="form-wrap">
+                <div class="field">
+                    <label>Platoon</label>
+                    <select name="platoon_id" required>
+                        <option value="" disabled selected>— Select Platoon —</option>
+                        <% funds.forEach(f => { %>
+                            <option value="<%= f.id %>"><%= f.name %> — <%= f.balance.toLocaleString() %>¢</option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Amount</label>
+                    <input type="number" name="amount" placeholder="Amount" min="1" required>
+                </div>
+                <div class="field">
+                    <label>Reason</label>
+                    <input type="text" name="reason" placeholder="Reason (optional)">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-danger">Remove Funds</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="section">
+            <div class="top-row"><h2>Platoon Balances</h2></div>
+            <div class="table-responsive">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Platoon</th>
+                            <th>Balance</th>
+                            <th>Lifetime Earned</th>
+                            <th>Lifetime Spent</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% funds.forEach(f => { %>
+                            <tr>
+                                <td><%= f.name %></td>
+                                <td><strong><%= f.balance.toLocaleString() %>¢</strong></td>
+                                <td><%= f.lifetime_earned.toLocaleString() %>¢</td>
+                                <td><%= f.lifetime_spent.toLocaleString() %>¢</td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    <% } %>
+
+    <% if (recent && recent.length) { %>
+        <div class="section">
+            <div class="top-row"><h2>Recent Fund Activity</h2></div>
+            <div class="table-responsive">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>When</th>
+                            <th>Platoon</th>
+                            <th>Amount</th>
+                            <th>Balance After</th>
+                            <th>Source</th>
+                            <th>Reason</th>
+                            <th>By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% recent.forEach(t => { %>
+                            <tr>
+                                <td><%= new Date(t.created_at).toLocaleString() %></td>
+                                <td><%= t.platoon_name %></td>
+                                <td style="color: <%= t.amount < 0 ? '#ff6b6b' : '#5fd08a' %>;"><%= t.amount > 0 ? '+' : '' %><%= t.amount.toLocaleString() %>¢</td>
+                                <td><%= t.balance_after.toLocaleString() %>¢</td>
+                                <td><span class="badge badge-<%= t.source === 'purchase' ? 'purchase' : t.source === 'admin_remove' ? 'admin' : 'grant' %>"><%= t.source.replace('_', ' ') %></span></td>
+                                <td><%= t.reason || '' %></td>
+                                <td><%= t.by_username || '—' %></td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    <% } %>
+</div>
+
+<%- include('../../partials/footer') %>

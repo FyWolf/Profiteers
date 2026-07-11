@@ -81,6 +81,7 @@ const FILE_UPLOAD_EXCEPTIONS = [
     '/admin/map-plans/terrains/import',
     '/api/economy/upload-picture',  // Arma PAA upload (single): mounts its own 5 MB uploader
     '/api/economy/upload-pictures', // Arma PAA upload (batch): mounts its own 5 MB/500-file uploader
+    '/api/economy/upload-screenshot', // Arma vehicle screenshot: mounts its own 10 MB uploader
 ];
 // Dynamic-path exceptions (route params can't be matched by the static list above).
 // Mission file/attachment uploads mount their own large-upload middleware.
