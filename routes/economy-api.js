@@ -30,6 +30,13 @@ async function loadPaaModule() {
     }
     if (!sharp) {
         sharp = (await import('sharp')).default;
+        // A bulk arsenal export converts thousands of images. libvips otherwise
+        // retains decoded bitmaps/operations in an in-memory cache and spins up
+        // a thread pool per op, which can balloon memory and OOM-kill Node in a
+        // memory-limited container. Disable the cache and cap concurrency so the
+        // footprint stays flat and predictable across a long export.
+        sharp.cache(false);
+        sharp.concurrency(1);
     }
 }
 loadPaaModule();
@@ -351,16 +358,30 @@ router.post('/', requireApiKey, async (req, res) => {
                             statsJson = stats.trim();
                         }
 
+                        // Only store a real web image URL. The client sends a
+                        // resolved /images/... URL when the icon uploaded, but the
+                        // original .paa path (or a procedural "#..." texture) when
+                        // extraction/upload failed — those are useless in a browser
+                        // (404), so store NULL and let the store show its type
+                        // placeholder instead of a broken image.
+                        const imageUrl = (typeof picture === 'string' &&
+                            (picture.startsWith('/images/') || picture.startsWith('http')))
+                            ? picture : null;
+
                         // Refresh image_url, item_type and stats for items that
-                        // already exist so a re-export self-heals stale links AND
-                        // fixes previously mis-classified types. Admin-set fields
-                        // (price, stock, is_active, display_name, description) are kept.
+                        // already exist so a re-export self-heals. On image_url we
+                        // prefer the new URL, else keep the old one ONLY if it's a
+                        // valid uploaded path (so a failed re-export can't wipe a
+                        // good icon, and a stale .paa path gets cleaned to NULL).
+                        // Admin-set fields (price, stock, is_active, display_name,
+                        // description) are kept.
                         const [result] = await conn.query(`
                             INSERT INTO store_items
                                 (category_id, class_name, display_name, description, image_url, item_type, stats, base_price, stock, is_active)
                             VALUES (?, ?, ?, ?, ?, ?, ?, 0, -1, 1)
                             ON DUPLICATE KEY UPDATE
-                                image_url = VALUES(image_url),
+                                image_url = COALESCE(VALUES(image_url),
+                                                     CASE WHEN image_url LIKE '/images/%' THEN image_url ELSE NULL END),
                                 item_type = VALUES(item_type),
                                 stats     = VALUES(stats)
                         `, [
@@ -368,7 +389,7 @@ router.post('/', requireApiKey, async (req, res) => {
                             className,
                             displayName,
                             description || '',
-                            picture || '',
+                            imageUrl,
                             itemType || 'misc',
                             statsJson
                         ]);
