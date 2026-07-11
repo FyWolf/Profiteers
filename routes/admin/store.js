@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../../config/database');
 const { getMainOrbatId } = require('../../helpers/mainOrbat');
 const { getPlatoons } = require('../../helpers/platoons');
+const { saveImageBuffer } = require('../../helpers/storeImages');
 
 // ─── Store Dashboard ────────────────────────────────────────
 router.get('/', async (req, res) => {
@@ -85,19 +86,61 @@ router.post('/categories/:id/delete', async (req, res) => {
 });
 
 // ─── Items ──────────────────────────────────────────────────
+const ADMIN_ITEM_TYPES = ['weapon','magazine','attachment','uniform','vest','helmet','backpack','item','grenade','explosive','vehicle','misc'];
+const ADMIN_ITEMS_PER_PAGE = 50;
+
 router.get('/items', async (req, res) => {
     try {
-        const [items] = await db.query(`
-            SELECT si.*, sc.name AS category_name
-            FROM store_items si
-            JOIN store_categories sc ON sc.id = si.category_id
-            ORDER BY sc.name, si.display_name
-        `);
+        // Server-side pagination + filters — the store can hold tens of thousands
+        // of items, so rendering them all crashes the browser. Only a page loads.
+        const q = (req.query.q || '').trim();
+        const type = ADMIN_ITEM_TYPES.includes(req.query.type) ? req.query.type : '';
+        const categoryId = parseInt(req.query.category, 10);
+        const hasCategory = Number.isInteger(categoryId);
+        let page = parseInt(req.query.page, 10);
+        if (!Number.isInteger(page) || page < 1) page = 1;
+
+        const clauses = [];
+        const params = [];
+        if (q) { clauses.push('(si.display_name LIKE ? OR si.class_name LIKE ?)'); params.push(`%${q}%`, `%${q}%`); }
+        if (type) { clauses.push('si.item_type = ?'); params.push(type); }
+        if (hasCategory) { clauses.push('si.category_id = ?'); params.push(categoryId); }
+        const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+
+        const [[{ total }]] = await db.query(
+            `SELECT COUNT(*) AS total FROM store_items si ${where}`,
+            params
+        );
+        const totalPages = Math.max(1, Math.ceil(total / ADMIN_ITEMS_PER_PAGE));
+        if (page > totalPages) page = totalPages;
+
+        const [items] = await db.query(
+            `SELECT si.*, sc.name AS category_name
+             FROM store_items si
+             JOIN store_categories sc ON sc.id = si.category_id
+             ${where}
+             ORDER BY sc.name, si.display_name
+             LIMIT ? OFFSET ?`,
+            [...params, ADMIN_ITEMS_PER_PAGE, (page - 1) * ADMIN_ITEMS_PER_PAGE]
+        );
         const [categories] = await db.query('SELECT * FROM store_categories ORDER BY name');
+
+        // Canonical query string (without page) for pagination + filter links.
+        const usp = new URLSearchParams();
+        if (q) usp.set('q', q);
+        if (type) usp.set('type', type);
+        if (hasCategory) usp.set('category', String(categoryId));
+
         res.render('admin/store/items', {
             title: 'Store Items',
             items,
             categories,
+            itemTypes: ADMIN_ITEM_TYPES,
+            filters: { q, type, category: hasCategory ? categoryId : '' },
+            total, page, totalPages,
+            from: total ? (page - 1) * ADMIN_ITEMS_PER_PAGE + 1 : 0,
+            to: Math.min(page * ADMIN_ITEMS_PER_PAGE, total),
+            baseQs: usp.toString(),
             user: res.locals.user,
             error: req.query.error || null,
             success: req.query.success || null
@@ -144,6 +187,97 @@ router.post('/items/:id/delete', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.redirect('/admin/store/items?error=Failed to delete item');
+    }
+});
+
+// ─── Item image / gallery management ────────────────────────
+// Manage an item's primary image (store_items.image_url) + gallery
+// (store_item_images) — for vehicles this is where the captured screenshots
+// land, but it works for any item.
+router.get('/items/:id/images', async (req, res) => {
+    try {
+        const itemId = parseInt(req.params.id, 10);
+        const [items] = await db.query(`
+            SELECT si.*, sc.name AS category_name
+            FROM store_items si JOIN store_categories sc ON sc.id = si.category_id
+            WHERE si.id = ?
+        `, [itemId]);
+        if (!items.length) return res.redirect('/admin/store/items?error=Item not found');
+
+        const [images] = await db.query(
+            'SELECT * FROM store_item_images WHERE item_id = ? ORDER BY kind = "preview" DESC, sort ASC, id ASC',
+            [itemId]
+        );
+        res.render('admin/store/item-images', {
+            title: `Images — ${items[0].display_name}`,
+            item: items[0],
+            images,
+            user: res.locals.user,
+            error: req.query.error || null,
+            success: req.query.success || null
+        });
+    } catch (err) {
+        console.error('Admin item images error:', err);
+        res.status(500).render('error', { title: 'Error', message: 'Failed to load item images', user: res.locals.user });
+    }
+});
+
+router.post('/items/:id/images/upload', async (req, res) => {
+    const itemId = parseInt(req.params.id, 10);
+    const back = `/admin/store/items/${itemId}/images`;
+    if (!req.files || !req.files.image) {
+        return res.redirect(`${back}?error=No image uploaded`);
+    }
+    try {
+        const kind = req.body.kind === 'preview' ? 'preview' : 'screenshot';
+        const angle = (req.body.angle || '').trim() || null;
+        const setPrimary = !!req.body.set_primary || kind === 'preview';
+        const url = await saveImageBuffer(req.files.image.data, `item${itemId}`);
+        await db.query(`
+            INSERT INTO store_item_images (item_id, url, kind, angle, sort)
+            VALUES (?, ?, ?, ?, 0)
+            ON DUPLICATE KEY UPDATE kind = VALUES(kind), angle = VALUES(angle)
+        `, [itemId, url, kind, angle]);
+        if (setPrimary) {
+            await db.query('UPDATE store_items SET image_url = ? WHERE id = ?', [url, itemId]);
+        }
+        res.redirect(`${back}?success=Image uploaded`);
+    } catch (err) {
+        console.error('Admin image upload error:', err);
+        res.redirect(`${back}?error=Failed to upload image`);
+    }
+});
+
+// Set the primary image from an existing gallery image, or a pasted URL.
+router.post('/items/:id/images/primary', async (req, res) => {
+    const itemId = parseInt(req.params.id, 10);
+    const back = `/admin/store/items/${itemId}/images`;
+    const url = (req.body.url || '').trim();
+    if (!url) return res.redirect(`${back}?error=No image URL`);
+    try {
+        await db.query('UPDATE store_items SET image_url = ? WHERE id = ?', [url, itemId]);
+        res.redirect(`${back}?success=Primary image updated`);
+    } catch (err) {
+        console.error('Admin set primary image error:', err);
+        res.redirect(`${back}?error=Failed to set primary image`);
+    }
+});
+
+router.post('/items/:id/images/:imageId/delete', async (req, res) => {
+    const itemId = parseInt(req.params.id, 10);
+    const imageId = parseInt(req.params.imageId, 10);
+    const back = `/admin/store/items/${itemId}/images`;
+    try {
+        const [rows] = await db.query('SELECT url FROM store_item_images WHERE id = ? AND item_id = ?', [imageId, itemId]);
+        await db.query('DELETE FROM store_item_images WHERE id = ? AND item_id = ?', [imageId, itemId]);
+        // If the deleted image was the primary, clear it so we don't 404.
+        if (rows.length) {
+            await db.query('UPDATE store_items SET image_url = NULL WHERE id = ? AND image_url = ?', [itemId, rows[0].url]);
+        }
+        res.redirect(`${back}?success=Image removed`);
+    } catch (err) {
+        console.error('Admin delete image error:', err);
+        res.redirect(`${back}?error=Failed to remove image`);
     }
 });
 

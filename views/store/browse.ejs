@@ -29,6 +29,7 @@
                 </select>
             </label>
             <div class="browse-balance card">💰 <span id="walletBalance"><%= balance.toLocaleString() %></span> ¢</div>
+            <a href="/store/cart" class="btn btn-secondary cart-link">🛒 Cart <span class="cart-count cart-badge"></span></a>
         </div>
 
         <div class="browse-layout">
@@ -277,5 +278,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }));
 });
 </script>
+<script src="/js/store-cart.js"></script>
 
 <%- include('../partials/footer') %>

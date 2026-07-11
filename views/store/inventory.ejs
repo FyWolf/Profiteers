@@ -1,0 +1,111 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <a href="/store" class="back-link">← Store home</a>
+        <h1>🎒 My Inventory</h1>
+        <div class="subtitle"><%= totalItems.toLocaleString() %> item<%= totalItems === 1 ? '' : 's' %> owned</div>
+    </header>
+
+    <% if (!owned.length && !platoonVehicles.length) { %>
+        <div class="card" style="padding:2rem; text-align:center;">
+            <p style="margin:0 0 1rem; color:var(--khaki);">You don't own anything yet.</p>
+            <a href="/store/browse" class="btn">Browse the store →</a>
+        </div>
+    <% } else { %>
+
+        <% if (owned.length) { %>
+            <div class="inv-toolbar">
+                <input type="text" id="invSearch" class="inv-search" placeholder="Search your gear..." autocomplete="off">
+                <div class="inv-chips">
+                    <button type="button" class="inv-chip active" data-type="">All</button>
+                    <% types.forEach(t => { %>
+                        <button type="button" class="inv-chip" data-type="<%= t %>"><%= t %></button>
+                    <% }) %>
+                </div>
+            </div>
+
+            <div class="items-grid" id="invGrid">
+                <% owned.forEach(o => { %>
+                    <div class="store-item-card inv-card" data-type="<%= o.item_type %>" data-name="<%= (o.display_name + ' ' + o.class_name).toLowerCase() %>">
+                        <a class="item-image" href="/store/item/<%= o.id %>">
+                            <% if (o.image_url) { %>
+                                <img src="<%= o.image_url %>" alt="<%= o.display_name %>" loading="lazy">
+                            <% } else { %>
+                                <div class="item-placeholder"><%= o.item_type === 'weapon' ? '🔫' : o.item_type === 'uniform' ? '👕' : o.item_type === 'vest' ? '🦺' : o.item_type === 'helmet' ? '⛑️' : o.item_type === 'backpack' ? '🎒' : o.item_type === 'attachment' ? '🔭' : o.item_type === 'grenade' ? '💣' : o.item_type === 'explosive' ? '🧨' : o.item_type === 'vehicle' ? '🚙' : '📦' %></div>
+                            <% } %>
+                        </a>
+                        <div class="item-details">
+                            <h3 class="item-name"><a href="/store/item/<%= o.id %>"><%= o.display_name %></a></h3>
+                            <span class="item-class"><%= o.class_name %></span>
+                            <div class="item-meta">
+                                <span class="item-type-badge type-<%= o.item_type %>"><%= o.item_type %></span>
+                                <span class="owned-badge">✅ <%= o.quantity %></span>
+                            </div>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+            <p id="invNoMatch" class="empty-state" style="display:none;">No gear matches your filter.</p>
+        <% } %>
+
+        <% if (platoonVehicles.length) { %>
+            <h2 class="section-heading" style="margin-top:2rem;">🚙 <%= platoon.name %> — Platoon Vehicles</h2>
+            <div class="items-grid">
+                <% platoonVehicles.forEach(v => { %>
+                    <div class="store-item-card">
+                        <a class="item-image" href="/store/item/<%= v.id %>">
+                            <% if (v.image_url) { %>
+                                <img src="<%= v.image_url %>" alt="<%= v.display_name %>" loading="lazy">
+                            <% } else { %>
+                                <div class="item-placeholder">🚙</div>
+                            <% } %>
+                        </a>
+                        <div class="item-details">
+                            <h3 class="item-name"><a href="/store/item/<%= v.id %>"><%= v.display_name %></a></h3>
+                            <span class="item-class"><%= v.class_name %></span>
+                            <div class="item-meta">
+                                <span class="item-type-badge type-vehicle">vehicle</span>
+                                <span class="owned-badge">✅ <%= v.quantity %></span>
+                            </div>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        <% } %>
+
+    <% } %>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const search = document.getElementById('invSearch');
+    const chips = document.querySelectorAll('.inv-chip');
+    const cards = document.querySelectorAll('.inv-card');
+    const noMatch = document.getElementById('invNoMatch');
+    let activeType = '';
+
+    function apply() {
+        const q = (search?.value || '').toLowerCase().trim();
+        let shown = 0;
+        cards.forEach(card => {
+            const matchType = !activeType || card.dataset.type === activeType;
+            const matchSearch = !q || card.dataset.name.includes(q);
+            const show = matchType && matchSearch;
+            card.style.display = show ? '' : 'none';
+            if (show) shown++;
+        });
+        if (noMatch) noMatch.style.display = shown === 0 ? '' : 'none';
+    }
+
+    if (search) search.addEventListener('input', apply);
+    chips.forEach(chip => chip.addEventListener('click', () => {
+        chips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        activeType = chip.dataset.type;
+        apply();
+    }));
+});
+</script>
+
+<%- include('../partials/footer') %>

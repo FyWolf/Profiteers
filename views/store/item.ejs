@@ -51,6 +51,16 @@
                 <p class="item-description"><%= item.description %></p>
             <% } %>
 
+            <% if (item.item_type === 'vehicle') { %>
+                <div class="item-page-buy card">
+                    <div class="item-price">
+                        <span class="price-value"><%= item.base_price.toLocaleString() %></span>
+                        <span class="price-currency">¢</span>
+                    </div>
+                    <p class="item-description" style="margin:0.75rem 0;">This is a platoon vehicle — bought from the shared platoon fund.</p>
+                    <a href="/store/vehicles" class="btn">🚙 Go to Platoon Vehicles</a>
+                </div>
+            <% } else { %>
             <div class="item-page-buy card" data-item-id="<%= item.id %>" data-price="<%= item.base_price %>">
                 <div class="item-price">
                     <span class="price-value"><%= item.base_price.toLocaleString() %></span>
@@ -66,9 +76,13 @@
                         <button class="qty-btn qty-plus">+</button>
                     </div>
                     <button class="btn buy-btn" <%= balance < item.base_price ? 'disabled' : '' %>>🛒 Buy</button>
+                    <% if (item.item_type !== 'vehicle') { %>
+                        <button type="button" class="btn btn-secondary add-to-cart" data-item-id="<%= item.id %>">➕ Cart</button>
+                    <% } %>
                 </div>
                 <div class="balance-line">Balance: <span id="walletBalance"><%= balance.toLocaleString() %></span> ¢</div>
             </div>
+            <% } %>
         </div>
     </div>
 
@@ -128,7 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const box = document.querySelector('.item-page-buy');
-    if (!box) return;
+    const buyBtn = box ? box.querySelector('.buy-btn') : null;
+    if (!box || !buyBtn) return; // vehicles show a platoon-store link, no buy controls
     const qtyInput = box.querySelector('.qty-input');
     const minus = box.querySelector('.qty-minus');
     const itemName = document.querySelector('.container header h1').textContent;
@@ -170,5 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
+<script src="/js/store-cart.js"></script>
 
 <%- include('../partials/footer') %>

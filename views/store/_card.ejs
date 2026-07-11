@@ -27,6 +27,7 @@
                 <button type="button" class="qty-btn qty-plus">+</button>
             </div>
             <button type="button" class="btn buy-btn" <%= balance < item.base_price ? 'disabled' : '' %>>🛒 Buy</button>
+            <button type="button" class="btn btn-secondary add-to-cart" data-item-id="<%= item.id %>" title="Add to cart">➕ Cart</button>
         </div>
     </div>
 </div>

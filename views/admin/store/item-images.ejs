@@ -1,0 +1,99 @@
+<%- include('../../partials/header') %>
+
+<div class="container">
+    <header>
+        <a href="/admin/store/items" class="back-link">← Back to Items</a>
+        <h1>🖼️ Images — <%= item.display_name %></h1>
+        <div class="subtitle">
+            <span class="type-badge type-<%= item.item_type %>"><%= item.item_type %></span>
+            <code><%= item.class_name %></code>
+        </div>
+    </header>
+
+    <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+    <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
+
+    <div class="section">
+        <div class="top-row"><h2>Primary Image</h2></div>
+        <div style="display:flex; gap:1.5rem; align-items:flex-start; flex-wrap:wrap;">
+            <div style="width:260px; max-width:100%;">
+                <% if (item.image_url) { %>
+                    <img src="<%= item.image_url %>" alt="<%= item.display_name %>" style="width:100%; border-radius:6px; border:1px solid rgba(107,142,35,0.4);">
+                <% } else { %>
+                    <div class="item-placeholder" style="height:160px; display:flex; align-items:center; justify-content:center; font-size:3rem; background:rgba(0,0,0,0.3); border-radius:6px;">🖼️</div>
+                <% } %>
+            </div>
+            <form method="POST" action="/admin/store/items/<%= item.id %>/images/primary" class="form-wrap" style="flex:1; min-width:260px;">
+                <div class="field">
+                    <label>Primary image URL</label>
+                    <input type="text" name="url" value="<%= item.image_url || '' %>" placeholder="/images/store/items/....png">
+                    <small style="color:var(--khaki);">Shown as the item thumbnail and first gallery image. Pick one from the gallery below or paste a URL.</small>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn">Set Primary</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="top-row"><h2>Upload Image</h2></div>
+        <form method="POST" action="/admin/store/items/<%= item.id %>/images/upload" enctype="multipart/form-data" class="form-wrap">
+            <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+                <div class="field" style="flex:2; min-width:220px;">
+                    <label>Image file (PNG / JPG)</label>
+                    <input type="file" name="image" accept="image/png,image/jpeg" required>
+                </div>
+                <div class="field" style="flex:1; min-width:140px;">
+                    <label>Kind</label>
+                    <select name="kind">
+                        <option value="screenshot">Screenshot</option>
+                        <option value="preview">Preview (primary)</option>
+                    </select>
+                </div>
+                <div class="field" style="flex:1; min-width:140px;">
+                    <label>Angle (optional)</label>
+                    <input type="text" name="angle" placeholder="front / side / rear...">
+                </div>
+                <div class="field" style="flex:0 0 auto;">
+                    <label><input type="checkbox" name="set_primary" value="1"> Set as primary</label>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn">Upload</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="section">
+        <div class="top-row"><h2>Gallery <span style="font-weight:400; color:var(--khaki); font-size:0.9rem;">(<%= images.length %>)</span></h2></div>
+        <% if (!images.length) { %>
+            <p class="empty-state">No gallery images yet. Capture them in-game (<code>Profiteers_fnc_captureVehicle</code>) or upload above.</p>
+        <% } else { %>
+            <div class="items-grid">
+                <% images.forEach(img => { %>
+                    <div class="card" style="padding:0.75rem;">
+                        <img src="<%= img.url %>" alt="<%= img.angle || img.kind %>" style="width:100%; border-radius:4px; margin-bottom:0.5rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; font-size:0.8rem; color:var(--khaki); margin-bottom:0.5rem;">
+                            <span><%= img.kind %><%= img.angle ? ' · ' + img.angle : '' %></span>
+                            <% if (item.image_url === img.url) { %><span class="badge badge-grant">primary</span><% } %>
+                        </div>
+                        <div style="display:flex; gap:0.5rem;">
+                            <% if (item.image_url !== img.url) { %>
+                                <form method="POST" action="/admin/store/items/<%= item.id %>/images/primary" style="flex:1;">
+                                    <input type="hidden" name="url" value="<%= img.url %>">
+                                    <button type="submit" class="btn" style="width:100%; font-size:0.8rem;">Set primary</button>
+                                </form>
+                            <% } %>
+                            <form method="POST" action="/admin/store/items/<%= item.id %>/images/<%= img.id %>/delete" style="flex:0 0 auto;" onsubmit="return confirm('Remove this image?')">
+                                <button type="submit" class="btn btn-danger" style="font-size:0.8rem;">🗑️</button>
+                            </form>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<%- include('../../partials/footer') %>

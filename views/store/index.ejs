@@ -21,6 +21,8 @@
         <button type="submit" class="btn">Search</button>
         <a href="/store/browse" class="btn btn-secondary">Browse all →</a>
         <a href="/store/vehicles" class="btn btn-secondary">🚙 Platoon vehicles →</a>
+        <a href="/store/inventory" class="btn btn-secondary">🎒 My inventory →</a>
+        <a href="/store/cart" class="btn btn-secondary">🛒 Cart <span class="cart-count cart-badge"></span></a>
     </form>
 
     <h2 class="section-heading">Categories</h2>
@@ -39,5 +41,7 @@
         <% }) %>
     </div>
 </div>
+
+<script src="/js/store-cart.js"></script>
 
 <%- include('../partials/footer') %>

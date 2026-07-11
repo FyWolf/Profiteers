@@ -27,17 +27,9 @@
                 <div class="field" style="flex: 1; min-width: 150px;">
                     <label>Type</label>
                     <select name="item_type" required>
-                        <option value="weapon">Weapon</option>
-                        <option value="magazine">Magazine</option>
-                        <option value="attachment">Attachment</option>
-                        <option value="uniform">Uniform</option>
-                        <option value="vest">Vest</option>
-                        <option value="helmet">Helmet</option>
-                        <option value="backpack">Backpack</option>
-                        <option value="item">Item</option>
-                        <option value="grenade">Grenade</option>
-                        <option value="explosive">Explosive</option>
-                        <option value="misc">Misc</option>
+                        <% itemTypes.forEach(t => { %>
+                            <option value="<%= t %>"><%= t.charAt(0).toUpperCase() + t.slice(1) %></option>
+                        <% }) %>
                     </select>
                 </div>
             </div>
@@ -77,31 +69,28 @@
 
     <div class="section">
         <div class="top-row">
-            <h2>All Items</h2>
-            <div style="display:flex; gap:0.5rem; align-items:center;">
-                <input type="text" id="itemSearch" placeholder="Search items..." style="padding:0.4rem 0.6rem; background:rgba(0,0,0,0.4); border:1px solid rgba(107,142,35,0.5); border-radius:4px; color:var(--sand); font-size:0.85rem;">
-                <select id="categoryFilter" style="padding:0.4rem 0.6rem; background:rgba(0,0,0,0.4); border:1px solid rgba(107,142,35,0.5); border-radius:4px; color:var(--sand); font-size:0.85rem;">
+            <h2>All Items <span style="font-weight:400; color:var(--khaki); font-size:0.9rem;">(<%= total.toLocaleString() %>)</span></h2>
+            <form method="GET" action="/admin/store/items" style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                <input type="text" name="q" value="<%= filters.q %>" placeholder="Search name or class..." style="padding:0.4rem 0.6rem; background:rgba(0,0,0,0.4); border:1px solid rgba(107,142,35,0.5); border-radius:4px; color:var(--sand); font-size:0.85rem;">
+                <select name="category" onchange="this.form.submit()" style="padding:0.4rem 0.6rem; background:rgba(0,0,0,0.4); border:1px solid rgba(107,142,35,0.5); border-radius:4px; color:var(--sand); font-size:0.85rem;">
                     <option value="">All Categories</option>
                     <% categories.forEach(cat => { %>
-                        <option value="<%= cat.name.toLowerCase() %>"><%= cat.name %></option>
+                        <option value="<%= cat.id %>" <%= filters.category === cat.id ? 'selected' : '' %>><%= cat.name %></option>
                     <% }) %>
                 </select>
-                <select id="typeFilter" style="padding:0.4rem 0.6rem; background:rgba(0,0,0,0.4); border:1px solid rgba(107,142,35,0.5); border-radius:4px; color:var(--sand); font-size:0.85rem;">
+                <select name="type" onchange="this.form.submit()" style="padding:0.4rem 0.6rem; background:rgba(0,0,0,0.4); border:1px solid rgba(107,142,35,0.5); border-radius:4px; color:var(--sand); font-size:0.85rem;">
                     <option value="">All Types</option>
-                    <option value="weapon">Weapon</option>
-                    <option value="magazine">Magazine</option>
-                    <option value="attachment">Attachment</option>
-                    <option value="uniform">Uniform</option>
-                    <option value="vest">Vest</option>
-                    <option value="helmet">Helmet</option>
-                    <option value="backpack">Backpack</option>
-                    <option value="item">Item</option>
-                    <option value="grenade">Grenade</option>
-                    <option value="explosive">Explosive</option>
-                    <option value="misc">Misc</option>
+                    <% itemTypes.forEach(t => { %>
+                        <option value="<%= t %>" <%= filters.type === t ? 'selected' : '' %>><%= t.charAt(0).toUpperCase() + t.slice(1) %></option>
+                    <% }) %>
                 </select>
-            </div>
+                <button type="submit" class="btn">Search</button>
+                <% if (filters.q || filters.type || filters.category !== '') { %><a href="/admin/store/items" class="btn btn-danger">Clear</a><% } %>
+            </form>
         </div>
+        <% if (total === 0) { %>
+            <p class="empty-state">No items match your filters.</p>
+        <% } else { %>
         <div class="table-responsive">
             <table class="admin-table" id="itemsTable">
                 <thead>
@@ -136,6 +125,7 @@
                             <td><%= item.is_active ? '✅' : '❌' %></td>
                             <td>
                                 <button class="act act-edit" onclick="toggleEdit(<%= item.id %>)">✏️</button>
+                                <a class="act" href="/admin/store/items/<%= item.id %>/images" title="Manage images">🖼️</a>
                                 <form method="POST" action="/admin/store/items/<%= item.id %>/delete" style="display:inline" onsubmit="return confirm('Delete this item?')">
                                     <button type="submit" class="act act-del">🗑️</button>
                                 </form>
@@ -156,7 +146,7 @@
                                         <div class="edit-field">
                                             <label>Type</label>
                                             <select name="item_type">
-                                                <% ['weapon','magazine','attachment','uniform','vest','helmet','backpack','item','grenade','explosive','misc'].forEach(t => { %>
+                                                <% itemTypes.forEach(t => { %>
                                                     <option value="<%= t %>" <%= item.item_type === t ? 'selected' : '' %>><%= t %></option>
                                                 <% }) %>
                                             </select>
@@ -204,6 +194,34 @@
                 </tbody>
             </table>
         </div>
+
+        <div class="admin-results-info" style="color:var(--khaki); font-size:0.85rem; margin-top:0.75rem;">
+            Showing <strong><%= from.toLocaleString() %>–<%= to.toLocaleString() %></strong> of <strong><%= total.toLocaleString() %></strong>
+        </div>
+
+        <% if (totalPages > 1) {
+            const pStart = Math.max(1, page - 2);
+            const pEnd = Math.min(totalPages, page + 2);
+            const sep = baseQs ? '&' : '';
+        %>
+            <nav class="pagination" style="margin-top:1rem;">
+                <% if (page > 1) { %><a class="page-btn" href="/admin/store/items?<%= baseQs %><%= sep %>page=<%= page - 1 %>">‹ Prev</a><% } %>
+                <% if (pStart > 1) { %>
+                    <a class="page-btn" href="/admin/store/items?<%= baseQs %><%= sep %>page=1">1</a>
+                    <% if (pStart > 2) { %><span class="page-dots">…</span><% } %>
+                <% } %>
+                <% for (let n = pStart; n <= pEnd; n++) { %>
+                    <% if (n === page) { %><span class="page-btn current"><%= n %></span>
+                    <% } else { %><a class="page-btn" href="/admin/store/items?<%= baseQs %><%= sep %>page=<%= n %>"><%= n %></a><% } %>
+                <% } %>
+                <% if (pEnd < totalPages) { %>
+                    <% if (pEnd < totalPages - 1) { %><span class="page-dots">…</span><% } %>
+                    <a class="page-btn" href="/admin/store/items?<%= baseQs %><%= sep %>page=<%= totalPages %>"><%= totalPages %></a>
+                <% } %>
+                <% if (page < totalPages) { %><a class="page-btn" href="/admin/store/items?<%= baseQs %><%= sep %>page=<%= page + 1 %>">Next ›</a><% } %>
+            </nav>
+        <% } %>
+        <% } %>
     </div>
 </div>
 
@@ -212,30 +230,6 @@ function toggleEdit(id) {
     const row = document.getElementById('item-edit-' + id);
     row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
 }
-
-// Search + filters
-const itemSearch = document.getElementById('itemSearch');
-const categoryFilter = document.getElementById('categoryFilter');
-const typeFilter = document.getElementById('typeFilter');
-
-function filterItems() {
-    const q = itemSearch.value.toLowerCase();
-    const cat = categoryFilter.value;
-    const type = typeFilter.value;
-    document.querySelectorAll('#itemsTable tbody tr:not(.edit-row)').forEach(row => {
-        const text = row.textContent.toLowerCase();
-        const rowCat = row.dataset.category || '';
-        const rowType = row.dataset.type || '';
-        const matchSearch = !q || text.includes(q);
-        const matchCat = !cat || rowCat === cat;
-        const matchType = !type || rowType === type;
-        row.style.display = matchSearch && matchCat && matchType ? '' : 'none';
-    });
-}
-
-itemSearch.addEventListener('input', filterItems);
-categoryFilter.addEventListener('change', filterItems);
-typeFilter.addEventListener('change', filterItems);
 </script>
 
 <%- include('../../partials/footer') %>

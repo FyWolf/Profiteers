@@ -1,0 +1,35 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <a href="/store/browse" class="back-link">← Continue shopping</a>
+        <h1>🛒 Your Cart</h1>
+        <div class="subtitle">Review your gear, then check out in one go</div>
+    </header>
+
+    <div class="browse-topbar" style="justify-content:flex-end;">
+        <div class="browse-balance card">💰 <span id="walletBalance"><%= balance.toLocaleString() %></span> ¢</div>
+    </div>
+
+    <div id="cartEmpty" class="card" style="padding:2rem; text-align:center; display:none;">
+        <p style="margin:0 0 1rem; color:var(--khaki);">Your cart is empty.</p>
+        <a href="/store/browse" class="btn">Browse the store →</a>
+    </div>
+
+    <div id="cartContainer" class="cart-list"></div>
+
+    <div id="cartSummary" class="card cart-summary" style="display:none;">
+        <div class="cart-total-line">
+            <span>Total</span>
+            <strong><span id="cartTotal">0</span> ¢</strong>
+        </div>
+        <div id="cartWarn" class="cart-warn" style="display:none;">Not enough funds for everything in your cart.</div>
+        <button type="button" id="checkoutBtn" class="btn">Checkout</button>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="/js/store-cart.js"></script>
+
+<%- include('../partials/footer') %>

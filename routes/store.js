@@ -364,6 +364,54 @@ router.get('/vehicles', requireAuth, async (req, res) => {
     }
 });
 
+// ─── Player Inventory ───────────────────────────────────────
+// Everything the player owns: personal gear (player_inventory) plus, if they're
+// in a platoon, that platoon's shared vehicles. Filtering is client-side since a
+// single player's inventory is small.
+router.get('/inventory', requireAuth, async (req, res) => {
+    try {
+        const userId = res.locals.user.id;
+
+        const [owned] = await db.query(`
+            SELECT pi.quantity, pi.source, pi.acquired_at,
+                   si.id, si.display_name, si.class_name, si.item_type, si.image_url, si.base_price,
+                   sc.name AS category_name
+            FROM player_inventory pi
+            JOIN store_items si ON si.id = pi.item_id
+            JOIN store_categories sc ON sc.id = si.category_id
+            WHERE pi.user_id = ? AND pi.quantity > 0
+            ORDER BY si.item_type, si.display_name
+        `, [userId]);
+
+        const mainOrbatId = await getMainOrbatId();
+        const platoon = mainOrbatId ? await getUserPlatoon(userId, mainOrbatId) : null;
+        let platoonVehicles = [];
+        if (platoon) {
+            const [pv] = await db.query(`
+                SELECT pvh.quantity, pvh.acquired_at,
+                       si.id, si.display_name, si.class_name, si.image_url
+                FROM platoon_vehicles pvh
+                JOIN store_items si ON si.id = pvh.item_id
+                WHERE pvh.platoon_squad_id = ?
+                ORDER BY si.display_name
+            `, [platoon.id]);
+            platoonVehicles = pv;
+        }
+
+        const types = [...new Set(owned.map(o => o.item_type))];
+        const totalItems = owned.reduce((a, o) => a + o.quantity, 0);
+
+        res.render('store/inventory', {
+            title: 'My Inventory',
+            owned, platoonVehicles, platoon, types, totalItems,
+            user: res.locals.user
+        });
+    } catch (err) {
+        console.error('Store inventory error:', err);
+        res.status(500).render('error', { title: 'Error', message: 'Failed to load inventory', user: res.locals.user });
+    }
+});
+
 // ─── API: Buy Platoon Vehicle (shared fund) ─────────────────
 router.post('/api/vehicles/buy', requireAuth, async (req, res) => {
     const perms = res.locals.user.permissions || [];
@@ -474,9 +522,10 @@ router.post('/api/buy', requireAuth, async (req, res) => {
     try {
         await conn.beginTransaction();
 
-        // Get item
+        // Get item (vehicles are platoon purchases — never buyable from the
+        // personal wallet here; they go through /api/vehicles/buy).
         const [items] = await conn.query(
-            'SELECT * FROM store_items WHERE id = ? AND is_active = 1 FOR UPDATE',
+            "SELECT * FROM store_items WHERE id = ? AND is_active = 1 AND item_type <> 'vehicle' FOR UPDATE",
             [itemId]
         );
         if (!items.length) {
@@ -559,6 +608,140 @@ router.post('/api/buy', requireAuth, async (req, res) => {
         await conn.rollback();
         console.error('Purchase error:', err);
         res.status(500).json({ success: false, error: 'Transaction failed' });
+    } finally {
+        conn.release();
+    }
+});
+
+// ─── Cart page (cart itself lives in the browser's localStorage) ───
+router.get('/cart', requireAuth, async (req, res) => {
+    try {
+        const [currency] = await db.query('SELECT balance FROM player_currency WHERE user_id = ?', [res.locals.user.id]);
+        res.render('store/cart', {
+            title: 'Cart',
+            balance: currency?.[0]?.balance ?? 0,
+            user: res.locals.user
+        });
+    } catch (err) {
+        console.error('Store cart error:', err);
+        res.status(500).render('error', { title: 'Error', message: 'Failed to load cart', user: res.locals.user });
+    }
+});
+
+// ─── API: resolve cart item details (fresh price/stock/ownership) ───
+router.post('/api/cart', requireAuth, async (req, res) => {
+    const userId = res.locals.user.id;
+    let ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+    ids = ids.map(n => parseInt(n, 10)).filter(Number.isInteger);
+    if (!ids.length) return res.json({ success: true, items: [] });
+    try {
+        const [items] = await db.query(`
+            SELECT si.id, si.display_name, si.class_name, si.base_price, si.image_url,
+                   si.item_type, si.stock, si.max_per_player,
+                   COALESCE(pi.quantity, 0) AS owned_qty
+            FROM store_items si
+            LEFT JOIN player_inventory pi ON pi.item_id = si.id AND pi.user_id = ?
+            WHERE si.id IN (?) AND si.is_active = 1 AND si.item_type <> 'vehicle'
+        `, [userId, ids]);
+        res.json({ success: true, items });
+    } catch (err) {
+        console.error('Cart details error:', err);
+        res.status(500).json({ success: false, error: 'Failed to load cart' });
+    }
+});
+
+// ─── API: Checkout (buy every cart line in one transaction) ───
+router.post('/api/checkout', requireAuth, async (req, res) => {
+    const userId = res.locals.user.id;
+    let lines = Array.isArray(req.body.items) ? req.body.items : [];
+    // Normalize + validate shape; collapse duplicate item ids.
+    const wanted = new Map();
+    for (const l of lines) {
+        const itemId = parseInt(l.itemId, 10);
+        const qty = parseInt(l.quantity, 10);
+        if (!Number.isInteger(itemId) || !Number.isInteger(qty) || qty < 1) {
+            return res.status(400).json({ success: false, error: 'Invalid cart' });
+        }
+        wanted.set(itemId, (wanted.get(itemId) || 0) + qty);
+    }
+    if (!wanted.size) return res.status(400).json({ success: false, error: 'Cart is empty' });
+
+    const ids = [...wanted.keys()];
+    const conn = await db.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        // Lock the items and the wallet, then validate everything before charging.
+        const [items] = await conn.query(
+            "SELECT * FROM store_items WHERE id IN (?) AND is_active = 1 AND item_type <> 'vehicle' FOR UPDATE",
+            [ids]
+        );
+        const byId = new Map(items.map(i => [i.id, i]));
+
+        let total = 0;
+        for (const [itemId, qty] of wanted) {
+            const item = byId.get(itemId);
+            if (!item) { await conn.rollback(); return res.status(404).json({ success: false, error: 'An item is no longer available' }); }
+            if (item.stock !== -1 && item.stock < qty) {
+                await conn.rollback();
+                return res.status(400).json({ success: false, error: `Not enough stock for ${item.display_name}` });
+            }
+            if (item.max_per_player !== -1) {
+                const [owned] = await conn.query(
+                    'SELECT COALESCE(SUM(quantity), 0) AS qty FROM player_inventory WHERE user_id = ? AND item_id = ?',
+                    [userId, itemId]
+                );
+                if (owned[0].qty + qty > item.max_per_player) {
+                    await conn.rollback();
+                    return res.status(400).json({ success: false, error: `You already own the max allowed of ${item.display_name}` });
+                }
+            }
+            total += item.base_price * qty;
+        }
+
+        let [wallets] = await conn.query('SELECT * FROM player_currency WHERE user_id = ? FOR UPDATE', [userId]);
+        if (!wallets.length) {
+            await conn.query('INSERT INTO player_currency (user_id, balance) VALUES (?, 0)', [userId]);
+            wallets = [{ balance: 0 }];
+        }
+        const wallet = wallets[0];
+        if (wallet.balance < total) {
+            await conn.rollback();
+            return res.status(400).json({ success: false, error: 'Insufficient funds' });
+        }
+
+        await conn.query(
+            'UPDATE player_currency SET balance = balance - ?, lifetime_spent = lifetime_spent + ? WHERE user_id = ?',
+            [total, total, userId]
+        );
+
+        for (const [itemId, qty] of wanted) {
+            const item = byId.get(itemId);
+            await conn.query(`
+                INSERT INTO player_inventory (user_id, item_id, quantity, source)
+                VALUES (?, ?, ?, 'purchase')
+                ON DUPLICATE KEY UPDATE quantity = quantity + ?
+            `, [userId, itemId, qty, qty]);
+            await conn.query(`
+                INSERT INTO store_transactions (user_id, item_id, quantity, unit_price, total_price, transaction_type)
+                VALUES (?, ?, ?, ?, ?, 'purchase')
+            `, [userId, itemId, qty, item.base_price, item.base_price * qty]);
+            if (item.stock !== -1) {
+                await conn.query('UPDATE store_items SET stock = stock - ? WHERE id = ?', [qty, itemId]);
+            }
+        }
+
+        await conn.query(`
+            INSERT INTO currency_transactions (user_id, amount, balance_after, reason, source)
+            VALUES (?, ?, ?, ?, 'purchase')
+        `, [userId, -total, wallet.balance - total, `Checkout: ${ids.length} item type(s)`]);
+
+        await conn.commit();
+        res.json({ success: true, balance: wallet.balance - total });
+    } catch (err) {
+        await conn.rollback();
+        console.error('Checkout error:', err);
+        res.status(500).json({ success: false, error: 'Checkout failed' });
     } finally {
         conn.release();
     }
