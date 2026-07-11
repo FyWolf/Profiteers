@@ -45,7 +45,7 @@
 
         <% items.forEach(item => { %>
             <div class="store-item-card" data-item-id="<%= item.id %>" data-price="<%= item.base_price %>" data-type="<%= item.item_type %>">
-                <div class="item-image">
+                <a class="item-image" href="/store/item/<%= item.id %>">
                     <% if (item.image_url) { %>
                         <img src="<%= item.image_url %>" alt="<%= item.display_name %>">
                     <% } else { %>
@@ -53,9 +53,9 @@
                             <%= item.item_type === 'weapon' ? '🔫' : item.item_type === 'uniform' ? '👕' : item.item_type === 'vest' ? '🦺' : item.item_type === 'helmet' ? '⛑️' : item.item_type === 'backpack' ? '🎒' : item.item_type === 'attachment' ? '🔭' : item.item_type === 'grenade' ? '💣' : item.item_type === 'explosive' ? '🧨' : '📦' %>
                         </div>
                     <% } %>
-                </div>
+                </a>
                 <div class="item-details">
-                    <h3 class="item-name"><%= item.display_name %></h3>
+                    <h3 class="item-name"><a href="/store/item/<%= item.id %>"><%= item.display_name %></a></h3>
                     <span class="item-class"><%= item.class_name %></span>
                     <div class="item-meta">
                         <span class="item-type-badge type-<%= item.item_type %>"><%= item.item_type %></span>

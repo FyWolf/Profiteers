@@ -67,6 +67,50 @@ router.get('/category/:slug', requireAuth, async (req, res) => {
     }
 });
 
+// ─── Item Detail Page ───────────────────────────────────────
+router.get('/item/:id', requireAuth, async (req, res) => {
+    try {
+        const itemId = parseInt(req.params.id, 10);
+        if (!Number.isInteger(itemId)) return res.redirect('/store');
+
+        const [items] = await db.query(`
+            SELECT si.*, sc.name AS category_name, sc.slug AS category_slug,
+                   COALESCE(pi.quantity, 0) AS owned_qty
+            FROM store_items si
+            JOIN store_categories sc ON sc.id = si.category_id
+            LEFT JOIN player_inventory pi ON pi.item_id = si.id AND pi.user_id = ?
+            WHERE si.id = ? AND si.is_active = 1
+        `, [res.locals.user.id, itemId]);
+
+        if (!items.length) return res.redirect('/store');
+        const item = items[0];
+
+        // stats is a JSON column — mysql2 returns it already parsed, but guard
+        // for a string, then flatten to an array of [label, value] for the view.
+        let stats = item.stats;
+        if (typeof stats === 'string') {
+            try { stats = JSON.parse(stats); } catch (e) { stats = null; }
+        }
+        const statEntries = (stats && typeof stats === 'object') ? Object.entries(stats) : [];
+
+        const [currency] = await db.query(
+            'SELECT balance FROM player_currency WHERE user_id = ?',
+            [res.locals.user.id]
+        );
+
+        res.render('store/item', {
+            title: item.display_name,
+            item,
+            statEntries,
+            balance: currency?.[0]?.balance ?? 0,
+            user: res.locals.user
+        });
+    } catch (err) {
+        console.error('Store item error:', err);
+        res.status(500).render('error', { title: 'Error', message: 'Failed to load item', user: res.locals.user });
+    }
+});
+
 // ─── API: Purchase Item ─────────────────────────────────────
 router.post('/api/buy', requireAuth, async (req, res) => {
     const { itemId } = req.body;

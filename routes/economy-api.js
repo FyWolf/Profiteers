@@ -334,29 +334,43 @@ router.post('/', requireApiKey, async (req, res) => {
                     let skipped = 0;
 
                     for (const item of parsedItems) {
-                        const { className, displayName, picture, description, itemType } = item;
+                        const { className, displayName, picture, description, itemType, stats } = item;
 
                         if (!className || !displayName) {
                             skipped++;
                             continue;
                         }
 
-                        // Refresh the image_url for items that already exist so a
-                        // re-export self-heals stale links (e.g. rows that stored
-                        // the raw .paa path from before uploads worked). Admin-set
-                        // fields (price, stock, is_active, display_name) are kept.
+                        // stats arrives as a parsed object (the items payload is a
+                        // JSON string we JSON.parse above) or, defensively, a JSON
+                        // string. Store canonical JSON text, or NULL when empty.
+                        let statsJson = null;
+                        if (stats && typeof stats === 'object' && Object.keys(stats).length) {
+                            statsJson = JSON.stringify(stats);
+                        } else if (typeof stats === 'string' && stats.trim() && stats.trim() !== '{}') {
+                            statsJson = stats.trim();
+                        }
+
+                        // Refresh image_url, item_type and stats for items that
+                        // already exist so a re-export self-heals stale links AND
+                        // fixes previously mis-classified types. Admin-set fields
+                        // (price, stock, is_active, display_name, description) are kept.
                         const [result] = await conn.query(`
                             INSERT INTO store_items
-                                (category_id, class_name, display_name, description, image_url, item_type, base_price, stock, is_active)
-                            VALUES (?, ?, ?, ?, ?, ?, 0, -1, 1)
-                            ON DUPLICATE KEY UPDATE image_url = VALUES(image_url)
+                                (category_id, class_name, display_name, description, image_url, item_type, stats, base_price, stock, is_active)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, 0, -1, 1)
+                            ON DUPLICATE KEY UPDATE
+                                image_url = VALUES(image_url),
+                                item_type = VALUES(item_type),
+                                stats     = VALUES(stats)
                         `, [
                             targetCategoryId,
                             className,
                             displayName,
                             description || '',
                             picture || '',
-                            itemType || 'misc'
+                            itemType || 'misc',
+                            statsJson
                         ]);
 
                         // affectedRows: 1 = inserted, 2 = image updated, 0 = unchanged

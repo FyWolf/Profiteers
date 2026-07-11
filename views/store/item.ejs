@@ -1,0 +1,142 @@
+<%- include('../partials/header') %>
+
+<div class="container">
+    <header>
+        <a href="/store/category/<%= item.category_slug %>" class="back-link">← Back to <%= item.category_name %></a>
+        <h1><%= item.display_name %></h1>
+        <div class="subtitle">
+            <span class="item-type-badge type-<%= item.item_type %>"><%= item.item_type %></span>
+            <% if (item.owned_qty > 0) { %>
+                <span class="owned-badge">✅ Owned: <%= item.owned_qty %></span>
+            <% } %>
+        </div>
+    </header>
+
+    <div class="item-page">
+        <div class="item-page-media card">
+            <% if (item.image_url) { %>
+                <img src="<%= item.image_url %>" alt="<%= item.display_name %>">
+            <% } else { %>
+                <div class="item-placeholder">
+                    <%= item.item_type === 'weapon' ? '🔫' : item.item_type === 'uniform' ? '👕' : item.item_type === 'vest' ? '🦺' : item.item_type === 'helmet' ? '⛑️' : item.item_type === 'backpack' ? '🎒' : item.item_type === 'attachment' ? '🔭' : item.item_type === 'grenade' ? '💣' : item.item_type === 'explosive' ? '🧨' : '📦' %>
+                </div>
+            <% } %>
+        </div>
+
+        <div class="item-page-info">
+            <span class="item-class"><%= item.class_name %></span>
+            <% if (item.description) { %>
+                <p class="item-description"><%= item.description %></p>
+            <% } %>
+
+            <div class="item-page-buy card" data-item-id="<%= item.id %>" data-price="<%= item.base_price %>">
+                <div class="item-price">
+                    <span class="price-value"><%= item.base_price.toLocaleString() %></span>
+                    <span class="price-currency">¢</span>
+                </div>
+                <% if (item.stock !== -1) { %>
+                    <div class="stock-info">Stock: <%= item.stock %></div>
+                <% } %>
+                <div class="buy-controls">
+                    <div class="qty-selector">
+                        <button class="qty-btn qty-minus" disabled>−</button>
+                        <input type="number" class="qty-input" value="1" min="1" max="99" readonly>
+                        <button class="qty-btn qty-plus">+</button>
+                    </div>
+                    <button class="btn buy-btn" <%= balance < item.base_price ? 'disabled' : '' %>>🛒 Buy</button>
+                </div>
+                <div class="balance-line">Balance: <span id="walletBalance"><%= balance.toLocaleString() %></span> ¢</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats-panel card">
+        <h2>📊 Statistics</h2>
+        <% if (statEntries.length) { %>
+            <div class="stats-grid">
+                <% statEntries.forEach(([label, value]) => { %>
+                    <% if (Array.isArray(value)) { %>
+                        <div class="stat-row stat-row-wide">
+                            <span class="stat-label"><%= label %></span>
+                            <div class="stat-chips">
+                                <% value.forEach(v => { %><span class="stat-chip"><%= v %></span><% }) %>
+                            </div>
+                        </div>
+                    <% } else if (typeof value === 'number' && (label.indexOf('Armor') === 0 || label === 'Capacity')) { %>
+                        <% const ref = label === 'Capacity' ? 320 : 40;
+                           const pct = Math.max(4, Math.min(100, Math.round(value / ref * 100))); %>
+                        <div class="stat-row">
+                            <span class="stat-label"><%= label %></span>
+                            <div class="stat-bar"><div class="stat-bar-fill" style="width: <%= pct %>%"></div></div>
+                            <span class="stat-value"><%= value %></span>
+                        </div>
+                    <% } else { %>
+                        <div class="stat-row">
+                            <span class="stat-label"><%= label %></span>
+                            <span class="stat-value"><%= value %></span>
+                        </div>
+                    <% } %>
+                <% }) %>
+            </div>
+        <% } else { %>
+            <p class="item-description">No detailed stats captured for this item yet. Re-export the arsenal in-game to record them.</p>
+        <% } %>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    function showToast(message, type = 'success') {
+        const el = document.getElementById('toast');
+        el.textContent = message;
+        el.className = `toast ${type} show`;
+        setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    const box = document.querySelector('.item-page-buy');
+    if (!box) return;
+    const qtyInput = box.querySelector('.qty-input');
+    const minus = box.querySelector('.qty-minus');
+    const itemName = document.querySelector('.container header h1').textContent;
+
+    box.querySelector('.qty-plus').addEventListener('click', () => {
+        const v = parseInt(qtyInput.value) + 1;
+        if (v <= 99) { qtyInput.value = v; minus.disabled = false; }
+    });
+    minus.addEventListener('click', () => {
+        const v = parseInt(qtyInput.value) - 1;
+        if (v >= 1) { qtyInput.value = v; if (v === 1) minus.disabled = true; }
+    });
+
+    box.querySelector('.buy-btn').addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        const itemId = box.dataset.itemId;
+        const qty = parseInt(qtyInput.value);
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Buying...';
+        try {
+            const res = await fetch('/store/api/buy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ itemId, quantity: qty })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('walletBalance').textContent = data.balance.toLocaleString();
+                showToast(`Purchased ${qty}x ${itemName}!`);
+            } else {
+                showToast(data.error || 'Purchase failed', 'error');
+            }
+        } catch (err) {
+            showToast('Network error', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '🛒 Buy';
+        }
+    });
+});
+</script>
+
+<%- include('../partials/footer') %>
