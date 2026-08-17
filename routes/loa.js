@@ -39,6 +39,11 @@ router.post('/submit', isAuthenticated, async (req, res) => {
     try {
         const { start_date, end_date, reason, superior_id } = req.body;
 
+        // datetime-local sends the user's local time with no timezone info.
+        // Node.js parses it as UTC, so a UTC+2 user's "10:00" becomes 10:00 UTC
+        // instead of 08:00 UTC. The browser sends its getTimezoneOffset() (negative
+        // for UTC+ zones, e.g. -120 for UTC+2) so we can correct the parse.
+        const tzOffsetSeconds = (parseInt(req.body.tz_offset) || 0) * 60;
         const startDate = new Date(start_date);
         const endDate = new Date(end_date);
 
@@ -46,8 +51,8 @@ router.post('/submit', isAuthenticated, async (req, res) => {
             return res.redirect('/loa/submit?error=End date must be after start date');
         }
 
-        const startTs = Math.floor(startDate.getTime() / 1000);
-        const endTs = Math.floor(endDate.getTime() / 1000);
+        const startTs = Math.floor(startDate.getTime() / 1000) + tzOffsetSeconds;
+        const endTs = Math.floor(endDate.getTime() / 1000) + tzOffsetSeconds;
 
         // "staff" only honoured if the submitter actually holds the staff role.
         const type = (req.body.type === 'staff' && await isStaffMember(req.user.discord_id))
@@ -125,6 +130,7 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
     try {
         const { start_date, end_date, reason, superior_id } = req.body;
 
+        const tzOffsetSeconds = (parseInt(req.body.tz_offset) || 0) * 60;
         const startDate = new Date(start_date);
         const endDate = new Date(end_date);
 
@@ -132,8 +138,8 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
             return res.redirect(`/loa/edit/${req.params.id}?error=End date must be after start date`);
         }
 
-        const startTs = Math.floor(startDate.getTime() / 1000);
-        const endTs = Math.floor(endDate.getTime() / 1000);
+        const startTs = Math.floor(startDate.getTime() / 1000) + tzOffsetSeconds;
+        const endTs = Math.floor(endDate.getTime() / 1000) + tzOffsetSeconds;
 
         const [[existing]] = await db.query(
             'SELECT type FROM leave_of_absence WHERE id = ? AND user_id = ?',

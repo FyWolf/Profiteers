@@ -13,6 +13,7 @@
 
         <div class="card">
             <form method="POST" action="/loa/submit">
+                <input type="hidden" name="tz_offset" id="tz_offset">
                 <% if (typeof isStaff !== 'undefined' && isStaff) { %>
                 <div class="form-group">
                     <label>LOA Type</label>
@@ -122,6 +123,8 @@
                         hiddenInput.value = '';
                         selectedDiv.style.display = 'none';
                     }
+
+                    document.getElementById('tz_offset').value = new Date().getTimezoneOffset();
 
                     function loaSetStartNow() {
                         const d = new Date();

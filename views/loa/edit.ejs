@@ -13,6 +13,7 @@
 
         <div class="card">
             <form method="POST" action="/loa/edit/<%= loa.id %>">
+                <input type="hidden" name="tz_offset" id="tz_offset">
                 <% if (typeof isStaff !== 'undefined' && isStaff) { %>
                 <div class="form-group">
                     <label>LOA Type</label>
@@ -38,7 +39,8 @@
                                name="start_date"
                                required
                                style="flex:1;"
-                               value="<%= new Date(loa.start_date * 1000).toISOString().slice(0, 16) %>">
+                               value=""
+                               data-utc="<%= loa.start_date %>">
                         <button type="button" class="btn" style="flex:0 0 auto;padding:8px 14px;white-space:nowrap;" onclick="loaSetStartNow()">Now</button>
                     </div>
                 </div>
@@ -49,7 +51,8 @@
                            id="end_date" 
                            name="end_date" 
                            required
-                           value="<%= new Date(loa.end_date * 1000).toISOString().slice(0, 16) %>">
+                           value=""
+                           data-utc="<%= loa.end_date %>">
                 </div>
 
                 <div class="form-group">
@@ -125,6 +128,22 @@
                         hiddenInput.value = '';
                         selectedDiv.style.display = 'none';
                     }
+
+                    // Populate timezone offset and convert stored UTC timestamps to local time
+                    (function () {
+                        const offset = new Date().getTimezoneOffset();
+                        document.getElementById('tz_offset').value = offset;
+
+                        function utcTsToLocalInput(ts) {
+                            const d = new Date(ts * 1000);
+                            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                            return d.toISOString().slice(0, 16);
+                        }
+
+                        document.querySelectorAll('[data-utc]').forEach(function (el) {
+                            el.value = utcTsToLocalInput(parseInt(el.dataset.utc));
+                        });
+                    })();
 
                     function loaSetStartNow() {
                         const d = new Date();
