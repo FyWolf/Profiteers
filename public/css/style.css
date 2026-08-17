@@ -48,6 +48,39 @@ body {
     max-width: none;
 }
 
+/* ── Hexalabs banner ────────────────────────────────────────────────── */
+.hexalabs-banner {
+    background: linear-gradient(90deg, #0d1117 0%, #0f1e3a 50%, #0d1117 100%);
+    border-bottom: 1px solid rgba(56, 139, 253, 0.25);
+    text-align: center;
+    padding: 6px 16px;
+    font-family: var(--body-font);
+    font-size: 0.72em;
+    letter-spacing: 0.04em;
+    color: rgba(200, 215, 240, 0.75);
+}
+
+.hexalabs-banner__link {
+    color: #60a5fa;
+    text-decoration: none;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    transition: color 0.2s, text-shadow 0.2s;
+}
+
+.hexalabs-banner__link:hover {
+    color: #93c5fd;
+    text-shadow: 0 0 8px rgba(96, 165, 250, 0.6);
+}
+
+.hexalabs-banner__logo {
+    display: inline-block;
+    font-size: 1.1em;
+    vertical-align: -0.05em;
+    margin-right: 2px;
+    opacity: 0.85;
+}
+
 /* ── Navigation ─────────────────────────────────────────────────────── */
 nav {
     background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(30,40,30,0.9) 100%);
