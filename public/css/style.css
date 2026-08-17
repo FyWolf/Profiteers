@@ -7,6 +7,7 @@
 :root {
     --body-font: 'Roboto Mono', 'Courier New', monospace;
     --heading-font: 'Orbitron', sans-serif;
+    --hexalabs-banner-height: 34px;
     --camo-dark: #1a2a1a;
     --camo-mid: #2e3b2e;
     --bg-main: #222222;
@@ -54,10 +55,14 @@ body {
     border-bottom: 1px solid rgba(56, 139, 253, 0.25);
     text-align: center;
     padding: 6px 16px;
+    height: var(--hexalabs-banner-height);
     font-family: var(--body-font);
     font-size: 0.72em;
     letter-spacing: 0.04em;
     color: rgba(200, 215, 240, 0.75);
+    position: sticky;
+    top: 0;
+    z-index: 1001;
 }
 
 .hexalabs-banner__link {
@@ -87,7 +92,7 @@ nav {
     border-bottom: 3px solid var(--accent);
     box-shadow: 0 4px 16px var(--shadow);
     position: sticky;
-    top: 0;
+    top: var(--hexalabs-banner-height);
     z-index: 1000;
 }
 
